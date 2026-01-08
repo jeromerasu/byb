@@ -1,0 +1,47 @@
+# Alternative Dockerfile using Ubuntu base (larger but more compatible)
+# Use this if you have issues with Alpine
+
+# Multi-stage build for optimized image size
+FROM maven:3.9-eclipse-temurin-17 AS build
+
+WORKDIR /app
+
+# Copy pom.xml first for better Docker layer caching
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copy source code and build
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Runtime stage - using Ubuntu-based Eclipse Temurin
+FROM eclipse-temurin:17-jre-focal
+
+WORKDIR /app
+
+# Install wget for health check and update packages
+RUN apt-get update && \
+    apt-get install -y wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r workoutapp && useradd -r -g workoutapp workoutapp
+
+# Copy built jar from build stage
+COPY --from=build /app/target/workout-ai-service-*.jar app.jar
+
+# Change ownership to non-root user
+RUN chown workoutapp:workoutapp app.jar
+
+USER workoutapp
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/workout-plans/health || exit 1
+
+# Run the application with optimized JVM settings for containers
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
