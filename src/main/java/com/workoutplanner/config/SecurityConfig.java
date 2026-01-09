@@ -3,8 +3,11 @@ package com.workoutplanner.config;
 import com.workoutplanner.security.JwtAuthenticationFilter;
 import com.workoutplanner.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -29,9 +32,15 @@ import java.util.Arrays;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+
     private final UserService userService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final PasswordEncoder passwordEncoder;
+
+    // Security is ENABLED by default. Only disabled when explicitly setting BETA=true
+    @Value("${beta.mode:false}")
+    private boolean betaMode;
 
     @Autowired
     public SecurityConfig(UserService userService, JwtAuthenticationFilter jwtAuthenticationFilter, PasswordEncoder passwordEncoder) {
@@ -58,8 +67,17 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        // SECURITY-FIRST: Authentication is ENABLED by default
+        if (betaMode) {
+            logger.warn("⚠️  BETA MODE ACTIVE: All authentication DISABLED! Only use for development. Set BETA=false or remove BETA for production.");
+            http.authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
+        } else {
+            logger.info("🔒 SECURE MODE: Authentication enabled for protected endpoints (default & recommended).");
+
+            // Normal mode: apply standard security rules
+            http.authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/workout-plans/health").permitAll()
@@ -83,6 +101,7 @@ public class SecurityConfig {
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         // Allow frame options for H2 console
         http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));
