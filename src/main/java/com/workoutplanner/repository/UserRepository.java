@@ -36,4 +36,9 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     @Query("SELECT u FROM User u WHERE u.role = :role ORDER BY u.createdAt DESC")
     List<User> findByRole(User.Role role);
+
+    // Basic profile queries
+    List<User> findByWorkoutProfileIdIsNotNull();
+    List<User> findByDietProfileIdIsNotNull();
+    List<User> findByWorkoutProfileIdIsNotNullAndDietProfileIdIsNotNull();
 }

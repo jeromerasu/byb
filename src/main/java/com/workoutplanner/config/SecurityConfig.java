@@ -78,11 +78,10 @@ public class SecurityConfig {
 
             // Normal mode: apply standard security rules
             http.authorizeHttpRequests(authz -> authz
-                // Public endpoints
+                // Public endpoints (includes mobile auth endpoints)
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/workout-plans/health").permitAll()
                 .requestMatchers("/api/v1/diet-plans/health").permitAll()
-                .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
 
                 // Protected endpoints
@@ -103,8 +102,8 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         }
 
-        // Allow frame options for H2 console
-        http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));
+        // Security headers configuration
+        http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny()));
 
         return http.build();
     }

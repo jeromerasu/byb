@@ -38,6 +38,7 @@ class WorkoutPlanControllerTest {
     @MockBean
     private OpenAIService openAIService;
 
+
     @MockBean
     private WorkoutPlanService workoutPlanService;
 
@@ -77,11 +78,17 @@ class WorkoutPlanControllerTest {
 
     @Test
     void generateWorkoutPlan_WithValidUserProfile_ShouldReturnWorkoutPlan() throws Exception {
-        when(openAIService.generateWorkoutPlan(any(UserProfile.class)))
-                .thenReturn(Mono.just(mockWorkoutPlan));
+        WorkoutPlanMetadata metadata = new WorkoutPlanMetadata();
+        metadata.setId("test-plan-id");
+
+        when(workoutPlanService.generateWorkoutPlan(any(UserProfile.class), any(String.class)))
+                .thenReturn(Mono.just(metadata));
+        when(workoutPlanService.getFullWorkoutPlan("test-plan-id"))
+                .thenReturn(java.util.Optional.of(mockWorkoutPlan));
 
         MvcResult result = mockMvc.perform(post("/api/v1/workout-plans/generate")
                 .contentType(MediaType.APPLICATION_JSON)
+                .param("userId", "test-user-id")
                 .content(objectMapper.writeValueAsString(validUserProfile)))
                 .andExpect(request().asyncStarted())
                 .andReturn();
@@ -100,6 +107,7 @@ class WorkoutPlanControllerTest {
 
         mockMvc.perform(post("/api/v1/workout-plans/generate")
                 .contentType(MediaType.APPLICATION_JSON)
+                .param("userId", "test-user-id")
                 .content(objectMapper.writeValueAsString(invalidProfile)))
                 .andExpect(status().isBadRequest());
     }
@@ -110,6 +118,7 @@ class WorkoutPlanControllerTest {
 
         mockMvc.perform(post("/api/v1/workout-plans/generate")
                 .contentType(MediaType.APPLICATION_JSON)
+                .param("userId", "test-user-id")
                 .content(objectMapper.writeValueAsString(invalidProfile)))
                 .andExpect(status().isBadRequest());
     }
@@ -121,17 +130,19 @@ class WorkoutPlanControllerTest {
 
         mockMvc.perform(post("/api/v1/workout-plans/generate")
                 .contentType(MediaType.APPLICATION_JSON)
+                .param("userId", "test-user-id")
                 .content(objectMapper.writeValueAsString(invalidProfile)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void generateWorkoutPlan_WhenServiceThrowsException_ShouldReturnInternalServerError() throws Exception {
-        when(openAIService.generateWorkoutPlan(any(UserProfile.class)))
-                .thenReturn(Mono.error(new RuntimeException("OpenAI API error")));
+        when(workoutPlanService.generateWorkoutPlan(any(UserProfile.class), any(String.class)))
+                .thenReturn(Mono.error(new RuntimeException("Service error")));
 
         MvcResult result = mockMvc.perform(post("/api/v1/workout-plans/generate")
                 .contentType(MediaType.APPLICATION_JSON)
+                .param("userId", "test-user-id")
                 .content(objectMapper.writeValueAsString(validUserProfile)))
                 .andExpect(request().asyncStarted())
                 .andReturn();

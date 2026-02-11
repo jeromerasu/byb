@@ -72,6 +72,10 @@ public class UserService implements UserDetailsService {
         return Mono.fromCallable(() -> userRepository.findById(id).orElse(null));
     }
 
+    public Optional<User> findByIdSync(String id) {
+        return userRepository.findById(id);
+    }
+
     public Mono<User> updateUser(User user) {
         return Mono.fromCallable(() -> {
             user.setUpdatedAt(LocalDateTime.now());

@@ -1,200 +1,80 @@
 package com.workoutplanner.controller;
 
 import com.workoutplanner.model.User;
+import com.workoutplanner.repository.UserRepository;
+import com.workoutplanner.repository.WorkoutProfileRepository;
+import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @RestController
-@RequestMapping("/api/v1/users")
-@CrossOrigin(origins = "*") // Configure appropriately for production
+@RequestMapping("/api/v1/user")
+@CrossOrigin(origins = "*")
 public class UserController {
 
     private final UserService userService;
+    private final UserRepository userRepository;
+    private final WorkoutProfileRepository workoutProfileRepository;
+    private final DietProfileRepository dietProfileRepository;
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService,
+                         UserRepository userRepository,
+                         WorkoutProfileRepository workoutProfileRepository,
+                         DietProfileRepository dietProfileRepository) {
         this.userService = userService;
+        this.userRepository = userRepository;
+        this.workoutProfileRepository = workoutProfileRepository;
+        this.dietProfileRepository = dietProfileRepository;
     }
 
     @GetMapping("/profile")
-    public Mono<ResponseEntity<User>> getProfile(Authentication authentication) {
-        return Mono.fromCallable(() -> {
-            if (authentication != null && authentication.isAuthenticated()) {
-                User user = (User) authentication.getPrincipal();
-                return ResponseEntity.ok(user);
-            }
-            return ResponseEntity.notFound().<User>build();
-        });
+    public ResponseEntity<Map<String, Object>> getUserProfile() {
+        String userId = getCurrentUserId();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("id", user.getId());
+        profile.put("username", user.getUsername());
+        profile.put("email", user.getEmail());
+        profile.put("firstName", user.getFirstName());
+        profile.put("lastName", user.getLastName());
+        profile.put("role", user.getRole());
+        profile.put("isActive", user.isActive());
+        profile.put("createdAt", user.getCreatedAt());
+
+        return ResponseEntity.ok(profile);
     }
 
-    @PutMapping("/profile")
-    public Mono<ResponseEntity<User>> updateProfile(
-            @RequestBody User profileUpdate,
-            Authentication authentication) {
-
-        return Mono.fromCallable(() -> {
-            if (authentication != null && authentication.isAuthenticated()) {
-                User currentUser = (User) authentication.getPrincipal();
-                return currentUser.getId();
-            }
-            return null;
-        })
-        .flatMap(userId -> {
-            if (userId != null) {
-                return userService.updateProfile(userId, profileUpdate)
-                        .map(updatedUser -> {
-                            if (updatedUser != null) {
-                                return ResponseEntity.ok(updatedUser);
-                            }
-                            return ResponseEntity.notFound().<User>build();
-                        });
-            }
-            return Mono.just(ResponseEntity.notFound().<User>build());
-        });
-    }
-
-    @PostMapping("/change-password")
-    public Mono<ResponseEntity<Map<String, String>>> changePassword(
-            @RequestBody Map<String, String> request,
-            Authentication authentication) {
-
-        String oldPassword = request.get("oldPassword");
-        String newPassword = request.get("newPassword");
-
-        return Mono.fromCallable(() -> {
-            if (authentication != null && authentication.isAuthenticated()) {
-                User currentUser = (User) authentication.getPrincipal();
-                return currentUser.getId();
-            }
-            return null;
-        })
-        .flatMap(userId -> {
-            if (userId != null) {
-                return userService.changePassword(userId, oldPassword, newPassword)
-                        .map(success -> {
-                            if (success) {
-                                return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
-                            }
-                            return ResponseEntity.badRequest()
-                                    .body(Map.of("message", "Current password is incorrect"));
-                        });
-            }
-            return Mono.just(ResponseEntity.badRequest()
-                    .body(Map.of("message", "Authentication required")));
-        });
-    }
-
-    @DeleteMapping("/account")
-    public Mono<ResponseEntity<Map<String, String>>> deactivateAccount(Authentication authentication) {
-        return Mono.fromCallable(() -> {
-            if (authentication != null && authentication.isAuthenticated()) {
-                User currentUser = (User) authentication.getPrincipal();
-                return currentUser.getId();
-            }
-            return null;
-        })
-        .flatMap(userId -> {
-            if (userId != null) {
-                return userService.deactivateUser(userId)
-                        .map(success -> {
-                            if (success) {
-                                return ResponseEntity.ok(Map.of("message", "Account deactivated successfully"));
-                            }
-                            return ResponseEntity.badRequest()
-                                    .body(Map.of("message", "Failed to deactivate account"));
-                        });
-            }
-            return Mono.just(ResponseEntity.badRequest()
-                    .body(Map.of("message", "Authentication required")));
-        });
-    }
-
-    // Admin endpoints
-    @GetMapping("/admin/all")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Flux<User> getAllUsers() {
-        return userService.findAllActiveUsers();
-    }
-
-    @GetMapping("/admin/recent")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Flux<User> getRecentUsers(@RequestParam(defaultValue = "30") int days) {
-        return userService.findRecentUsers(days);
-    }
-
-    @GetMapping("/admin/stats")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Mono<ResponseEntity<Map<String, Object>>> getUserStats(
-            @RequestParam(defaultValue = "30") int days) {
-
-        Mono<Long> registrationCount = userService.getUserRegistrationCount(days);
-        Mono<Long> activeUserCount = userService.findActiveUsers(days)
-                .count();
-
-        return Mono.zip(registrationCount, activeUserCount)
-                .map(tuple -> ResponseEntity.ok(Map.of(
-                    "totalRegistrations", tuple.getT1(),
-                    "activeUsers", tuple.getT2(),
-                    "periodDays", days
-                )));
-    }
-
-    @GetMapping("/admin/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Mono<ResponseEntity<User>> getUserById(@PathVariable String userId) {
-        return userService.findById(userId)
-                .map(user -> {
-                    if (user != null) {
-                        return ResponseEntity.ok(user);
-                    }
-                    return ResponseEntity.notFound().<User>build();
-                });
-    }
-
-    @PutMapping("/admin/{userId}/role")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Mono<ResponseEntity<User>> updateUserRole(
-            @PathVariable String userId,
-            @RequestBody Map<String, String> request) {
-
-        String roleString = request.get("role");
-        User.Role role;
-
-        try {
-            role = User.Role.valueOf(roleString.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return Mono.just(ResponseEntity.badRequest().<User>build());
-        }
-
-        return userService.findById(userId)
-                .filter(user -> user != null)
-                .map(user -> {
-                    user.setRole(role);
-                    return user;
+    @PostMapping("/register")
+    public Mono<ResponseEntity<Map<String, Object>>> registerUser(@Valid @RequestBody User user) {
+        return userService.registerUser(user)
+                .map(registeredUser -> {
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("message", "User registered successfully");
+                    response.put("userId", registeredUser.getId());
+                    response.put("username", registeredUser.getUsername());
+                    return ResponseEntity.ok(response);
                 })
-                .flatMap(userService::updateUser)
-                .map(updatedUser -> ResponseEntity.ok(updatedUser))
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound().<User>build()));
+                .onErrorReturn(ResponseEntity.badRequest().body(Map.of("error", "Registration failed")));
     }
 
-    @DeleteMapping("/admin/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Mono<ResponseEntity<Map<String, String>>> deactivateUser(@PathVariable String userId) {
-        return userService.deactivateUser(userId)
-                .map(success -> {
-                    if (success) {
-                        return ResponseEntity.ok(Map.of("message", "User deactivated successfully"));
-                    }
-                    return ResponseEntity.<Map<String, String>>notFound()
-                            .build();
-                });
+    private String getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            return ((User) authentication.getPrincipal()).getId();
+        }
+        throw new RuntimeException("User not authenticated");
     }
 }

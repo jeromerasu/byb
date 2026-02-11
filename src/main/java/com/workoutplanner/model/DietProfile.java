@@ -1,218 +1,436 @@
 package com.workoutplanner.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "diet_profile")
 public class DietProfile {
 
-    @NotNull(message = "Preferred proteins cannot be null")
-    @JsonProperty("preferred_proteins")
-    private List<String> preferredProteins;
+    @Id
+    private String id;
 
-    @NotNull(message = "Preferred carbs cannot be null")
-    @JsonProperty("preferred_carbs")
-    private List<String> preferredCarbs;
+    @Column(name = "user_id", nullable = false)
+    @JsonProperty("user_id")
+    private String userId;
 
-    @NotNull(message = "Preferred fats cannot be null")
-    @JsonProperty("preferred_fats")
-    private List<String> preferredFats;
+    // Diet preferences
+    @Enumerated(EnumType.STRING)
+    @Column(name = "diet_type")
+    @JsonProperty("diet_type")
+    private DietType dietType;
 
-    @JsonProperty("allergies")
-    private List<String> allergies;
+    @Column(name = "daily_calorie_goal")
+    @JsonProperty("daily_calorie_goal")
+    private Integer dailyCalorieGoal;
 
-    @JsonProperty("foods_to_avoid")
-    private List<String> foodsToAvoid;
-
-    @JsonProperty("favorite_foods")
-    private List<String> favoriteFoods;
-
-    @NotNull(message = "Diet goals cannot be null")
-    @JsonProperty("diet_goals")
-    private String dietGoals;
-
-    @Min(value = 1, message = "Must have at least 1 meal per day")
-    @Max(value = 8, message = "Cannot have more than 8 meals per day")
+    @Column(name = "meals_per_day")
     @JsonProperty("meals_per_day")
-    private int mealsPerDay;
+    private Integer mealsPerDay = 3;
 
-    @JsonProperty("favorite_cheat_meal")
-    private String favoriteCheatMeal;
-
+    @Column(name = "dietary_restrictions")
     @JsonProperty("dietary_restrictions")
-    private List<String> dietaryRestrictions;
+    private String[] dietaryRestrictions;
 
-    @JsonProperty("cuisine_preferences")
-    private List<String> cuisinePreferences;
+    @Column(name = "disliked_foods")
+    @JsonProperty("disliked_foods")
+    private String[] dislikedFoods;
 
-    @JsonProperty("cooking_skill_level")
-    private String cookingSkillLevel;
+    @Column(name = "preferred_cuisines")
+    @JsonProperty("preferred_cuisines")
+    private String[] preferredCuisines;
 
-    @Min(value = 800, message = "Daily calories must be at least 800")
-    @Max(value = 5000, message = "Daily calories cannot exceed 5000")
-    @JsonProperty("target_calories")
-    private Integer targetCalories;
+    // Nutritional goals
+    @Column(name = "protein_goal_grams")
+    @JsonProperty("protein_goal_grams")
+    private Integer proteinGoalGrams;
 
-    @JsonProperty("meal_prep_preference")
-    private String mealPrepPreference;
+    @Column(name = "carb_goal_grams")
+    @JsonProperty("carb_goal_grams")
+    private Integer carbGoalGrams;
 
-    @JsonProperty("budget_range")
-    private String budgetRange;
+    @Column(name = "fat_goal_grams")
+    @JsonProperty("fat_goal_grams")
+    private Integer fatGoalGrams;
 
-    @JsonProperty("water_intake_goal")
-    private String waterIntakeGoal;
+    @Column(name = "fiber_goal_grams")
+    @JsonProperty("fiber_goal_grams")
+    private Integer fiberGoalGrams;
 
-    @JsonProperty("supplement_preferences")
-    private List<String> supplementPreferences;
+    // Physical information
+    @Column(name = "height_cm")
+    @JsonProperty("height_cm")
+    private Integer heightCm;
 
+    @Column(name = "weight_kg", precision = 5, scale = 2)
+    @JsonProperty("weight_kg")
+    private BigDecimal weightKg;
+
+    @Column(name = "age")
+    private Integer age;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    private WorkoutProfile.Gender gender;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "activity_level")
+    @JsonProperty("activity_level")
+    private WorkoutProfile.ActivityLevel activityLevel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "weight_goal")
+    @JsonProperty("weight_goal")
+    private WeightGoal weightGoal;
+
+    // Current plan object storage
+    @Column(name = "current_plan_storage_key")
+    @JsonProperty("current_plan_storage_key")
+    private String currentPlanStorageKey;
+
+    @Column(name = "current_plan_title")
+    @JsonProperty("current_plan_title")
+    private String currentPlanTitle;
+
+    @Column(name = "current_plan_created_at")
+    @JsonProperty("current_plan_created_at")
+    private LocalDateTime currentPlanCreatedAt;
+
+    @Column(name = "current_plan_file_size")
+    @JsonProperty("current_plan_file_size")
+    private Long currentPlanFileSize;
+
+    // Tracking
+    @CreationTimestamp
+    @Column(name = "created_at")
+    @JsonProperty("created_at")
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    @JsonProperty("updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "last_meal_logged")
+    @JsonProperty("last_meal_logged")
+    private LocalDateTime lastMealLogged;
+
+    @Column(name = "total_meals_logged")
+    @JsonProperty("total_meals_logged")
+    private Integer totalMealsLogged = 0;
+
+    // Lazy-loaded user relationship
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private User user;
+
+    // Enums
+    public enum DietType {
+        OMNIVORE,
+        VEGETARIAN,
+        VEGAN,
+        KETO,
+        PALEO,
+        MEDITERRANEAN,
+        LOW_CARB,
+        LOW_FAT,
+        DIABETIC,
+        HEART_HEALTHY,
+        GLUTEN_FREE,
+        DAIRY_FREE,
+        INTERMITTENT_FASTING
+    }
+
+    public enum WeightGoal {
+        LOSE,
+        MAINTAIN,
+        GAIN
+    }
+
+    // Constructors
     public DietProfile() {}
 
-    public DietProfile(List<String> preferredProteins, List<String> preferredCarbs,
-                      List<String> preferredFats, String dietGoals, int mealsPerDay) {
-        this.preferredProteins = preferredProteins;
-        this.preferredCarbs = preferredCarbs;
-        this.preferredFats = preferredFats;
-        this.dietGoals = dietGoals;
-        this.mealsPerDay = mealsPerDay;
+    public DietProfile(String id, String userId) {
+        this.id = id;
+        this.userId = userId;
     }
 
     // Getters and setters
-    public List<String> getPreferredProteins() {
-        return preferredProteins;
+    public String getId() {
+        return id;
     }
 
-    public void setPreferredProteins(List<String> preferredProteins) {
-        this.preferredProteins = preferredProteins;
+    public void setId(String id) {
+        this.id = id;
     }
 
-    public List<String> getPreferredCarbs() {
-        return preferredCarbs;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setPreferredCarbs(List<String> preferredCarbs) {
-        this.preferredCarbs = preferredCarbs;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
-    public List<String> getPreferredFats() {
-        return preferredFats;
+    public DietType getDietType() {
+        return dietType;
     }
 
-    public void setPreferredFats(List<String> preferredFats) {
-        this.preferredFats = preferredFats;
+    public void setDietType(DietType dietType) {
+        this.dietType = dietType;
     }
 
-    public List<String> getAllergies() {
-        return allergies;
+    public Integer getDailyCalorieGoal() {
+        return dailyCalorieGoal;
     }
 
-    public void setAllergies(List<String> allergies) {
-        this.allergies = allergies;
+    public void setDailyCalorieGoal(Integer dailyCalorieGoal) {
+        this.dailyCalorieGoal = dailyCalorieGoal;
     }
 
-    public List<String> getFoodsToAvoid() {
-        return foodsToAvoid;
-    }
-
-    public void setFoodsToAvoid(List<String> foodsToAvoid) {
-        this.foodsToAvoid = foodsToAvoid;
-    }
-
-    public List<String> getFavoriteFoods() {
-        return favoriteFoods;
-    }
-
-    public void setFavoriteFoods(List<String> favoriteFoods) {
-        this.favoriteFoods = favoriteFoods;
-    }
-
-    public String getDietGoals() {
-        return dietGoals;
-    }
-
-    public void setDietGoals(String dietGoals) {
-        this.dietGoals = dietGoals;
-    }
-
-    public int getMealsPerDay() {
+    public Integer getMealsPerDay() {
         return mealsPerDay;
     }
 
-    public void setMealsPerDay(int mealsPerDay) {
+    public void setMealsPerDay(Integer mealsPerDay) {
         this.mealsPerDay = mealsPerDay;
     }
 
-    public String getFavoriteCheatMeal() {
-        return favoriteCheatMeal;
-    }
-
-    public void setFavoriteCheatMeal(String favoriteCheatMeal) {
-        this.favoriteCheatMeal = favoriteCheatMeal;
-    }
-
-    public List<String> getDietaryRestrictions() {
+    public String[] getDietaryRestrictions() {
         return dietaryRestrictions;
     }
 
-    public void setDietaryRestrictions(List<String> dietaryRestrictions) {
+    public void setDietaryRestrictions(String[] dietaryRestrictions) {
         this.dietaryRestrictions = dietaryRestrictions;
     }
 
-    public List<String> getCuisinePreferences() {
-        return cuisinePreferences;
+    public String[] getDislikedFoods() {
+        return dislikedFoods;
     }
 
-    public void setCuisinePreferences(List<String> cuisinePreferences) {
-        this.cuisinePreferences = cuisinePreferences;
+    public void setDislikedFoods(String[] dislikedFoods) {
+        this.dislikedFoods = dislikedFoods;
     }
 
-    public String getCookingSkillLevel() {
-        return cookingSkillLevel;
+    public String[] getPreferredCuisines() {
+        return preferredCuisines;
     }
 
-    public void setCookingSkillLevel(String cookingSkillLevel) {
-        this.cookingSkillLevel = cookingSkillLevel;
+    public void setPreferredCuisines(String[] preferredCuisines) {
+        this.preferredCuisines = preferredCuisines;
     }
 
-    public Integer getTargetCalories() {
-        return targetCalories;
+    public Integer getProteinGoalGrams() {
+        return proteinGoalGrams;
     }
 
-    public void setTargetCalories(Integer targetCalories) {
-        this.targetCalories = targetCalories;
+    public void setProteinGoalGrams(Integer proteinGoalGrams) {
+        this.proteinGoalGrams = proteinGoalGrams;
     }
 
-    public String getMealPrepPreference() {
-        return mealPrepPreference;
+    public Integer getCarbGoalGrams() {
+        return carbGoalGrams;
     }
 
-    public void setMealPrepPreference(String mealPrepPreference) {
-        this.mealPrepPreference = mealPrepPreference;
+    public void setCarbGoalGrams(Integer carbGoalGrams) {
+        this.carbGoalGrams = carbGoalGrams;
     }
 
-    public String getBudgetRange() {
-        return budgetRange;
+    public Integer getFatGoalGrams() {
+        return fatGoalGrams;
     }
 
-    public void setBudgetRange(String budgetRange) {
-        this.budgetRange = budgetRange;
+    public void setFatGoalGrams(Integer fatGoalGrams) {
+        this.fatGoalGrams = fatGoalGrams;
     }
 
-    public String getWaterIntakeGoal() {
-        return waterIntakeGoal;
+    public Integer getFiberGoalGrams() {
+        return fiberGoalGrams;
     }
 
-    public void setWaterIntakeGoal(String waterIntakeGoal) {
-        this.waterIntakeGoal = waterIntakeGoal;
+    public void setFiberGoalGrams(Integer fiberGoalGrams) {
+        this.fiberGoalGrams = fiberGoalGrams;
     }
 
-    public List<String> getSupplementPreferences() {
-        return supplementPreferences;
+    public Integer getHeightCm() {
+        return heightCm;
     }
 
-    public void setSupplementPreferences(List<String> supplementPreferences) {
-        this.supplementPreferences = supplementPreferences;
+    public void setHeightCm(Integer heightCm) {
+        this.heightCm = heightCm;
+    }
+
+    public BigDecimal getWeightKg() {
+        return weightKg;
+    }
+
+    public void setWeightKg(BigDecimal weightKg) {
+        this.weightKg = weightKg;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public WorkoutProfile.Gender getGender() {
+        return gender;
+    }
+
+    public void setGender(WorkoutProfile.Gender gender) {
+        this.gender = gender;
+    }
+
+    public WorkoutProfile.ActivityLevel getActivityLevel() {
+        return activityLevel;
+    }
+
+    public void setActivityLevel(WorkoutProfile.ActivityLevel activityLevel) {
+        this.activityLevel = activityLevel;
+    }
+
+    public WeightGoal getWeightGoal() {
+        return weightGoal;
+    }
+
+    public void setWeightGoal(WeightGoal weightGoal) {
+        this.weightGoal = weightGoal;
+    }
+
+    public String getCurrentPlanStorageKey() {
+        return currentPlanStorageKey;
+    }
+
+    public void setCurrentPlanStorageKey(String currentPlanStorageKey) {
+        this.currentPlanStorageKey = currentPlanStorageKey;
+    }
+
+    public String getCurrentPlanTitle() {
+        return currentPlanTitle;
+    }
+
+    public void setCurrentPlanTitle(String currentPlanTitle) {
+        this.currentPlanTitle = currentPlanTitle;
+    }
+
+    public LocalDateTime getCurrentPlanCreatedAt() {
+        return currentPlanCreatedAt;
+    }
+
+    public void setCurrentPlanCreatedAt(LocalDateTime currentPlanCreatedAt) {
+        this.currentPlanCreatedAt = currentPlanCreatedAt;
+    }
+
+    public Long getCurrentPlanFileSize() {
+        return currentPlanFileSize;
+    }
+
+    public void setCurrentPlanFileSize(Long currentPlanFileSize) {
+        this.currentPlanFileSize = currentPlanFileSize;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public LocalDateTime getLastMealLogged() {
+        return lastMealLogged;
+    }
+
+    public void setLastMealLogged(LocalDateTime lastMealLogged) {
+        this.lastMealLogged = lastMealLogged;
+    }
+
+    public Integer getTotalMealsLogged() {
+        return totalMealsLogged;
+    }
+
+    public void setTotalMealsLogged(Integer totalMealsLogged) {
+        this.totalMealsLogged = totalMealsLogged;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    // Helper methods
+    public void updateCurrentPlan(String storageKey, String title, Long fileSize) {
+        this.currentPlanStorageKey = storageKey;
+        this.currentPlanTitle = title;
+        this.currentPlanFileSize = fileSize;
+        this.currentPlanCreatedAt = LocalDateTime.now();
+    }
+
+    public void incrementMealCount() {
+        this.totalMealsLogged = (this.totalMealsLogged == null ? 0 : this.totalMealsLogged) + 1;
+        this.lastMealLogged = LocalDateTime.now();
+    }
+
+    public boolean hasCurrentPlan() {
+        return currentPlanStorageKey != null && !currentPlanStorageKey.trim().isEmpty();
+    }
+
+    public double getBMI() {
+        if (heightCm != null && weightKg != null && heightCm > 0) {
+            double heightM = heightCm / 100.0;
+            return weightKg.doubleValue() / (heightM * heightM);
+        }
+        return 0.0;
+    }
+
+    public double calculateBMR() {
+        if (weightKg == null || heightCm == null || age == null || gender == null) {
+            return 0.0;
+        }
+
+        double weight = weightKg.doubleValue();
+
+        // Mifflin-St Jeor Equation
+        if (gender == WorkoutProfile.Gender.MALE) {
+            return (10 * weight) + (6.25 * heightCm) - (5 * age) + 5;
+        } else {
+            return (10 * weight) + (6.25 * heightCm) - (5 * age) - 161;
+        }
+    }
+
+    public double calculateTDEE() {
+        double bmr = calculateBMR();
+        if (bmr == 0.0 || activityLevel == null) {
+            return 0.0;
+        }
+
+        return switch (activityLevel) {
+            case SEDENTARY -> bmr * 1.2;
+            case LIGHTLY_ACTIVE -> bmr * 1.375;
+            case MODERATELY_ACTIVE -> bmr * 1.55;
+            case VERY_ACTIVE -> bmr * 1.725;
+            case EXTREMELY_ACTIVE -> bmr * 1.9;
+        };
     }
 }

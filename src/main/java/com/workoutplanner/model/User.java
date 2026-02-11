@@ -35,6 +35,7 @@ public class User implements UserDetails {
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
     @JsonIgnore
+    @Column(name = "password_hash")
     private String password;
 
     @JsonProperty("first_name")
@@ -91,6 +92,26 @@ public class User implements UserDetails {
     @Column(name = "verification_token")
     @JsonIgnore
     private String verificationToken;
+
+    // Profile references
+    @Column(name = "workout_profile_id")
+    @JsonProperty("workout_profile_id")
+    private String workoutProfileId;
+
+    @Column(name = "diet_profile_id")
+    @JsonProperty("diet_profile_id")
+    private String dietProfileId;
+
+    // Lazy-loaded profile relationships - temporarily disabled
+    // @OneToOne(fetch = FetchType.LAZY)
+    // @JoinColumn(name = "workout_profile_id", insertable = false, updatable = false)
+    // @JsonIgnore
+    // private WorkoutProfile workoutProfile;
+
+    // @OneToOne(fetch = FetchType.LAZY)
+    // @JoinColumn(name = "diet_profile_id", insertable = false, updatable = false)
+    // @JsonIgnore
+    // private DietProfile dietProfile;
 
     public enum Role {
         USER, ADMIN, PREMIUM
@@ -287,5 +308,51 @@ public class User implements UserDetails {
 
     public void setVerificationToken(String verificationToken) {
         this.verificationToken = verificationToken;
+    }
+
+    // Getters and setters for profile references
+    public String getWorkoutProfileId() {
+        return workoutProfileId;
+    }
+
+    public void setWorkoutProfileId(String workoutProfileId) {
+        this.workoutProfileId = workoutProfileId;
+    }
+
+    public String getDietProfileId() {
+        return dietProfileId;
+    }
+
+    public void setDietProfileId(String dietProfileId) {
+        this.dietProfileId = dietProfileId;
+    }
+
+    // public WorkoutProfile getWorkoutProfile() {
+    //     return workoutProfile;
+    // }
+
+    // public void setWorkoutProfile(WorkoutProfile workoutProfile) {
+    //     this.workoutProfile = workoutProfile;
+    // }
+
+    // public DietProfile getDietProfile() {
+    //     return dietProfile;
+    // }
+
+    // public void setDietProfile(DietProfile dietProfile) {
+    //     this.dietProfile = dietProfile;
+    // }
+
+    // Helper methods
+    public boolean hasWorkoutProfile() {
+        return workoutProfileId != null;
+    }
+
+    public boolean hasDietProfile() {
+        return dietProfileId != null;
+    }
+
+    public boolean hasCompleteProfile() {
+        return hasWorkoutProfile() && hasDietProfile();
     }
 }
