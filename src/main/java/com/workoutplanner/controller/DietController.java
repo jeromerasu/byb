@@ -1,5 +1,6 @@
 package com.workoutplanner.controller;
 
+import com.workoutplanner.dto.DietPlanResponseDto;
 import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.DietProfileRepository;
@@ -51,16 +52,13 @@ public class DietController {
     public ResponseEntity<DietProfile> createOrUpdateDietProfile(@Valid @RequestBody DietProfile profile) {
         String userId = getCurrentUserId();
 
-        // Set user ID
         profile.setUserId(userId);
 
-        // Check if profile already exists
         Optional<DietProfile> existingProfile = dietProfileRepository.findByUserId(userId);
         if (existingProfile.isPresent()) {
             profile.setId(existingProfile.get().getId());
             profile.setCreatedAt(existingProfile.get().getCreatedAt());
         } else {
-            // Generate ID for new profile
             profile.setId(UUID.randomUUID().toString());
             profile.setCreatedAt(LocalDateTime.now());
         }
@@ -69,7 +67,6 @@ public class DietController {
 
         DietProfile savedProfile = dietProfileRepository.save(profile);
 
-        // Update user's profile reference
         userRepository.findById(userId).ifPresent(user -> {
             user.setDietProfileId(savedProfile.getId());
             userRepository.save(user);
@@ -79,39 +76,36 @@ public class DietController {
     }
 
     @PostMapping("/plan/generate")
-    public Mono<ResponseEntity<Map<String, Object>>> generateDietPlan() {
+    public Mono<ResponseEntity<DietPlanResponseDto>> generateDietPlan() {
         String userId = getCurrentUserId();
 
         return Mono.fromCallable(() -> {
-            // Get user and diet profile
-            User user = userRepository.findById(userId)
+            userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             DietProfile dietProfile = dietProfileRepository.findByUserId(userId)
                     .orElseThrow(() -> new RuntimeException("Diet profile not found"));
 
-            // Generate a simple diet plan (placeholder implementation)
             Map<String, Object> dietPlan = generateSimpleDietPlan(dietProfile);
 
-            // Store the plan in object storage
-            String storageKey = "diet-plans/" + userId + "/" + UUID.randomUUID() + ".json";
             String planTitle = "Diet Plan - " + LocalDateTime.now().toLocalDate();
 
             try {
                 String actualStorageKey = storageService.storeDietPlan(userId, planTitle, dietPlan);
 
-                // Update diet profile with current plan info
                 dietProfile.setCurrentPlanStorageKey(actualStorageKey);
                 dietProfile.setCurrentPlanTitle(planTitle);
                 dietProfile.setCurrentPlanCreatedAt(LocalDateTime.now());
                 dietProfile.setUpdatedAt(LocalDateTime.now());
                 dietProfileRepository.save(dietProfile);
 
-                Map<String, Object> response = new HashMap<>();
-                response.put("message", "Diet plan generated successfully");
-                response.put("planTitle", planTitle);
-                response.put("storageKey", actualStorageKey);
-                response.put("plan", dietPlan);
+                DietPlanResponseDto response = toDietResponse(
+                        dietPlan,
+                        planTitle,
+                        actualStorageKey,
+                        dietProfile.getCurrentPlanCreatedAt(),
+                        "Diet plan generated successfully"
+                );
 
                 return ResponseEntity.ok(response);
 
@@ -122,7 +116,7 @@ public class DietController {
     }
 
     @GetMapping("/plan/current")
-    public Mono<ResponseEntity<Map<String, Object>>> getCurrentDietPlan() {
+    public Mono<ResponseEntity<DietPlanResponseDto>> getCurrentDietPlan() {
         String userId = getCurrentUserId();
 
         return Mono.fromCallable(() -> {
@@ -136,11 +130,13 @@ public class DietController {
             try {
                 Map<String, Object> plan = storageService.retrieveDietPlan(userId, profile.getCurrentPlanStorageKey());
 
-                Map<String, Object> response = new HashMap<>();
-                response.put("planTitle", profile.getCurrentPlanTitle());
-                response.put("createdAt", profile.getCurrentPlanCreatedAt());
-                response.put("storageKey", profile.getCurrentPlanStorageKey());
-                response.put("plan", plan);
+                DietPlanResponseDto response = toDietResponse(
+                        plan,
+                        profile.getCurrentPlanTitle(),
+                        profile.getCurrentPlanStorageKey(),
+                        profile.getCurrentPlanCreatedAt(),
+                        "Current diet plan retrieved"
+                );
 
                 return ResponseEntity.ok(response);
 
@@ -181,6 +177,102 @@ public class DietController {
         throw new RuntimeException("User not authenticated");
     }
 
+    private DietPlanResponseDto toDietResponse(Map<String, Object> rawPlan,
+                                               String planTitle,
+                                               String storageKey,
+                                               LocalDateTime createdAt,
+                                               String message) {
+        Map<String, Object> normalizedPlan = normalizeDietPlan(rawPlan);
+
+        DietPlanResponseDto dto = new DietPlanResponseDto();
+        dto.setMessage(message);
+        dto.setPlanTitle(planTitle);
+        dto.setStorageKey(storageKey);
+        dto.setCreatedAt(createdAt);
+
+        dto.setTitle(asString(normalizedPlan.get("title"), "Personalized Diet Plan"));
+        dto.setPhaseLabel(asString(normalizedPlan.get("phaseLabel"), "Nutrition Base"));
+        dto.setCalories(asPositiveInt(firstNonNull(normalizedPlan.get("calories"), normalizedPlan.get("dailyCalories")), 2000));
+        dto.setMealsPerDay(asPositiveInt(normalizedPlan.get("mealsPerDay"), 3));
+        dto.setDietType(asString(normalizedPlan.get("dietType"), "BALANCED"));
+
+        dto.setSummary(buildDietSummary(normalizedPlan, dto));
+        dto.setPlan(normalizedPlan);
+        return dto;
+    }
+
+    private Map<String, Object> normalizeDietPlan(Map<String, Object> rawPlan) {
+        Map<String, Object> plan = rawPlan != null ? new HashMap<>(rawPlan) : new HashMap<>();
+
+        String title = asString(plan.get("title"), "Personalized Diet Plan");
+        String phaseLabel = asString(firstNonNull(plan.get("phaseLabel"), plan.get("weightGoal")), "Nutrition Base");
+        Integer calories = asPositiveInt(firstNonNull(plan.get("calories"), plan.get("dailyCalories")), 2000);
+        Integer mealsPerDay = asPositiveInt(plan.get("mealsPerDay"), 3);
+        String dietType = asString(plan.get("dietType"), "BALANCED");
+
+        // Lightweight fallback for unstructured/AI payloads
+        if (!(plan.get("weeklyPlan") instanceof List<?>)) {
+            plan.put("weeklyPlan", List.of(
+                    Map.of("day", "Monday", "meals", List.of(
+                            Map.of("type", "Breakfast", "foods", List.of("Oatmeal", "Berries"), "estimatedCalories", 500),
+                            Map.of("type", "Lunch", "foods", List.of("Chicken Salad", "Quinoa"), "estimatedCalories", 700),
+                            Map.of("type", "Dinner", "foods", List.of("Salmon", "Vegetables"), "estimatedCalories", 800)
+                    ))
+            ));
+        }
+
+        plan.put("title", title);
+        plan.put("phaseLabel", phaseLabel);
+        plan.put("calories", calories);
+        plan.put("dailyCalories", calories);
+        plan.put("mealsPerDay", mealsPerDay);
+        plan.put("dietType", dietType);
+
+        return plan;
+    }
+
+    private Map<String, Object> buildDietSummary(Map<String, Object> plan, DietPlanResponseDto dto) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("calories", dto.getCalories());
+        summary.put("mealsPerDay", dto.getMealsPerDay());
+        summary.put("dietType", dto.getDietType());
+        summary.put("restrictions", plan.getOrDefault("restrictions", List.of()));
+        summary.put("preferredCuisines", plan.getOrDefault("preferredCuisines", List.of()));
+        summary.put("shoppingListCount", extractShoppingListCount(plan));
+        return summary;
+    }
+
+    private int extractShoppingListCount(Map<String, Object> plan) {
+        Object shoppingList = plan.get("shoppingList");
+        if (shoppingList instanceof Collection<?> collection) {
+            return collection.size();
+        }
+        return 0;
+    }
+
+    private Object firstNonNull(Object... values) {
+        for (Object value : values) {
+            if (value != null) return value;
+        }
+        return null;
+    }
+
+    private String asString(Object value, String fallback) {
+        if (value == null) return fallback;
+        String str = String.valueOf(value).trim();
+        return str.isEmpty() ? fallback : str;
+    }
+
+    private Integer asPositiveInt(Object value, int fallback) {
+        if (value == null) return fallback;
+        try {
+            int parsed = (value instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(value));
+            return parsed > 0 ? parsed : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
     private Map<String, Object> generateSimpleDietPlan(DietProfile profile) {
         Map<String, Object> plan = new HashMap<>();
 
@@ -191,7 +283,6 @@ public class DietController {
         plan.put("restrictions", profile.getDietaryRestrictions());
         plan.put("preferredCuisines", profile.getPreferredCuisines());
 
-        // Generate sample meal plan for a week
         List<Map<String, Object>> weeklyPlan = new ArrayList<>();
 
         String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
@@ -264,7 +355,7 @@ public class DietController {
                     foods.add("Asparagus");
                 }
                 break;
-            default: // Snacks
+            default:
                 foods.add("Apple with nuts");
                 foods.add("Greek yogurt");
         }
@@ -275,7 +366,6 @@ public class DietController {
     private int calculateMealCalories(DietProfile profile, int mealIndex, int totalMeals) {
         int totalCalories = profile.getDailyCalorieGoal() != null ? profile.getDailyCalorieGoal() : 2000;
 
-        // Distribute calories: breakfast 25%, lunch 35%, dinner 30%, snacks 10%
         double[] distribution = {0.25, 0.35, 0.30, 0.05, 0.05};
 
         if (mealIndex < distribution.length) {

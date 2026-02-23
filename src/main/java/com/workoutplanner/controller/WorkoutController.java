@@ -1,5 +1,6 @@
 package com.workoutplanner.controller;
 
+import com.workoutplanner.dto.WorkoutPlanResponseDto;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.WorkoutProfileRepository;
@@ -51,16 +52,13 @@ public class WorkoutController {
     public ResponseEntity<WorkoutProfile> createOrUpdateWorkoutProfile(@Valid @RequestBody WorkoutProfile profile) {
         String userId = getCurrentUserId();
 
-        // Set user ID
         profile.setUserId(userId);
 
-        // Check if profile already exists
         Optional<WorkoutProfile> existingProfile = workoutProfileRepository.findByUserId(userId);
         if (existingProfile.isPresent()) {
             profile.setId(existingProfile.get().getId());
             profile.setCreatedAt(existingProfile.get().getCreatedAt());
         } else {
-            // Generate ID for new profile
             profile.setId(UUID.randomUUID().toString());
             profile.setCreatedAt(LocalDateTime.now());
         }
@@ -69,7 +67,6 @@ public class WorkoutController {
 
         WorkoutProfile savedProfile = workoutProfileRepository.save(profile);
 
-        // Update user's profile reference
         userRepository.findById(userId).ifPresent(user -> {
             user.setWorkoutProfileId(savedProfile.getId());
             userRepository.save(user);
@@ -79,39 +76,36 @@ public class WorkoutController {
     }
 
     @PostMapping("/plan/generate")
-    public Mono<ResponseEntity<Map<String, Object>>> generateWorkoutPlan() {
+    public Mono<ResponseEntity<WorkoutPlanResponseDto>> generateWorkoutPlan() {
         String userId = getCurrentUserId();
 
         return Mono.fromCallable(() -> {
-            // Get user and workout profile
-            User user = userRepository.findById(userId)
+            userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             WorkoutProfile workoutProfile = workoutProfileRepository.findByUserId(userId)
                     .orElseThrow(() -> new RuntimeException("Workout profile not found"));
 
-            // Generate a simple workout plan (placeholder implementation)
             Map<String, Object> workoutPlan = generateSimpleWorkoutPlan(workoutProfile);
 
-            // Store the plan in object storage
-            String storageKey = "workout-plans/" + userId + "/" + UUID.randomUUID() + ".json";
             String planTitle = "Workout Plan - " + LocalDateTime.now().toLocalDate();
 
             try {
                 String actualStorageKey = storageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
 
-                // Update workout profile with current plan info
                 workoutProfile.setCurrentPlanStorageKey(actualStorageKey);
                 workoutProfile.setCurrentPlanTitle(planTitle);
                 workoutProfile.setCurrentPlanCreatedAt(LocalDateTime.now());
                 workoutProfile.setUpdatedAt(LocalDateTime.now());
                 workoutProfileRepository.save(workoutProfile);
 
-                Map<String, Object> response = new HashMap<>();
-                response.put("message", "Workout plan generated successfully");
-                response.put("planTitle", planTitle);
-                response.put("storageKey", actualStorageKey);
-                response.put("plan", workoutPlan);
+                WorkoutPlanResponseDto response = toWorkoutResponse(
+                        workoutPlan,
+                        planTitle,
+                        actualStorageKey,
+                        workoutProfile.getCurrentPlanCreatedAt(),
+                        "Workout plan generated successfully"
+                );
 
                 return ResponseEntity.ok(response);
 
@@ -122,7 +116,7 @@ public class WorkoutController {
     }
 
     @GetMapping("/plan/current")
-    public Mono<ResponseEntity<Map<String, Object>>> getCurrentWorkoutPlan() {
+    public Mono<ResponseEntity<WorkoutPlanResponseDto>> getCurrentWorkoutPlan() {
         String userId = getCurrentUserId();
 
         return Mono.fromCallable(() -> {
@@ -135,12 +129,13 @@ public class WorkoutController {
 
             try {
                 Map<String, Object> plan = storageService.retrieveWorkoutPlan(userId, profile.getCurrentPlanStorageKey());
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("planTitle", profile.getCurrentPlanTitle());
-                response.put("createdAt", profile.getCurrentPlanCreatedAt());
-                response.put("storageKey", profile.getCurrentPlanStorageKey());
-                response.put("plan", plan);
+                WorkoutPlanResponseDto response = toWorkoutResponse(
+                        plan,
+                        profile.getCurrentPlanTitle(),
+                        profile.getCurrentPlanStorageKey(),
+                        profile.getCurrentPlanCreatedAt(),
+                        "Current workout plan retrieved"
+                );
 
                 return ResponseEntity.ok(response);
 
@@ -180,6 +175,127 @@ public class WorkoutController {
         throw new RuntimeException("User not authenticated");
     }
 
+    private WorkoutPlanResponseDto toWorkoutResponse(Map<String, Object> rawPlan,
+                                                     String planTitle,
+                                                     String storageKey,
+                                                     LocalDateTime createdAt,
+                                                     String message) {
+        Map<String, Object> normalizedPlan = normalizeWorkoutPlan(rawPlan);
+
+        WorkoutPlanResponseDto dto = new WorkoutPlanResponseDto();
+        dto.setMessage(message);
+        dto.setPlanTitle(planTitle);
+        dto.setStorageKey(storageKey);
+        dto.setCreatedAt(createdAt);
+
+        dto.setTitle(asString(normalizedPlan.get("title"), "Personalized Workout Plan"));
+        dto.setPhaseLabel(asString(normalizedPlan.get("phaseLabel"), "Base Phase"));
+        dto.setDurationMin(asPositiveInt(normalizedPlan.get("durationMin"), 45));
+        dto.setCalories(asPositiveInt(normalizedPlan.get("calories"), 300));
+        dto.setExercises(extractExercises(normalizedPlan));
+
+        // Keep legacy payload for existing frontend compatibility
+        dto.setPlan(normalizedPlan);
+        return dto;
+    }
+
+    private Map<String, Object> normalizeWorkoutPlan(Map<String, Object> rawPlan) {
+        Map<String, Object> plan = rawPlan != null ? new HashMap<>(rawPlan) : new HashMap<>();
+
+        String title = asString(plan.get("title"), "Personalized Workout Plan");
+        Integer durationMin = asPositiveInt(firstNonNull(plan.get("durationMin"), plan.get("duration")), 45);
+        String phaseLabel = asString(firstNonNull(plan.get("phaseLabel"), plan.get("fitnessLevel")), "Base Phase");
+
+        List<WorkoutPlanResponseDto.ExerciseDto> exercises = extractExercises(plan);
+
+        // Lightweight fallback for unstructured/AI payloads
+        if (exercises.isEmpty()) {
+            exercises = List.of(
+                    new WorkoutPlanResponseDto.ExerciseDto("Push-ups", "3 sets of 10 reps", "chest"),
+                    new WorkoutPlanResponseDto.ExerciseDto("Bodyweight Squats", "3 sets of 12 reps", "legs"),
+                    new WorkoutPlanResponseDto.ExerciseDto("Plank", "3 x 30 sec", "core")
+            );
+        }
+
+        plan.put("title", title);
+        plan.put("phaseLabel", phaseLabel);
+        plan.put("durationMin", durationMin);
+        plan.put("calories", Math.max(150, exercises.size() * 100));
+
+        List<Map<String, Object>> normalizedExercises = new ArrayList<>();
+        for (WorkoutPlanResponseDto.ExerciseDto ex : exercises) {
+            normalizedExercises.add(Map.of(
+                    "name", ex.getName(),
+                    "prescription", ex.getPrescription(),
+                    "muscle", ex.getMuscle()
+            ));
+        }
+        plan.put("exercises", normalizedExercises);
+
+        return plan;
+    }
+
+    private List<WorkoutPlanResponseDto.ExerciseDto> extractExercises(Map<String, Object> plan) {
+        List<WorkoutPlanResponseDto.ExerciseDto> exercises = new ArrayList<>();
+
+        Object directExercises = plan.get("exercises");
+        if (directExercises instanceof List<?> directList) {
+            for (Object item : directList) {
+                if (item instanceof Map<?, ?> exerciseMap) {
+                    exercises.add(mapExercise(exerciseMap));
+                }
+            }
+        }
+
+        // Fallback: flatten workoutDays[].exercises[] from legacy plan structure
+        if (exercises.isEmpty() && plan.get("workoutDays") instanceof List<?> days) {
+            for (Object dayObj : days) {
+                if (dayObj instanceof Map<?, ?> dayMap && dayMap.get("exercises") instanceof List<?> dayExercises) {
+                    for (Object exObj : dayExercises) {
+                        if (exObj instanceof Map<?, ?> exerciseMap) {
+                            exercises.add(mapExercise(exerciseMap));
+                        }
+                    }
+                }
+            }
+        }
+
+        return exercises;
+    }
+
+    private WorkoutPlanResponseDto.ExerciseDto mapExercise(Map<?, ?> exerciseMap) {
+        String name = asString(firstNonNull(exerciseMap.get("name"), exerciseMap.get("exercise")), "Unknown Exercise");
+        String prescription = asString(
+                firstNonNull(exerciseMap.get("prescription"), exerciseMap.get("sets"), exerciseMap.get("reps")),
+                "3 sets"
+        );
+        String muscle = asString(firstNonNull(exerciseMap.get("muscle"), exerciseMap.get("type")), "full_body");
+        return new WorkoutPlanResponseDto.ExerciseDto(name, prescription, muscle);
+    }
+
+    private Object firstNonNull(Object... values) {
+        for (Object value : values) {
+            if (value != null) return value;
+        }
+        return null;
+    }
+
+    private String asString(Object value, String fallback) {
+        if (value == null) return fallback;
+        String str = String.valueOf(value).trim();
+        return str.isEmpty() ? fallback : str;
+    }
+
+    private Integer asPositiveInt(Object value, int fallback) {
+        if (value == null) return fallback;
+        try {
+            int parsed = (value instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(value));
+            return parsed > 0 ? parsed : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
     private Map<String, Object> generateSimpleWorkoutPlan(WorkoutProfile profile) {
         Map<String, Object> plan = new HashMap<>();
 
@@ -190,7 +306,6 @@ public class WorkoutController {
         plan.put("targetGoals", profile.getTargetGoals());
         plan.put("equipment", profile.getAvailableEquipment());
 
-        // Generate sample workout days based on frequency
         List<Map<String, Object>> workoutDays = new ArrayList<>();
 
         for (int i = 1; i <= (profile.getWorkoutFrequency() != null ? profile.getWorkoutFrequency() : 3); i++) {
@@ -216,7 +331,6 @@ public class WorkoutController {
     private List<Map<String, Object>> generateSampleExercises(WorkoutProfile profile) {
         List<Map<String, Object>> exercises = new ArrayList<>();
 
-        // Sample exercises based on fitness level
         String fitnessLevel = profile.getFitnessLevel() != null ? profile.getFitnessLevel().name() : "BEGINNER";
 
         switch (fitnessLevel.toUpperCase()) {
@@ -230,7 +344,7 @@ public class WorkoutController {
                 exercises.add(createExercise("Jump Squats", "3 sets of 10-15 reps"));
                 exercises.add(createExercise("Mountain Climbers", "3 sets of 30 seconds"));
                 break;
-            default: // ADVANCED
+            default:
                 exercises.add(createExercise("Burpees", "3 sets of 8-12 reps"));
                 exercises.add(createExercise("Single-leg Squats", "3 sets of 6-10 reps each leg"));
                 exercises.add(createExercise("Plank to Push-up", "3 sets of 8-12 reps"));
