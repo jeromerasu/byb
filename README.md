@@ -194,6 +194,17 @@ src/
 - `JWT_SECRET` - JWT signing secret (optional, auto-generated)
 - `JWT_EXPIRATION` - Token expiration in ms (default: 24h)
 - `SPRING_PROFILES_ACTIVE` - Active profile (dev/prod)
+- `BETA_MODE` / `beta.mode` - Set to `true` to disable auth for local dev testing only
+
+### Dev Mode (Frontend + Backend local testing)
+For rapid mobile iteration, you can run backend in dev-auth-bypass mode:
+
+```bash
+export BETA_MODE=true
+mvn spring-boot:run
+```
+
+⚠️ Never use this in production. Keep `BETA_MODE=false` (default) in deployed environments.
 
 ### Application Properties (application.yml)
 ```yaml
