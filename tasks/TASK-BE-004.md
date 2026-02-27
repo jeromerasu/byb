@@ -1,28 +1,27 @@
-# TASK-BE-004 — Payment Foundation (Stripe + Mobile Entitlements)
+# TASK-BE-004 — Payment Foundation (RevenueCat Entitlements)
 
 ## Goal
-Implement a production-safe payment foundation for BYB using Stripe as the source of truth, with backend-managed entitlements for premium feature gating.
+Implement a production-safe mobile subscription foundation for BYB using RevenueCat + app-store billing as the source of truth, with backend-managed entitlements for premium feature gating.
 
 ## Priority
 High
 
 ## Scope
 Repo: `byb`
-Area: billing domain models, webhook handlers, entitlement checks, secure checkout/session APIs
+Area: billing domain models, webhook handlers, entitlement checks, secure subscription-state sync APIs
 
 ## In Scope
-1. **Provider integration (Stripe)**
-   - Add Stripe client configuration via env vars.
-   - Create endpoint to generate checkout session for selected plan tier.
-   - Create endpoint to open billing portal session (for existing customers).
+1. **Provider integration (RevenueCat)**
+   - Add RevenueCat configuration via env vars.
+   - Add endpoint(s) for app clients to sync/refresh entitlement status by app user id.
 
 2. **Webhook-driven source of truth**
    - Add signed webhook endpoint (signature verification mandatory).
-   - Handle at minimum:
-     - `checkout.session.completed`
-     - `invoice.paid`
-     - `customer.subscription.updated`
-     - `customer.subscription.deleted`
+   - Handle subscription lifecycle events at minimum:
+     - initial purchase / renewal
+     - cancellation
+     - expiration
+     - billing issue / grace-period transitions (if present)
    - Enforce idempotency for webhook processing.
 
 3. **Billing + entitlement persistence**
@@ -42,12 +41,12 @@ Area: billing domain models, webhook handlers, entitlement checks, secure checko
 
 5. **Contract docs + ops notes**
    - Document required env vars, webhook setup, local testing workflow.
-   - Add request/response examples for checkout + entitlement summary.
+   - Add request/response examples for entitlement sync + entitlement summary.
 
 ## Out of Scope
-- Full in-app purchase receipt validation (RevenueCat integration)
+- Stripe/web checkout implementation
 - Promotions/coupons/affiliate logic
-- Invoicing UI beyond basic portal redirect support
+- Complex billing UI beyond entitlement status display
 
 ## Security/Compliance Requirements
 - Never trust client-side payment success claims.
@@ -56,20 +55,19 @@ Area: billing domain models, webhook handlers, entitlement checks, secure checko
 - Fail closed for premium gating if entitlement status is unknown.
 
 ## API Contract Targets (proposed)
-- `POST /api/v1/billing/checkout-session`
-- `POST /api/v1/billing/portal-session`
-- `POST /api/v1/billing/webhooks/stripe`
+- `POST /api/v1/billing/webhooks/revenuecat`
+- `POST /api/v1/billing/entitlements/sync`
 - `GET /api/v1/billing/entitlements/me`
 
 ## Acceptance Criteria
-1. Checkout session can be created and completes successfully in test mode.
-2. Webhook events update entitlement state correctly and idempotently.
+1. RevenueCat webhook events update entitlement state correctly and idempotently.
+2. Entitlement sync endpoint can refresh/confirm user entitlement state.
 3. Premium entitlement summary endpoint reflects real subscription state.
 4. Protected premium route enforces entitlement checks.
 5. Existing non-billing flows remain unaffected.
 
 ## Test Steps
-1. Create checkout session for a test user and complete payment in Stripe test mode.
+1. Trigger RevenueCat sandbox purchase flow for a test user.
 2. Replay webhook events and verify idempotent behavior.
 3. Cancel/expire subscription and confirm entitlement deactivation.
 4. Call protected premium endpoint before and after entitlement activation.
