@@ -11,6 +11,7 @@
 ## Queue
 - [ ] TASK-BE-001 — Unified Plan Contract (Workout + Diet) — **READY**
 - [ ] TASK-BE-002 — Storage Metadata Integrity + Lookup APIs — **READY**
+- [ ] TASK-BE-004 — Payment Foundation (Stripe + Mobile Entitlements) — **READY**
 - [ ] TASK-BE-003 — Auth/Profile Unification for Mobile — **BACKLOG**
 
 ## Notes
