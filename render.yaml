@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: workout-ai-service
+    env: docker
+    dockerfilePath: ./workout-ai-service/Dockerfile
+    rootDir: ./workout-ai-service
+    plan: starter # or starter plus, professional based on your needs
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false # You'll set this in Render dashboard
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: 8080
+    healthCheckPath: /actuator/health
+    autoDeploy: true
