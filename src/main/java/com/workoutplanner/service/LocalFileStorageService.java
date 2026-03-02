@@ -39,9 +39,9 @@ public class LocalFileStorageService {
             Path storagePath = Paths.get(baseStoragePath);
             Files.createDirectories(storagePath);
 
-            // Create subdirectories
-            Files.createDirectories(storagePath.resolve("workout-plans"));
-            Files.createDirectories(storagePath.resolve("diet-plans"));
+            // Create structured subdirectories
+            Files.createDirectories(storagePath.resolve("workout"));
+            Files.createDirectories(storagePath.resolve("diet"));
 
             System.out.println("📁 Local storage initialized at: " + storagePath.toAbsolutePath());
         } catch (IOException e) {
@@ -58,20 +58,38 @@ public class LocalFileStorageService {
         }
 
         try {
-            // Generate storage key
-            String timestamp = LocalDateTime.now().toString().replace(":", "-");
-            String storageKey = "workout-plans/" + userId + "/" + timestamp + "_" + UUID.randomUUID() + ".json";
+            // Determine week number (can be enhanced to accept week parameter)
+            String weekNumber = "week" + getCurrentWeekNumber();
 
-            // Create user directory if it doesn't exist
-            Path userDir = Paths.get(baseStoragePath, "workout-plans", userId);
-            Files.createDirectories(userDir);
+            // Create structured directory: workout/{userId}/weeklyplan/{week}/
+            Path weekDir = Paths.get(baseStoragePath, "workout", userId, "weeklyplan", weekNumber);
+            Files.createDirectories(weekDir);
 
-            // Write file
-            Path filePath = Paths.get(baseStoragePath, storageKey);
-            String jsonContent = prettyObjectMapper.writeValueAsString(workoutPlan);
-            Files.write(filePath, jsonContent.getBytes());
+            Path exercisesDir = weekDir.resolve("exercises");
+            Files.createDirectories(exercisesDir);
 
-            System.out.println("💪 Stored workout plan: " + filePath.toAbsolutePath());
+            // Convert plan to Map for processing
+            Map<String, Object> planMap = convertToMap(workoutPlan);
+
+            // Extract and store exercises separately
+            Object exercises = planMap.get("exercises");
+            if (exercises instanceof List<?> exercisesList) {
+                storeExerciseMetadata(exercisesDir, exercisesList);
+                // Remove exercises from main plan (will be loaded separately)
+                planMap.put("exercisesStoredSeparately", true);
+                planMap.put("exercisesLocation", "exercises/");
+                planMap.remove("exercises");
+            }
+
+            // Store main plan
+            Path planPath = weekDir.resolve("plan.json");
+            String jsonContent = prettyObjectMapper.writeValueAsString(planMap);
+            Files.write(planPath, jsonContent.getBytes());
+
+            // Generate storage key that points to the week directory
+            String storageKey = "workout/" + userId + "/weeklyplan/" + weekNumber;
+
+            System.out.println("💪 Stored workout plan in structured format: " + planPath.toAbsolutePath());
             return storageKey;
 
         } catch (IOException e) {
@@ -88,20 +106,38 @@ public class LocalFileStorageService {
         }
 
         try {
-            // Generate storage key
-            String timestamp = LocalDateTime.now().toString().replace(":", "-");
-            String storageKey = "diet-plans/" + userId + "/" + timestamp + "_" + UUID.randomUUID() + ".json";
+            // Determine week number (can be enhanced to accept week parameter)
+            String weekNumber = "week" + getCurrentWeekNumber();
 
-            // Create user directory if it doesn't exist
-            Path userDir = Paths.get(baseStoragePath, "diet-plans", userId);
-            Files.createDirectories(userDir);
+            // Create structured directory: diet/{userId}/weeklyplan/{week}/
+            Path weekDir = Paths.get(baseStoragePath, "diet", userId, "weeklyplan", weekNumber);
+            Files.createDirectories(weekDir);
 
-            // Write file
-            Path filePath = Paths.get(baseStoragePath, storageKey);
-            String jsonContent = prettyObjectMapper.writeValueAsString(dietPlan);
-            Files.write(filePath, jsonContent.getBytes());
+            Path mealsDir = weekDir.resolve("meals");
+            Files.createDirectories(mealsDir);
 
-            System.out.println("🥗 Stored diet plan: " + filePath.toAbsolutePath());
+            // Convert plan to Map for processing
+            Map<String, Object> planMap = convertToMap(dietPlan);
+
+            // Extract and store meal metadata separately
+            Object weeklyPlan = planMap.get("weeklyPlan");
+            if (weeklyPlan instanceof List<?> weeklyPlanList) {
+                storeMealMetadata(mealsDir, weeklyPlanList);
+                // Remove detailed meals from main plan (will be loaded separately)
+                planMap.put("mealsStoredSeparately", true);
+                planMap.put("mealsLocation", "meals/");
+                planMap.remove("weeklyPlan");
+            }
+
+            // Store main plan
+            Path planPath = weekDir.resolve("plan.json");
+            String jsonContent = prettyObjectMapper.writeValueAsString(planMap);
+            Files.write(planPath, jsonContent.getBytes());
+
+            // Generate storage key that points to the week directory
+            String storageKey = "diet/" + userId + "/weeklyplan/" + weekNumber;
+
+            System.out.println("🥗 Stored diet plan in structured format: " + planPath.toAbsolutePath());
             return storageKey;
 
         } catch (IOException e) {
@@ -111,13 +147,29 @@ public class LocalFileStorageService {
 
     public Map<String, Object> retrieveWorkoutPlan(String userId, String storageKey) {
         try {
-            Path filePath = Paths.get(baseStoragePath, storageKey);
-            if (!Files.exists(filePath)) {
+            // storageKey format: "workout/{userId}/weeklyplan/{week}"
+            Path weekDir = Paths.get(baseStoragePath, storageKey);
+            Path planPath = weekDir.resolve("plan.json");
+
+            if (!Files.exists(planPath)) {
                 throw new RuntimeException("Workout plan not found: " + storageKey);
             }
 
-            String jsonContent = Files.readString(filePath);
-            return prettyObjectMapper.readValue(jsonContent, Map.class);
+            // Load main plan
+            String jsonContent = Files.readString(planPath);
+            Map<String, Object> plan = prettyObjectMapper.readValue(jsonContent, Map.class);
+
+            // If exercises are stored separately, load them
+            if (Boolean.TRUE.equals(plan.get("exercisesStoredSeparately"))) {
+                Path exercisesDir = weekDir.resolve("exercises");
+                List<Map<String, Object>> exercises = loadExerciseMetadata(exercisesDir);
+                plan.put("exercises", exercises);
+                // Clean up metadata fields
+                plan.remove("exercisesStoredSeparately");
+                plan.remove("exercisesLocation");
+            }
+
+            return plan;
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to retrieve workout plan", e);
@@ -126,13 +178,29 @@ public class LocalFileStorageService {
 
     public Map<String, Object> retrieveDietPlan(String userId, String storageKey) {
         try {
-            Path filePath = Paths.get(baseStoragePath, storageKey);
-            if (!Files.exists(filePath)) {
+            // storageKey format: "diet/{userId}/weeklyplan/{week}"
+            Path weekDir = Paths.get(baseStoragePath, storageKey);
+            Path planPath = weekDir.resolve("plan.json");
+
+            if (!Files.exists(planPath)) {
                 throw new RuntimeException("Diet plan not found: " + storageKey);
             }
 
-            String jsonContent = Files.readString(filePath);
-            return prettyObjectMapper.readValue(jsonContent, Map.class);
+            // Load main plan
+            String jsonContent = Files.readString(planPath);
+            Map<String, Object> plan = prettyObjectMapper.readValue(jsonContent, Map.class);
+
+            // If meals are stored separately, load them
+            if (Boolean.TRUE.equals(plan.get("mealsStoredSeparately"))) {
+                Path mealsDir = weekDir.resolve("meals");
+                List<Map<String, Object>> weeklyPlan = loadMealMetadata(mealsDir);
+                plan.put("weeklyPlan", weeklyPlan);
+                // Clean up metadata fields
+                plan.remove("mealsStoredSeparately");
+                plan.remove("mealsLocation");
+            }
+
+            return plan;
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to retrieve diet plan", e);
@@ -141,20 +209,113 @@ public class LocalFileStorageService {
 
     public List<String> listUserPlans(String userId, String planType) {
         try {
-            Path userDir = Paths.get(baseStoragePath, planType, userId);
-            if (!Files.exists(userDir)) {
+            // planType should be "workout" or "diet"
+            Path weeklyPlanDir = Paths.get(baseStoragePath, planType, userId, "weeklyplan");
+            if (!Files.exists(weeklyPlanDir)) {
                 return new ArrayList<>();
             }
 
-            return Files.list(userDir)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".json"))
-                    .map(path -> planType + "/" + userId + "/" + path.getFileName().toString())
+            return Files.list(weeklyPlanDir)
+                    .filter(Files::isDirectory)
+                    .filter(path -> path.getFileName().toString().startsWith("week"))
+                    .map(path -> planType + "/" + userId + "/weeklyplan/" + path.getFileName().toString())
                     .sorted()
                     .toList();
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to list user plans", e);
         }
+    }
+
+    // Helper methods for the new structured storage approach
+
+    private String getCurrentWeekNumber() {
+        // Simple implementation - can be enhanced to use actual week numbers or date-based
+        // For now, return current week of year
+        LocalDateTime now = LocalDateTime.now();
+        int dayOfYear = now.getDayOfYear();
+        return String.valueOf((dayOfYear / 7) + 1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> convertToMap(Object obj) {
+        if (obj instanceof Map) {
+            return (Map<String, Object>) obj;
+        } else {
+            // Convert via JSON serialization
+            try {
+                String json = prettyObjectMapper.writeValueAsString(obj);
+                return prettyObjectMapper.readValue(json, Map.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to convert object to map", e);
+            }
+        }
+    }
+
+    private void storeExerciseMetadata(Path exercisesDir, List<?> exercisesList) throws IOException {
+        for (int i = 0; i < exercisesList.size(); i++) {
+            Object exercise = exercisesList.get(i);
+            Path exerciseFile = exercisesDir.resolve("exercise_" + (i + 1) + ".json");
+            String exerciseJson = prettyObjectMapper.writeValueAsString(exercise);
+            Files.write(exerciseFile, exerciseJson.getBytes());
+        }
+    }
+
+    private void storeMealMetadata(Path mealsDir, List<?> weeklyPlanList) throws IOException {
+        for (int i = 0; i < weeklyPlanList.size(); i++) {
+            Object dayPlan = weeklyPlanList.get(i);
+            if (dayPlan instanceof Map<?, ?> dayMap) {
+                String dayName = String.valueOf(dayMap.get("day"));
+                Path dayFile = mealsDir.resolve("day_" + (i + 1) + "_" + dayName + ".json");
+                String dayJson = prettyObjectMapper.writeValueAsString(dayPlan);
+                Files.write(dayFile, dayJson.getBytes());
+            }
+        }
+    }
+
+    private List<Map<String, Object>> loadExerciseMetadata(Path exercisesDir) throws IOException {
+        List<Map<String, Object>> exercises = new ArrayList<>();
+        if (!Files.exists(exercisesDir)) {
+            return exercises;
+        }
+
+        Files.list(exercisesDir)
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".json"))
+                .sorted()
+                .forEach(exerciseFile -> {
+                    try {
+                        String json = Files.readString(exerciseFile);
+                        Map<String, Object> exercise = prettyObjectMapper.readValue(json, Map.class);
+                        exercises.add(exercise);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to load exercise metadata", e);
+                    }
+                });
+
+        return exercises;
+    }
+
+    private List<Map<String, Object>> loadMealMetadata(Path mealsDir) throws IOException {
+        List<Map<String, Object>> weeklyPlan = new ArrayList<>();
+        if (!Files.exists(mealsDir)) {
+            return weeklyPlan;
+        }
+
+        Files.list(mealsDir)
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".json"))
+                .sorted()
+                .forEach(dayFile -> {
+                    try {
+                        String json = Files.readString(dayFile);
+                        Map<String, Object> dayPlan = prettyObjectMapper.readValue(json, Map.class);
+                        weeklyPlan.add(dayPlan);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to load meal metadata", e);
+                    }
+                });
+
+        return weeklyPlan;
     }
 }

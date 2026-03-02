@@ -10,7 +10,7 @@
 
 ## Queue
 - [ ] TASK-BE-001 — Unified Plan Contract (Workout + Diet) — **AWAITING_APPROVAL**
-- [ ] TASK-BE-002 — Storage Metadata Integrity + Lookup APIs — **READY**
+- [ ] TASK-BE-002 — Storage Metadata Integrity + Lookup APIs — **IN_PROGRESS**
 - [ ] TASK-BE-004 — Payment Foundation (RevenueCat Entitlements) — **READY**
 - [ ] TASK-BE-005 — Progress - Exercise Object Storage History and 30-Day APIs — **READY**
 - [ ] TASK-BE-006 — Integration - API Contract Stabilization for Mobile Frontend — **READY**

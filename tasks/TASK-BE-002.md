@@ -36,4 +36,4 @@ Area: storage service + metadata persistence + lookup endpoints
 - API examples
 
 ## Status
-READY
+IN_PROGRESS (started: 2026-03-02 14:08)
