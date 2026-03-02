@@ -16,6 +16,9 @@ public class DietPlanResponseDto {
     private String title;
     private String phaseLabel;
     private Integer calories;
+    private Integer proteinG;
+    private Integer carbsG;
+    private Integer fatsG;
     private Integer mealsPerDay;
     private String dietType;
     private Map<String, Object> summary;
@@ -43,6 +46,15 @@ public class DietPlanResponseDto {
 
     public Integer getCalories() { return calories; }
     public void setCalories(Integer calories) { this.calories = calories; }
+
+    public Integer getProteinG() { return proteinG; }
+    public void setProteinG(Integer proteinG) { this.proteinG = proteinG; }
+
+    public Integer getCarbsG() { return carbsG; }
+    public void setCarbsG(Integer carbsG) { this.carbsG = carbsG; }
+
+    public Integer getFatsG() { return fatsG; }
+    public void setFatsG(Integer fatsG) { this.fatsG = fatsG; }
 
     public Integer getMealsPerDay() { return mealsPerDay; }
     public void setMealsPerDay(Integer mealsPerDay) { this.mealsPerDay = mealsPerDay; }

@@ -193,6 +193,9 @@ public class DietController {
         dto.setTitle(asString(normalizedPlan.get("title"), "Personalized Diet Plan"));
         dto.setPhaseLabel(asString(normalizedPlan.get("phaseLabel"), "Nutrition Base"));
         dto.setCalories(asPositiveInt(firstNonNull(normalizedPlan.get("calories"), normalizedPlan.get("dailyCalories")), 2000));
+        dto.setProteinG(asPositiveInt(normalizedPlan.get("proteinG"), calculateDefaultMacro(dto.getCalories(), 0.25, 4)));
+        dto.setCarbsG(asPositiveInt(normalizedPlan.get("carbsG"), calculateDefaultMacro(dto.getCalories(), 0.45, 4)));
+        dto.setFatsG(asPositiveInt(normalizedPlan.get("fatsG"), calculateDefaultMacro(dto.getCalories(), 0.30, 9)));
         dto.setMealsPerDay(asPositiveInt(normalizedPlan.get("mealsPerDay"), 3));
         dto.setDietType(asString(normalizedPlan.get("dietType"), "BALANCED"));
 
@@ -225,6 +228,9 @@ public class DietController {
         plan.put("phaseLabel", phaseLabel);
         plan.put("calories", calories);
         plan.put("dailyCalories", calories);
+        plan.put("proteinG", asPositiveInt(plan.get("proteinG"), calculateDefaultMacro(calories, 0.25, 4)));
+        plan.put("carbsG", asPositiveInt(plan.get("carbsG"), calculateDefaultMacro(calories, 0.45, 4)));
+        plan.put("fatsG", asPositiveInt(plan.get("fatsG"), calculateDefaultMacro(calories, 0.30, 9)));
         plan.put("mealsPerDay", mealsPerDay);
         plan.put("dietType", dietType);
 
@@ -373,5 +379,10 @@ public class DietController {
         }
 
         return totalCalories / totalMeals;
+    }
+
+    private Integer calculateDefaultMacro(Integer totalCalories, double percentage, int caloriesPerGram) {
+        if (totalCalories == null) totalCalories = 2000;
+        return (int) ((totalCalories * percentage) / caloriesPerGram);
     }
 }
