@@ -52,9 +52,10 @@ Area: progress controllers/services/DTOs, object storage integration, metadata/i
 ## Acceptance Criteria
 1. Logging endpoint stores and returns valid per-exercise entries.
 2. History endpoint returns sorted 30-day data suitable for line chart rendering.
-3. Heatmap endpoint returns 30-day activity map with consistent schema.
-4. Retention cap trims data beyond 30 days.
-5. Existing workout/diet APIs remain unaffected.
+3. Returned history data is chart-safe (chronological order, numeric values, no malformed/duplicate points that fragment path rendering).
+4. Heatmap endpoint returns 30-day activity map with consistent schema.
+5. Retention cap trims data beyond 30 days.
+6. Existing workout/diet APIs remain unaffected.
 
 ## Test Steps
 1. Submit multiple logs across dates for same exercise.
