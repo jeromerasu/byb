@@ -81,4 +81,4 @@ Area: billing domain models, webhook handlers, entitlement checks, secure subscr
 - Risks + rollback notes
 
 ## Status
-READY
+IN_PROGRESS (started: 2026-03-02 16:00)
