@@ -15,6 +15,7 @@
 - [ ] TASK-BE-005 — Progress - Exercise Object Storage History and 30-Day APIs — **READY**
 - [ ] TASK-BE-006 — Integration - API Contract Stabilization for Mobile Frontend — **READY**
 - [ ] TASK-BE-007 — Integration - Real-Time Metrics Updates + Nightly Snapshot Rebuild — **READY**
+- [ ] TASK-BE-008 — Integration - Combined Workout + Diet Plan Generate API — **READY**
 - [ ] TASK-BE-003 — Auth/Profile Unification for Mobile — **BACKLOG**
 
 ## Notes
