@@ -18,7 +18,11 @@ Area: plan orchestration endpoint, DTO composition, storage updates, compatibili
   - `plan_meta` (duration, generated_at, version)
   - `workout` plan payload
   - `diet` plan payload
-- Persist both plans/storage keys and include retrieval metadata
+- Persist response artifacts to object storage under required prefix format:
+  - `plans/{userGuid}/{yyyy-MM}/...`
+  - where `userGuid` is authenticated user id/guid
+  - where `yyyy-MM` is month-year partition for generated date
+- Store combined artifact + optional split artifacts (workout/diet) and return storage keys in response metadata
 - Keep existing separate endpoints operational for backward compatibility
 - Ensure auth, error handling, and partial-failure strategy are defined
 
@@ -33,8 +37,10 @@ Area: plan orchestration endpoint, DTO composition, storage updates, compatibili
 ## Acceptance Criteria
 1. Combined endpoint returns workout + diet in one JSON response.
 2. Existing separate generate endpoints continue to work.
-3. Storage metadata for both plan types is updated consistently.
-4. Clear error semantics for partial generation failures.
+3. Generated artifacts are stored under `plans/{userGuid}/{yyyy-MM}/...` object-storage pathing.
+4. Response includes storage key metadata for persisted artifacts.
+5. Storage metadata for both plan types is updated consistently.
+6. Clear error semantics for partial generation failures.
 
 ## Test Steps
 1. Call combined generate endpoint for authenticated user.
