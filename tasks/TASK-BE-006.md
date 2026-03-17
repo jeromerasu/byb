@@ -18,6 +18,11 @@ Area: controller routes, DTO consistency, compatibility aliases, contract docs
 - Add compatibility aliases/redirect handling for legacy paths during migration window
 - Ensure response envelopes are deterministic and frontend-safe
 - Publish concise contract mapping doc for frontend team
+- Enforce structured JSON generation from AI for 30-day plans (no freeform text payloads)
+- Require 30-day schema shape for workout plan output, e.g.:
+  - `weeks.week_1.day_1.exercises[]` ... through week_4/day_7
+  - exercise entries include `name`, `sets`, `reps`, `weight_lbs` (or canonical weight field), and optional rest metadata
+- Add validation/repair path: if AI output is non-JSON or schema-invalid, regenerate or fallback to safe template
 
 ## Out of Scope
 - New feature domains (billing/progress analytics)
@@ -26,6 +31,8 @@ Area: controller routes, DTO consistency, compatibility aliases, contract docs
 1. Frontend can call canonical endpoints without path mismatches.
 2. Legacy routes (if still used) are handled safely during migration.
 3. Contract doc provides exact request/response examples.
+4. Workout plan generation returns strict JSON following 30-day schema (week/day nesting with exercises array).
+5. Non-JSON or schema-invalid AI output is rejected/recovered automatically (no malformed payloads returned to client).
 
 ## Test Steps
 1. Hit canonical and legacy routes in test environment.
