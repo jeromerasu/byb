@@ -20,4 +20,5 @@
 
 ## Notes
 - Use `tasks/TASK_TEMPLATE.md` for all new backend tasks.
+- Follow `TESTING_REQUIREMENTS.md` for mandatory local verification before marking DONE.
 - Preserve backward compatibility where possible.

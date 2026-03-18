@@ -41,11 +41,20 @@ High / Medium / Low
 2. 
 3. 
 
+## Mandatory Local Testing Verification (required)
+- Create and use local test profile (`application-test.properties`) per `TESTING_REQUIREMENTS.md`
+- Verify app startup with test profile
+- Verify endpoint reachability (no connection refused/404)
+- Verify authenticated flow where applicable (test user + bearer token)
+- Verify request/response schema correctness and no 500s
+- Document exact commands used
+
 ## Deliverables
 - Commit hash
 - Changed files
 - Contract examples (request/response)
 - Risks/rollback notes
+- Local testing evidence (startup, endpoint checks, commands, response validation)
 
 ## Status
 `BACKLOG | READY | IN_PROGRESS | BLOCKED | DONE`
