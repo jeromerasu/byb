@@ -21,4 +21,5 @@
 ## Notes
 - Use `tasks/TASK_TEMPLATE.md` for all new backend tasks.
 - Follow `TESTING_REQUIREMENTS.md` for mandatory local verification before marking DONE.
+- No backend task may be marked DONE without runtime proof block (startup, endpoint reachability, auth/path tests, and commands used).
 - Preserve backward compatibility where possible.
