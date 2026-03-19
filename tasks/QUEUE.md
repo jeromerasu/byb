@@ -16,7 +16,7 @@
 - [ ] TASK-BE-006 — Integration - API Contract Stabilization for Mobile Frontend — **READY**
 - [ ] TASK-BE-007 — Integration - Real-Time Metrics Updates + Nightly Snapshot Rebuild — **READY**
 - [ ] TASK-BE-008 — Integration - Combined Workout + Diet Plan Generate API — **READY**
-- [ ] TASK-BE-009 — API - Exercise Catalog List from Generated Plan Responses — **READY**
+- [ ] TASK-BE-009 — API - Current Week Workout + Diet Plan (User Scoped) — **READY**
 - [ ] TASK-BE-010 — API - Diet Food Catalog List from Generated Plan Responses — **READY**
 - [ ] TASK-BE-003 — Auth/Profile Unification for Mobile — **BACKLOG**
 
