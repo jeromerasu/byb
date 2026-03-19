@@ -14,43 +14,128 @@ Generates a new workout plan for the authenticated user.
 ```json
 {
   "message": "Workout plan generated successfully",
-  "planTitle": "Workout Plan - 2026-02-27",
+  "planTitle": "Workout Plan - 2026-03-17",
   "storageKey": "workout-plan-abc123",
-  "createdAt": "2026-02-27T17:30:00",
+  "createdAt": "2026-03-17T17:30:00",
 
   // Stable frontend contract fields
-  "title": "Personalized Workout Plan",
+  "title": "30-Day Personalized Workout Plan",
   "phaseLabel": "Base Phase",
   "durationMin": 45,
   "calories": 300,
   "exercises": [
     {
       "name": "Push-ups",
-      "prescription": "3 sets of 8-12 reps",
+      "prescription": "3 sets of 10 reps",
       "muscle": "chest"
     },
     {
       "name": "Bodyweight Squats",
-      "prescription": "3 sets of 10-15 reps",
-      "muscle": "legs"
+      "prescription": "3 sets of 12 reps",
+      "muscle": "quadriceps"
+    },
+    {
+      "name": "Plank",
+      "prescription": "3 sets of 30 seconds",
+      "muscle": "core"
     }
   ],
 
-  // Legacy payload for backward compatibility
+  // NEW: 30-day structured plan format
   "plan": {
-    "title": "Personalized Workout Plan",
+    "title": "30-Day Personalized Workout Plan",
+    "type": "30_DAY_STRUCTURED",
+    "version": "2.0",
+    "generatedAt": "2026-03-17T17:30:00",
+    "totalWeeks": 4,
+    "totalDays": 28,
     "fitnessLevel": "BEGINNER",
-    "frequency": 3,
-    "duration": 45,
-    "workoutDays": [
-      {
-        "day": 1,
-        "focus": "Upper Body",
-        "exercises": [...],
-        "duration": 45
+    "targetGoals": ["WEIGHT_LOSS"],
+    "availableEquipment": ["BODYWEIGHT"],
+    "sessionDuration": 45,
+
+    "weeks": {
+      "week_1": {
+        "weekNumber": 1,
+        "focus": "Foundation & Form",
+        "intensity": "Low",
+        "day_1": {
+          "dayNumber": 1,
+          "weekNumber": 1,
+          "isWorkoutDay": true,
+          "focus": "Upper Body",
+          "exercises": [
+            {
+              "name": "Push-ups",
+              "sets": 3,
+              "reps": 10,
+              "weight_lbs": 0,
+              "weight_type": "bodyweight",
+              "rest_seconds": 60,
+              "instructions": "Start in plank position, lower chest to floor, push back up",
+              "muscle_groups": ["chest", "shoulders", "triceps"]
+            },
+            {
+              "name": "Wall Push-ups",
+              "sets": 3,
+              "reps": 11,
+              "weight_lbs": 0,
+              "weight_type": "bodyweight",
+              "rest_seconds": 45,
+              "instructions": "Perform with proper form",
+              "muscle_groups": ["full_body"]
+            }
+          ],
+          "estimatedDuration": 45,
+          "estimatedCalories": 270
+        },
+        "day_2": {
+          "dayNumber": 2,
+          "weekNumber": 1,
+          "isWorkoutDay": false,
+          "exercises": [],
+          "restDay": true,
+          "recommendedActivity": "Light stretching or walking"
+        },
+        "day_3": {
+          "dayNumber": 3,
+          "weekNumber": 1,
+          "isWorkoutDay": true,
+          "focus": "Lower Body",
+          "exercises": [...],
+          "estimatedDuration": 45,
+          "estimatedCalories": 270
+        }
+        // ... day_4 through day_7
+      },
+      "week_2": {
+        "weekNumber": 2,
+        "focus": "Building Strength",
+        "intensity": "Moderate",
+        // ... day_1 through day_7
+      },
+      "week_3": {
+        "weekNumber": 3,
+        "focus": "Increasing Intensity",
+        "intensity": "High",
+        // ... day_1 through day_7
+      },
+      "week_4": {
+        "weekNumber": 4,
+        "focus": "Peak Performance",
+        "intensity": "Peak",
+        // ... day_1 through day_7
       }
-    ],
-    "generatedAt": "2026-02-27T17:30:00"
+    },
+
+    "summary": {
+      "totalWorkoutDays": 12,
+      "totalRestDays": 16,
+      "avgDurationPerSession": 45,
+      "estimatedTotalCalories": 3240,
+      "primaryMuscleGroups": ["chest", "back", "legs", "shoulders", "core", "arms"],
+      "recommendedEquipment": ["BODYWEIGHT"]
+    }
   }
 }
 ```
@@ -215,9 +300,58 @@ All endpoints return structured error responses:
 }
 ```
 
+## Schema Validation & AI Content Safety
+
+### 30-Day Workout Plan Validation
+All workout plans are validated against the 30-day schema structure:
+- **Required**: `weeks.week_1` through `weeks.week_4`
+- **Required**: Each week contains `day_1` through `day_7`
+- **Required**: Each day has `exercises[]` array (can be empty for rest days)
+- **Required**: Each exercise must include: `name`, `sets`, `reps`, `weight_type`
+- **Optional**: `weight_lbs`, `rest_seconds`, `instructions`, `muscle_groups`
+
+### Exercise Field Requirements
+```json
+{
+  "name": "string (required) - Exercise name",
+  "sets": "integer (required) - Number of sets",
+  "reps": "integer (required) - Repetitions or seconds",
+  "weight_type": "string (required) - bodyweight|time_seconds|weight",
+  "weight_lbs": "number (optional) - Weight in pounds, 0 for bodyweight",
+  "rest_seconds": "integer (optional) - Rest between sets",
+  "instructions": "string (optional) - Exercise instructions",
+  "muscle_groups": "array (optional) - Target muscle groups"
+}
+```
+
+### AI Content Validation Process
+1. **JSON Structure Check**: Ensures AI response is valid JSON object/array
+2. **Schema Validation**: Validates 30-day workout plan structure
+3. **Content Repair**: Automatically repairs malformed plans with safe fallback
+4. **Fallback Generation**: Provides safe exercise templates if AI content invalid
+
+### Validation Error Handling
+```json
+{
+  "message": "Plan generated with fallback content due to validation errors",
+  "planTitle": "Safe Workout Plan - 2026-03-17",
+  "validationWarning": "AI content was invalid, using safe template",
+  "plan": {
+    "type": "30_DAY_STRUCTURED",
+    "version": "2.0",
+    "weeks": {
+      // Safe fallback structure with basic exercises
+    }
+  }
+}
+```
+
 ## Migration Notes
 
 - Frontend can immediately use the stable top-level fields (`title`, `phaseLabel`, etc.)
-- Legacy `plan` field remains available during migration period
+- New 30-day structured format available in `plan.weeks` object
+- All AI-generated content is validated and repaired automatically
+- Non-JSON or schema-invalid AI responses are replaced with safe templates
+- Response envelopes are deterministic and frontend-safe
 - All responses include metadata (`message`, `planTitle`, `storageKey`, `createdAt`)
 - Fallback logic ensures responses are always well-formed even if AI generation fails

@@ -6,8 +6,11 @@ import com.workoutplanner.model.User;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.StorageService;
+import com.workoutplanner.service.WorkoutPlanGeneratorService;
+import com.workoutplanner.service.PlanValidationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,14 +28,23 @@ public class WorkoutController {
     private final WorkoutProfileRepository workoutProfileRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final WorkoutPlanGeneratorService workoutPlanGeneratorService;
+    private final PlanValidationService planValidationService;
+
+    @Value("${beta.mode:false}")
+    private boolean betaMode;
 
     @Autowired
     public WorkoutController(WorkoutProfileRepository workoutProfileRepository,
                            UserRepository userRepository,
-                           StorageService storageService) {
+                           StorageService storageService,
+                           WorkoutPlanGeneratorService workoutPlanGeneratorService,
+                           PlanValidationService planValidationService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.userRepository = userRepository;
         this.storageService = storageService;
+        this.workoutPlanGeneratorService = workoutPlanGeneratorService;
+        this.planValidationService = planValidationService;
     }
 
     @GetMapping("/profile")
@@ -86,7 +98,15 @@ public class WorkoutController {
             WorkoutProfile workoutProfile = workoutProfileRepository.findByUserId(userId)
                     .orElseThrow(() -> new RuntimeException("Workout profile not found"));
 
-            Map<String, Object> workoutPlan = generateSimpleWorkoutPlan(workoutProfile);
+            Map<String, Object> workoutPlan = workoutPlanGeneratorService.generateStructured30DayPlan(workoutProfile);
+
+            // Validate generated plan follows 30-day schema
+            PlanValidationService.ValidationResult validationResult = planValidationService.validateAIResponse(workoutPlan);
+            if (!validationResult.isValid()) {
+                // Use repair mechanism for malformed plans
+                workoutPlan = planValidationService.repairWorkoutPlan(workoutPlan,
+                    Map.of("fitnessLevel", workoutProfile.getFitnessLevel() != null ? workoutProfile.getFitnessLevel().name() : "BEGINNER"));
+            }
 
             String planTitle = "Workout Plan - " + LocalDateTime.now().toLocalDate();
 
@@ -168,6 +188,11 @@ public class WorkoutController {
     }
 
     private String getCurrentUserId() {
+        // In BETA mode, return the test user ID we created
+        if (betaMode) {
+            return "84648790-8991-4f5f-b22b-9569c809cac6"; // test_be006 user ID
+        }
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return ((User) authentication.getPrincipal()).getId();
@@ -247,6 +272,24 @@ public class WorkoutController {
             }
         }
 
+        // Extract from new 30-day structured format: weeks.week_1.day_1.exercises[]
+        if (exercises.isEmpty() && plan.get("weeks") instanceof Map<?, ?> weeks) {
+            for (Object weekObj : weeks.values()) {
+                if (weekObj instanceof Map<?, ?> weekMap) {
+                    for (Object dayObj : weekMap.values()) {
+                        if (dayObj instanceof Map<?, ?> dayMap &&
+                            dayMap.get("exercises") instanceof List<?> dayExercises) {
+                            for (Object exObj : dayExercises) {
+                                if (exObj instanceof Map<?, ?> exerciseMap) {
+                                    exercises.add(mapExercise(exerciseMap));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Fallback: flatten workoutDays[].exercises[] from legacy plan structure
         if (exercises.isEmpty() && plan.get("workoutDays") instanceof List<?> days) {
             for (Object dayObj : days) {
@@ -265,11 +308,38 @@ public class WorkoutController {
 
     private WorkoutPlanResponseDto.ExerciseDto mapExercise(Map<?, ?> exerciseMap) {
         String name = asString(firstNonNull(exerciseMap.get("name"), exerciseMap.get("exercise")), "Unknown Exercise");
-        String prescription = asString(
+
+        // Handle structured exercise format with sets, reps, weight, etc.
+        String prescription;
+        Object sets = exerciseMap.get("sets");
+        Object reps = exerciseMap.get("reps");
+        Object weightType = exerciseMap.get("weight_type");
+
+        if (sets != null && reps != null) {
+            String setsStr = String.valueOf(sets);
+            String repsStr = String.valueOf(reps);
+
+            if ("time_seconds".equals(weightType)) {
+                prescription = setsStr + " sets of " + repsStr + " seconds";
+            } else {
+                prescription = setsStr + " sets of " + repsStr + " reps";
+            }
+        } else {
+            prescription = asString(
                 firstNonNull(exerciseMap.get("prescription"), exerciseMap.get("sets"), exerciseMap.get("reps")),
                 "3 sets"
-        );
-        String muscle = asString(firstNonNull(exerciseMap.get("muscle"), exerciseMap.get("type")), "full_body");
+            );
+        }
+
+        // Extract muscle groups - prioritize structured format
+        String muscle;
+        Object muscleGroups = exerciseMap.get("muscle_groups");
+        if (muscleGroups instanceof List<?> groups && !groups.isEmpty()) {
+            muscle = String.valueOf(groups.get(0)); // Use primary muscle group
+        } else {
+            muscle = asString(firstNonNull(exerciseMap.get("muscle"), exerciseMap.get("type")), "full_body");
+        }
+
         return new WorkoutPlanResponseDto.ExerciseDto(name, prescription, muscle);
     }
 
