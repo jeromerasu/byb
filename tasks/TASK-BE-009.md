@@ -32,7 +32,7 @@ Area: plan parsing service, controller endpoint, DTO mapping, object-storage rea
   "workoutWeek": {
     "done": false,
     "days": {
-      "day_1": {
+      "monday": {
         "done": false,
         "focus": "upper_body",
         "exercises": [
@@ -49,7 +49,7 @@ Area: plan parsing service, controller endpoint, DTO mapping, object-storage rea
   "dietWeek": {
     "done": false,
     "days": {
-      "day_1": {
+      "monday": {
         "done": false,
         "meals": [
           {
@@ -91,8 +91,9 @@ Area: plan parsing service, controller endpoint, DTO mapping, object-storage rea
 1. Endpoint returns current week workout + diet for authenticated user when plans exist.
 2. Supports both legacy and new 30-day nested JSON plan structures.
 3. Week objects and day objects include `done` boolean for workout and diet.
-4. Includes normalized selector catalogs for exercise and diet food.
-5. Clear empty-state response when plans are missing (no 500s).
+4. Day objects use explicit weekday keys (`monday`...`sunday`).
+5. Includes normalized selector catalogs for exercise and diet food.
+6. Clear empty-state response when plans are missing (no 500s).
 
 ## Test Steps
 1. Generate combined workout+diet plan.

@@ -20,7 +20,8 @@ Area: controller routes, DTO consistency, compatibility aliases, contract docs
 - Publish concise contract mapping doc for frontend team
 - Enforce structured JSON generation from AI for 30-day plans (no freeform text payloads)
 - Require 30-day schema shape for workout plan output, e.g.:
-  - `weeks.week_1.day_1.exercises[]` ... through week_4/day_7
+  - `weeks.week_1.days.monday.exercises[]` ... through week_4 with explicit weekday keys
+  - required day keys: `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
   - each week object includes `done` boolean
   - each day includes `done` boolean to track completion state
   - exercise entries include `name`, `sets`, `reps`, `weight_lbs` (or canonical weight field), and optional rest metadata

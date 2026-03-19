@@ -19,8 +19,10 @@ Area: plan orchestration endpoint, DTO composition, storage updates, compatibili
   - `workout` plan payload
   - `diet` plan payload
 - Enforce nested week/day structures for both workout and diet suitable for object storage and direct retrieval:
-  - `workout.weeks.week_1 = { done: boolean, days: { day_1: { done: boolean, exercises: [...] } } }`
-  - `diet.weeks.week_1 = { done: boolean, days: { day_1: { done: boolean, meals: [...] } } }`
+  - `workout.weeks.week_1 = { done: boolean, days: { monday: { done: boolean, exercises: [...] }, ... sunday } }`
+  - `diet.weeks.week_1 = { done: boolean, days: { monday: { done: boolean, meals: [...] }, ... sunday } }`
+- Day keys must be explicit weekdays (not `day_1..day_7`):
+  - `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
 - Persist response artifacts to object storage under required prefix format:
   - `plans/{userGuid}/{yyyy-MM}/...`
   - where `userGuid` is authenticated user id/guid
