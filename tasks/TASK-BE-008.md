@@ -18,6 +18,9 @@ Area: plan orchestration endpoint, DTO composition, storage updates, compatibili
   - `plan_meta` (duration, generated_at, version)
   - `workout` plan payload
   - `diet` plan payload
+- Enforce nested week/day structures for both workout and diet suitable for object storage and direct retrieval:
+  - `workout.weeks.week_1.day_1 = { done: boolean, exercises: [...] }`
+  - `diet.weeks.week_1.day_1 = { done: boolean, meals: [...] }`
 - Persist response artifacts to object storage under required prefix format:
   - `plans/{userGuid}/{yyyy-MM}/...`
   - where `userGuid` is authenticated user id/guid
@@ -39,8 +42,9 @@ Area: plan orchestration endpoint, DTO composition, storage updates, compatibili
 2. Existing separate generate endpoints continue to work.
 3. Generated artifacts are stored under `plans/{userGuid}/{yyyy-MM}/...` object-storage pathing.
 4. Response includes storage key metadata for persisted artifacts.
-5. Storage metadata for both plan types is updated consistently.
-6. Clear error semantics for partial generation failures.
+5. Workout and diet plan payloads include week/day nesting with per-day `done` boolean.
+6. Storage metadata for both plan types is updated consistently.
+7. Clear error semantics for partial generation failures.
 
 ## Test Steps
 1. Call combined generate endpoint for authenticated user.
