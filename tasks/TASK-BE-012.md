@@ -1,7 +1,7 @@
-# TASK-BE-012 — API/DB - Persist User Theme Preferences (Accent + Panel Style)
+# TASK-BE-012 — API/DB - Persist User Theme Preferences (Colorway/Accent)
 
 ## Goal
-Add backend persistence for user theme customization, including DB schema updates and profile endpoints for cross-device sync.
+Add backend persistence for user colorway/accent customization, including DB schema updates and profile endpoints for cross-device sync.
 
 ## Priority
 High
@@ -11,9 +11,9 @@ Repo: `byb`
 Area: user table schema, entity/model, DTOs, controller/service for theme preference read/write
 
 ## In Scope
-- Add DB column(s) to `user` table to support theme customization (explicit migration required), e.g.:
+- Add DB column(s) to `user` table to support colorway customization (explicit migration required), e.g.:
   - `theme_accent` (varchar)
-  - `panel_style` (varchar)
+- Do not add user-toggle panel style field (Oura-inspired panel style remains product default)
 - Update `User` model/entity and related DTO mapping
 - Add auth-scoped endpoints:
   - `GET /api/v1/user/theme-preferences`
@@ -32,7 +32,7 @@ Area: user table schema, entity/model, DTOs, controller/service for theme prefer
 - Must satisfy TESTING_REQUIREMENTS.md runtime proof before DONE
 
 ## Acceptance Criteria
-1. User table contains new theme preference column(s) with migration applied.
+1. User table contains colorway preference column(s) with migration applied.
 2. Authenticated user can read and update theme preferences via API.
 3. Existing users receive defaults without breaking profile reads.
 4. Invalid values are rejected with clear errors.

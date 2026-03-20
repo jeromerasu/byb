@@ -19,7 +19,7 @@
 - [ ] TASK-BE-009 — API - Current Week Workout + Diet Plan (User Scoped) — **READY**
 - [ ] TASK-BE-010 — API - Diet Food Catalog List from Generated Plan Responses — **READY**
 - [ ] TASK-BE-011 — API - Persist First-Time Tutorial Completion State — **READY**
-- [ ] TASK-BE-012 — API/DB - Persist User Theme Preferences (Accent + Panel Style) — **READY**
+- [ ] TASK-BE-012 — API/DB - Persist User Theme Preferences (Colorway/Accent) — **READY**
 - [ ] TASK-BE-003 — Auth/Profile Unification for Mobile — **BACKLOG**
 
 ## Notes
