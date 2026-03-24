@@ -146,39 +146,40 @@ public class PlanController {
         });
     }
 
-    @GetMapping("/debug-profiles")
-    public ResponseEntity<Map<String, Object>> debugProfiles() {
+    @GetMapping("/debug-userid")
+    public ResponseEntity<Map<String, Object>> debugUserId(HttpServletRequest request) {
         Map<String, Object> result = new HashMap<>();
 
         try {
-            // Get the first available user instead of hardcoded ID
-            java.util.List<User> allUsers = userRepository.findAll();
-            result.put("total_users_count", allUsers.size());
+            // Get the actual user ID that getCurrentUserId() returns
+            String actualUserId = getCurrentUserId(request);
+            result.put("actual_user_id_from_getCurrentUserId", actualUserId);
 
-            if (allUsers.isEmpty()) {
-                result.put("error", "No users found in database");
-                return ResponseEntity.ok(result);
-            }
-
-            User testUser = allUsers.get(0);
-            String testUserId = testUser.getId();
-            result.put("test_user_id", testUserId);
-            result.put("test_user_username", testUser.getUsername());
-
-            // Test workout profile lookup
-            Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(testUserId);
-            result.put("workout_profile_found", workoutProfile.isPresent());
+            // Check profiles for this specific user ID
+            Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(actualUserId);
+            result.put("workout_profile_found_for_actual_user", workoutProfile.isPresent());
             if (workoutProfile.isPresent()) {
                 result.put("workout_profile_id", workoutProfile.get().getId());
-                result.put("workout_profile_fitness_level", workoutProfile.get().getFitnessLevel());
             }
 
-            // Test diet profile lookup
-            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(testUserId);
-            result.put("diet_profile_found", dietProfile.isPresent());
+            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(actualUserId);
+            result.put("diet_profile_found_for_actual_user", dietProfile.isPresent());
             if (dietProfile.isPresent()) {
                 result.put("diet_profile_id", dietProfile.get().getId());
-                result.put("diet_profile_type", dietProfile.get().getDietType());
+            }
+
+            // Also show profiles that exist for any user
+            java.util.List<WorkoutProfile> allWorkoutProfiles = workoutProfileRepository.findAll();
+            java.util.List<DietProfile> allDietProfiles = dietProfileRepository.findAll();
+
+            result.put("total_workout_profiles", allWorkoutProfiles.size());
+            result.put("total_diet_profiles", allDietProfiles.size());
+
+            if (!allWorkoutProfiles.isEmpty()) {
+                result.put("existing_workout_profile_user_id", allWorkoutProfiles.get(0).getUserId());
+            }
+            if (!allDietProfiles.isEmpty()) {
+                result.put("existing_diet_profile_user_id", allDietProfiles.get(0).getUserId());
             }
 
             return ResponseEntity.ok(result);
