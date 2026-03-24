@@ -224,50 +224,61 @@ public class PlanController {
         Map<String, Object> result = new HashMap<>();
 
         try {
+            logger.info("Starting test user cleanup process");
             java.util.List<User> allUsers = userRepository.findAll();
             result.put("initial_user_count", allUsers.size());
+            logger.info("Found {} total users in database", allUsers.size());
 
-            // Keep one test user (create if none exist)
+            // Find a user with both profiles to keep
             User keepUser = null;
-            java.util.List<User> usersToDelete = new java.util.ArrayList<>();
-
-            // Look for an existing test user with both profiles
             for (User user : allUsers) {
                 Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(user.getId());
                 Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(user.getId());
 
-                if (keepUser == null && workoutProfile.isPresent() && dietProfile.isPresent()) {
+                if (workoutProfile.isPresent() && dietProfile.isPresent()) {
                     keepUser = user;
-                } else {
-                    usersToDelete.add(user);
+                    logger.info("Found user with both profiles to keep: {} ({})", user.getUsername(), user.getId());
+                    break;
                 }
             }
 
-            // If no suitable user found, keep the first user or create one
+            // If no user with both profiles found, keep the first user
             if (keepUser == null && !allUsers.isEmpty()) {
                 keepUser = allUsers.get(0);
-                usersToDelete.remove(keepUser);
+                logger.info("No user with both profiles found, keeping first user: {} ({})", keepUser.getUsername(), keepUser.getId());
             }
 
-            // Delete users and their profiles
+            // Delete all other users and their profiles
             int deletedUsers = 0;
-            for (User user : usersToDelete) {
-                workoutProfileRepository.deleteByUserId(user.getId());
-                dietProfileRepository.deleteByUserId(user.getId());
-                userRepository.delete(user);
-                deletedUsers++;
+            for (User user : allUsers) {
+                if (!user.getId().equals(keepUser.getId())) {
+                    logger.info("Deleting user: {} ({})", user.getUsername(), user.getId());
+                    try {
+                        workoutProfileRepository.deleteByUserId(user.getId());
+                        dietProfileRepository.deleteByUserId(user.getId());
+                        userRepository.delete(user);
+                        deletedUsers++;
+                    } catch (Exception e) {
+                        logger.error("Error deleting user {}: {}", user.getId(), e.getMessage());
+                    }
+                }
             }
 
             result.put("deleted_user_count", deletedUsers);
-            result.put("kept_user", keepUser != null ? Map.of(
-                "id", keepUser.getId(),
-                "username", keepUser.getUsername(),
-                "email", keepUser.getEmail()
-            ) : null);
+            if (keepUser != null) {
+                result.put("kept_user", Map.of(
+                    "id", keepUser.getId(),
+                    "username", keepUser.getUsername(),
+                    "email", keepUser.getEmail()
+                ));
+            }
 
+            logger.info("Cleanup complete: deleted {} users, kept 1 user", deletedUsers);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
+            logger.error("Error during cleanup: {}", e.getMessage(), e);
             result.put("error", e.getMessage());
+            result.put("errorType", e.getClass().getSimpleName());
             return ResponseEntity.ok(result);
         }
     }
@@ -420,40 +431,47 @@ public class PlanController {
     private String getCurrentUserId(HttpServletRequest request) {
         logger.debug("getCurrentUserId called - betaMode: {}", betaMode);
 
-        // In BETA mode, find a user that actually has both profiles
+        // In BETA mode, use the single test user approach
         if (betaMode) {
-            logger.debug("BETA mode active - finding user with both profiles");
+            logger.debug("BETA mode active - using single test user");
 
-            // Find the first user that has both workout and diet profiles
-            java.util.List<WorkoutProfile> workoutProfiles = workoutProfileRepository.findAll();
-            logger.debug("Total workout profiles found: {}", workoutProfiles.size());
-
-            if (!workoutProfiles.isEmpty()) {
-                for (int i = 0; i < workoutProfiles.size(); i++) {
-                    WorkoutProfile wp = workoutProfiles.get(i);
-                    String candidateUserId = wp.getUserId();
-                    logger.debug("Checking workout profile #{} for user: {}", i+1, candidateUserId);
-
-                    // Check if this user also has a diet profile
-                    Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(candidateUserId);
-                    logger.debug("Diet profile search for user {}: {}", candidateUserId, dietProfile.isPresent() ? "FOUND" : "NOT_FOUND");
-
-                    if (dietProfile.isPresent()) {
-                        logger.info("Found user with both profiles - using: {}", candidateUserId);
-                        return candidateUserId;
+            // First try to extract from JWT if available
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    String username = jwtService.extractUsername(token);
+                    Optional<User> user = userRepository.findByUsername(username);
+                    if (user.isPresent()) {
+                        String userId = user.get().getId();
+                        logger.info("BETA mode: JWT authentication successful for user: {} ({})", username, userId);
+                        return userId;
                     }
+                } catch (Exception e) {
+                    logger.warn("BETA mode: JWT parsing failed: {}", e.getMessage());
                 }
-
-                // No user found with both profiles, use first workout profile user anyway
-                String firstUserId = workoutProfiles.get(0).getUserId();
-                logger.warn("No user found with both profiles, using first workout profile user: {}", firstUserId);
-                return firstUserId;
             }
 
-            // No workout profiles at all - fallback to hardcoded test user
-            String fallbackUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
-            logger.warn("No workout profiles found at all - fallback to hardcoded test user ID: {}", fallbackUserId);
-            return fallbackUserId;
+            // Fallback: use first user with both profiles
+            java.util.List<User> allUsers = userRepository.findAll();
+            for (User user : allUsers) {
+                Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(user.getId());
+                Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(user.getId());
+
+                if (workoutProfile.isPresent() && dietProfile.isPresent()) {
+                    logger.info("BETA mode fallback: Using user with both profiles: {} ({})", user.getUsername(), user.getId());
+                    return user.getId();
+                }
+            }
+
+            // Final fallback: use first user
+            if (!allUsers.isEmpty()) {
+                String userId = allUsers.get(0).getId();
+                logger.warn("BETA mode final fallback: Using first user: {} ({})", allUsers.get(0).getUsername(), userId);
+                return userId;
+            }
+
+            throw new RuntimeException("BETA mode: No users found in database");
         }
 
         // Production mode: use normal authentication
