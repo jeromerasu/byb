@@ -8,9 +8,11 @@ import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.DietProfileRepository;
+import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.CombinedPlanService;
 import com.workoutplanner.service.PlanParsingService;
 import com.workoutplanner.service.StorageService;
+import com.workoutplanner.service.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +35,8 @@ public class PlanController {
     private final StorageService storageService;
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
+    private final UserRepository userRepository;
+    private final JwtService jwtService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -41,17 +46,21 @@ public class PlanController {
                          PlanParsingService planParsingService,
                          StorageService storageService,
                          WorkoutProfileRepository workoutProfileRepository,
-                         DietProfileRepository dietProfileRepository) {
+                         DietProfileRepository dietProfileRepository,
+                         UserRepository userRepository,
+                         JwtService jwtService) {
         this.combinedPlanService = combinedPlanService;
         this.planParsingService = planParsingService;
         this.storageService = storageService;
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
+        this.userRepository = userRepository;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/generate")
-    public Mono<ResponseEntity<CombinedPlanResponseDto>> generateCombinedPlan() {
-        String userId = getCurrentUserId();
+    public Mono<ResponseEntity<CombinedPlanResponseDto>> generateCombinedPlan(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         return Mono.fromCallable(() -> {
             try {
@@ -78,8 +87,8 @@ public class PlanController {
     }
 
     @GetMapping("/current-week")
-    public Mono<ResponseEntity<CurrentWeekResponseDto>> getCurrentWeek() {
-        String userId = getCurrentUserId();
+    public Mono<ResponseEntity<CurrentWeekResponseDto>> getCurrentWeek(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         return Mono.fromCallable(() -> {
             try {
@@ -130,8 +139,8 @@ public class PlanController {
     }
 
     @GetMapping("/diet-foods")
-    public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods() {
-        String userId = getCurrentUserId();
+    public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         return Mono.fromCallable(() -> {
             try {
@@ -177,16 +186,33 @@ public class PlanController {
         });
     }
 
-    private String getCurrentUserId() {
+    private String getCurrentUserId(HttpServletRequest request) {
+        // In BETA mode, try to extract from JWT token first
+        if (betaMode) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    String username = jwtService.extractUsername(token);
+
+                    // Look up the user by username to get the user ID
+                    Optional<User> user = userRepository.findByUsername(username);
+                    if (user.isPresent()) {
+                        return user.get().getId();
+                    }
+                } catch (Exception e) {
+                    System.out.println("Failed to extract user from JWT in BETA mode: " + e.getMessage());
+                }
+            }
+
+            // Fallback to hardcoded user ID for BETA mode if no valid token
+            return "630f6351-fbd8-4e2c-87a5-1f6f30e7276b";
+        }
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return ((User) authentication.getPrincipal()).getId();
         }
-
-        if (betaMode) {
-            return "630f6351-fbd8-4e2c-87a5-1f6f30e7276b";
-        }
-
         throw new RuntimeException("User not authenticated");
     }
 }

@@ -8,6 +8,7 @@ import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.StorageService;
 import com.workoutplanner.service.WorkoutPlanGeneratorService;
 import com.workoutplanner.service.PlanValidationService;
+import com.workoutplanner.service.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -30,6 +32,7 @@ public class WorkoutController {
     private final StorageService storageService;
     private final WorkoutPlanGeneratorService workoutPlanGeneratorService;
     private final PlanValidationService planValidationService;
+    private final JwtService jwtService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -39,17 +42,19 @@ public class WorkoutController {
                            UserRepository userRepository,
                            StorageService storageService,
                            WorkoutPlanGeneratorService workoutPlanGeneratorService,
-                           PlanValidationService planValidationService) {
+                           PlanValidationService planValidationService,
+                           JwtService jwtService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.userRepository = userRepository;
         this.storageService = storageService;
         this.workoutPlanGeneratorService = workoutPlanGeneratorService;
         this.planValidationService = planValidationService;
+        this.jwtService = jwtService;
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<WorkoutProfile> getWorkoutProfile() {
-        String userId = getCurrentUserId();
+    public ResponseEntity<WorkoutProfile> getWorkoutProfile(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         Optional<WorkoutProfile> profile = workoutProfileRepository.findByUserId(userId);
 
@@ -61,8 +66,8 @@ public class WorkoutController {
     }
 
     @PostMapping("/profile")
-    public ResponseEntity<WorkoutProfile> createOrUpdateWorkoutProfile(@Valid @RequestBody WorkoutProfile profile) {
-        String userId = getCurrentUserId();
+    public ResponseEntity<WorkoutProfile> createOrUpdateWorkoutProfile(@Valid @RequestBody WorkoutProfile profile, HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         profile.setUserId(userId);
 
@@ -89,8 +94,8 @@ public class WorkoutController {
 
 
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getWorkoutStats() {
-        String userId = getCurrentUserId();
+    public ResponseEntity<Map<String, Object>> getWorkoutStats(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         Optional<WorkoutProfile> profileOpt = workoutProfileRepository.findByUserId(userId);
 
@@ -110,9 +115,26 @@ public class WorkoutController {
         return ResponseEntity.ok(stats);
     }
 
-    private String getCurrentUserId() {
-        // In BETA mode, return the test user ID we created
+    private String getCurrentUserId(HttpServletRequest request) {
+        // In BETA mode, try to extract from JWT token first
         if (betaMode) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    String username = jwtService.extractUsername(token);
+
+                    // Look up the user by username to get the user ID
+                    Optional<User> user = userRepository.findByUsername(username);
+                    if (user.isPresent()) {
+                        return user.get().getId();
+                    }
+                } catch (Exception e) {
+                    System.out.println("Failed to extract user from JWT in BETA mode: " + e.getMessage());
+                }
+            }
+
+            // Fallback to hardcoded user ID for BETA mode if no valid token
             return "84648790-8991-4f5f-b22b-9569c809cac6"; // test_be006 user ID
         }
 

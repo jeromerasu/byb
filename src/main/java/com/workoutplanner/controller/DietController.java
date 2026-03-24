@@ -4,12 +4,15 @@ import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.UserRepository;
+import com.workoutplanner.service.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -21,17 +24,23 @@ public class DietController {
 
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
+    private final JwtService jwtService;
+
+    @Value("${beta.mode:false}")
+    private boolean betaMode;
 
     @Autowired
     public DietController(DietProfileRepository dietProfileRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         JwtService jwtService) {
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
+        this.jwtService = jwtService;
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<DietProfile> getDietProfile() {
-        String userId = getCurrentUserId();
+    public ResponseEntity<DietProfile> getDietProfile(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         Optional<DietProfile> profile = dietProfileRepository.findByUserId(userId);
 
@@ -43,8 +52,8 @@ public class DietController {
     }
 
     @PostMapping("/profile")
-    public ResponseEntity<DietProfile> createOrUpdateDietProfile(@Valid @RequestBody DietProfile profile) {
-        String userId = getCurrentUserId();
+    public ResponseEntity<DietProfile> createOrUpdateDietProfile(@Valid @RequestBody DietProfile profile, HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         profile.setUserId(userId);
 
@@ -71,8 +80,8 @@ public class DietController {
 
 
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getDietStats() {
-        String userId = getCurrentUserId();
+    public ResponseEntity<Map<String, Object>> getDietStats(HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
 
         Optional<DietProfile> profileOpt = dietProfileRepository.findByUserId(userId);
 
@@ -93,7 +102,29 @@ public class DietController {
         return ResponseEntity.ok(stats);
     }
 
-    private String getCurrentUserId() {
+    private String getCurrentUserId(HttpServletRequest request) {
+        // In BETA mode, try to extract from JWT token first
+        if (betaMode) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    String username = jwtService.extractUsername(token);
+
+                    // Look up the user by username to get the user ID
+                    Optional<User> user = userRepository.findByUsername(username);
+                    if (user.isPresent()) {
+                        return user.get().getId();
+                    }
+                } catch (Exception e) {
+                    System.out.println("Failed to extract user from JWT in BETA mode: " + e.getMessage());
+                }
+            }
+
+            // Fallback to hardcoded user ID for BETA mode if no valid token
+            return "84648790-8991-4f5f-b22b-9569c809cac6"; // test_be006 user ID
+        }
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return ((User) authentication.getPrincipal()).getId();
