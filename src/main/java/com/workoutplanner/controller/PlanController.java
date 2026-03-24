@@ -240,36 +240,14 @@ public class PlanController {
     }
 
     private String getCurrentUserId(HttpServletRequest request) {
-        // In BETA mode, always allow access with fallback user
+        // In BETA mode, always use the consistent test user that has profiles
         if (betaMode) {
-            System.out.println("BETA mode active - allowing public access");
+            System.out.println("BETA mode active - using consistent test user");
 
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                try {
-                    String token = authHeader.substring(7);
-                    String username = jwtService.extractUsername(token);
-
-                    // Look up the user by username to get the user ID
-                    Optional<User> user = userRepository.findByUsername(username);
-                    if (user.isPresent()) {
-                        System.out.println("Using authenticated user: " + user.get().getUsername());
-                        return user.get().getId();
-                    }
-                } catch (Exception e) {
-                    System.out.println("Failed to extract user from JWT in BETA mode: " + e.getMessage());
-                }
-            }
-
-            // Fallback: use first available user from database
-            java.util.List<User> allUsers = userRepository.findAll();
-            if (!allUsers.isEmpty()) {
-                User firstUser = allUsers.get(0);
-                System.out.println("Using first available user for BETA testing: " + firstUser.getUsername());
-                return firstUser.getId();
-            }
-
-            throw new RuntimeException("No users found in database for BETA testing");
+            // Use the user ID that has both workout and diet profiles
+            String testUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
+            System.out.println("Using consistent test user ID: " + testUserId);
+            return testUserId;
         }
 
         // Production mode: use normal authentication
