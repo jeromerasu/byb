@@ -88,7 +88,7 @@ public class OpenAIService {
 
     private String buildCombinedPrompt(WorkoutProfile workoutProfile, DietProfile dietProfile) {
         return String.format(
-            "Create a personalized 30-day fitness and nutrition plan for:\n\n" +
+            "Create a personalized 4-week fitness and nutrition plan for:\n\n" +
             "**User Profile:**\n" +
             "- Age: %d, Gender: %s\n" +
             "- Weight: %.1fkg, Height: %dcm\n" +
@@ -107,7 +107,7 @@ public class OpenAIService {
 
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"30-Day Workout Plan\",\n" +
+            "  \"title\": \"4-Week Workout Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"day_1\": {\n" +
@@ -137,7 +137,7 @@ public class OpenAIService {
 
             "DIET_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"30-Day Nutrition Plan\",\n" +
+            "  \"title\": \"4-Week Nutrition Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"day_1\": {\n" +
