@@ -67,13 +67,17 @@ public class PlanController {
                 CombinedPlanResponseDto response = combinedPlanService.generateCombinedPlan(userId);
                 return ResponseEntity.ok(response);
             } catch (RuntimeException e) {
+                // TEMPORARY DEBUG: Show original error message
+                String originalError = e.getMessage();
+                System.out.println("🚨 ORIGINAL ERROR FROM CombinedPlanService: " + originalError);
+
                 // Handle specific error scenarios with appropriate HTTP status codes
                 String errorMessage = e.getMessage();
 
                 if (errorMessage.contains("User not found")) {
-                    throw new RuntimeException("User not authenticated or not found");
+                    throw new RuntimeException("User not authenticated or not found. Original: " + originalError);
                 } else if (errorMessage.contains("profile not found")) {
-                    throw new RuntimeException("User profiles not complete. Please set up workout and diet profiles first.");
+                    throw new RuntimeException("User profiles not complete. Please set up workout and diet profiles first. Original: " + originalError);
                 } else {
                     throw new RuntimeException("Failed to generate combined plan: " + errorMessage);
                 }
