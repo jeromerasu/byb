@@ -644,4 +644,164 @@ public class ObjectStorageService {
         }
         return "week1"; // fallback
     }
+
+    /**
+     * Debug method to list all buckets in MinIO
+     */
+    public List<String> listAllBuckets() {
+        try {
+            System.out.println("🔍 Listing all MinIO buckets...");
+            ListBucketsResponse response = s3Client.listBuckets();
+
+            List<String> bucketNames = response.buckets().stream()
+                    .map(bucket -> bucket.name())
+                    .toList();
+
+            System.out.println("📦 Found " + bucketNames.size() + " buckets: " + bucketNames);
+            return bucketNames;
+
+        } catch (Exception e) {
+            System.err.println("❌ Failed to list MinIO buckets: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to list buckets: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Debug method to list all objects in a specific bucket
+     */
+    public List<Map<String, Object>> listAllObjectsInBucket(String bucketName) {
+        try {
+            System.out.println("🔍 Listing all objects in bucket: " + bucketName);
+
+            ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .build();
+
+            ListObjectsV2Response response = s3Client.listObjectsV2(listRequest);
+
+            List<Map<String, Object>> objects = new ArrayList<>();
+            for (S3Object s3Object : response.contents()) {
+                Map<String, Object> objectInfo = new HashMap<>();
+                objectInfo.put("key", s3Object.key());
+                objectInfo.put("size", s3Object.size());
+                objectInfo.put("lastModified", s3Object.lastModified().toString());
+                objectInfo.put("storageClass", s3Object.storageClassAsString());
+                objects.add(objectInfo);
+            }
+
+            System.out.println("📁 Found " + objects.size() + " objects in bucket " + bucketName);
+            return objects;
+
+        } catch (NoSuchBucketException e) {
+            System.err.println("❌ Bucket not found: " + bucketName);
+            return new ArrayList<>();
+        } catch (Exception e) {
+            System.err.println("❌ Failed to list objects in bucket " + bucketName + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to list objects in bucket: " + bucketName, e);
+        }
+    }
+
+    /**
+     * Debug method to get detailed storage information
+     */
+    public Map<String, Object> getStorageDebugInfo() {
+        try {
+            Map<String, Object> debugInfo = new HashMap<>();
+
+            // Get all buckets
+            List<String> buckets = listAllBuckets();
+            debugInfo.put("totalBuckets", buckets.size());
+            debugInfo.put("bucketNames", buckets);
+
+            // Get object counts for each bucket
+            Map<String, Integer> bucketObjectCounts = new HashMap<>();
+            Map<String, List<Map<String, Object>>> bucketObjects = new HashMap<>();
+
+            for (String bucketName : buckets) {
+                try {
+                    List<Map<String, Object>> objects = listAllObjectsInBucket(bucketName);
+                    bucketObjectCounts.put(bucketName, objects.size());
+                    bucketObjects.put(bucketName, objects);
+                } catch (Exception e) {
+                    bucketObjectCounts.put(bucketName, -1); // Error indicator
+                    bucketObjects.put(bucketName, new ArrayList<>());
+                }
+            }
+
+            debugInfo.put("bucketObjectCounts", bucketObjectCounts);
+            debugInfo.put("bucketObjects", bucketObjects);
+            debugInfo.put("autoCreateBucket", autoCreateBucket);
+            debugInfo.put("s3ClientType", s3Client.getClass().getSimpleName());
+            debugInfo.put("generatedAt", LocalDateTime.now().toString());
+
+            return debugInfo;
+
+        } catch (Exception e) {
+            System.err.println("❌ Failed to get storage debug info: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> errorInfo = new HashMap<>();
+            errorInfo.put("error", e.getMessage());
+            errorInfo.put("errorType", e.getClass().getSimpleName());
+            return errorInfo;
+        }
+    }
+
+    /**
+     * Debug method to test bucket creation
+     */
+    public Map<String, Object> testBucketCreation(String bucketName) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            System.out.println("🧪 Testing bucket creation for: " + bucketName);
+
+            // Check if bucket exists first
+            boolean existsBefore = false;
+            try {
+                HeadBucketRequest headRequest = HeadBucketRequest.builder()
+                        .bucket(bucketName)
+                        .build();
+                s3Client.headBucket(headRequest);
+                existsBefore = true;
+                System.out.println("✅ Bucket already exists: " + bucketName);
+            } catch (NoSuchBucketException e) {
+                System.out.println("📦 Bucket does not exist, will create: " + bucketName);
+            }
+
+            result.put("bucketName", bucketName);
+            result.put("existedBefore", existsBefore);
+
+            // Try to create bucket
+            if (!existsBefore) {
+                ensureBucketExists(bucketName);
+
+                // Check if it exists now
+                try {
+                    HeadBucketRequest headRequest = HeadBucketRequest.builder()
+                            .bucket(bucketName)
+                            .build();
+                    s3Client.headBucket(headRequest);
+                    result.put("createdSuccessfully", true);
+                    System.out.println("✅ Bucket created successfully: " + bucketName);
+                } catch (NoSuchBucketException e) {
+                    result.put("createdSuccessfully", false);
+                    result.put("error", "Bucket creation appeared to succeed but bucket still not found");
+                    System.err.println("❌ Bucket creation failed - bucket still not found: " + bucketName);
+                }
+            } else {
+                result.put("createdSuccessfully", true);
+                result.put("alreadyExisted", true);
+            }
+
+        } catch (Exception e) {
+            result.put("createdSuccessfully", false);
+            result.put("error", e.getMessage());
+            result.put("errorType", e.getClass().getSimpleName());
+            System.err.println("❌ Bucket creation test failed for " + bucketName + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return result;
+    }
 }

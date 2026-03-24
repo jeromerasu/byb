@@ -12,6 +12,7 @@ import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.CombinedPlanService;
 import com.workoutplanner.service.PlanParsingService;
 import com.workoutplanner.service.StorageService;
+import com.workoutplanner.service.ObjectStorageService;
 import com.workoutplanner.service.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,7 @@ import reactor.core.publisher.Mono;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,6 +37,7 @@ public class PlanController {
     private final CombinedPlanService combinedPlanService;
     private final PlanParsingService planParsingService;
     private final StorageService storageService;
+    private final ObjectStorageService objectStorageService;
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
@@ -47,6 +50,7 @@ public class PlanController {
     public PlanController(CombinedPlanService combinedPlanService,
                          PlanParsingService planParsingService,
                          StorageService storageService,
+                         ObjectStorageService objectStorageService,
                          WorkoutProfileRepository workoutProfileRepository,
                          DietProfileRepository dietProfileRepository,
                          UserRepository userRepository,
@@ -54,6 +58,7 @@ public class PlanController {
         this.combinedPlanService = combinedPlanService;
         this.planParsingService = planParsingService;
         this.storageService = storageService;
+        this.objectStorageService = objectStorageService;
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
@@ -260,6 +265,87 @@ public class PlanController {
         } catch (Exception e) {
             result.put("error", e.getMessage());
             return ResponseEntity.ok(result);
+        }
+    }
+
+    @GetMapping("/debug-storage")
+    public ResponseEntity<Map<String, Object>> debugStorage() {
+        try {
+            System.out.println("🔍 Debug storage endpoint called");
+            Map<String, Object> debugInfo = objectStorageService.getStorageDebugInfo();
+            return ResponseEntity.ok(debugInfo);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", e.getMessage());
+            errorResult.put("errorType", e.getClass().getSimpleName());
+            return ResponseEntity.ok(errorResult);
+        }
+    }
+
+    @GetMapping("/debug-buckets")
+    public ResponseEntity<Map<String, Object>> debugBuckets() {
+        try {
+            System.out.println("🪣 Debug buckets endpoint called");
+            List<String> buckets = objectStorageService.listAllBuckets();
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("totalBuckets", buckets.size());
+            result.put("bucketNames", buckets);
+
+            // Get object count for each bucket
+            Map<String, Integer> bucketObjectCounts = new HashMap<>();
+            for (String bucketName : buckets) {
+                try {
+                    List<Map<String, Object>> objects = objectStorageService.listAllObjectsInBucket(bucketName);
+                    bucketObjectCounts.put(bucketName, objects.size());
+                } catch (Exception e) {
+                    bucketObjectCounts.put(bucketName, -1); // Error indicator
+                }
+            }
+            result.put("bucketObjectCounts", bucketObjectCounts);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", e.getMessage());
+            errorResult.put("errorType", e.getClass().getSimpleName());
+            return ResponseEntity.ok(errorResult);
+        }
+    }
+
+    @GetMapping("/debug-bucket/{bucketName}")
+    public ResponseEntity<Map<String, Object>> debugBucketObjects(@PathVariable String bucketName) {
+        try {
+            System.out.println("📁 Debug bucket objects endpoint called for: " + bucketName);
+            List<Map<String, Object>> objects = objectStorageService.listAllObjectsInBucket(bucketName);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("bucketName", bucketName);
+            result.put("objectCount", objects.size());
+            result.put("objects", objects);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("bucketName", bucketName);
+            errorResult.put("error", e.getMessage());
+            errorResult.put("errorType", e.getClass().getSimpleName());
+            return ResponseEntity.ok(errorResult);
+        }
+    }
+
+    @PostMapping("/debug-test-bucket/{bucketName}")
+    public ResponseEntity<Map<String, Object>> testBucketCreation(@PathVariable String bucketName) {
+        try {
+            System.out.println("🧪 Test bucket creation endpoint called for: " + bucketName);
+            Map<String, Object> testResult = objectStorageService.testBucketCreation(bucketName);
+            return ResponseEntity.ok(testResult);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("bucketName", bucketName);
+            errorResult.put("error", e.getMessage());
+            errorResult.put("errorType", e.getClass().getSimpleName());
+            return ResponseEntity.ok(errorResult);
         }
     }
 
