@@ -216,29 +216,10 @@ public class PlanController {
                 }
             }
 
-            // For public endpoint testing without authentication, try to use any existing user
-            try {
-                Optional<User> firstUser = userRepository.findAll().stream().findFirst();
-                if (firstUser.isPresent()) {
-                    System.out.println("Using first available user for BETA testing: " + firstUser.get().getUsername());
-                    return firstUser.get().getId();
-                }
-            } catch (Exception e) {
-                System.out.println("Failed to find users in database: " + e.getMessage());
-            }
-
-            // Fallback: Use any existing user from database for BETA mode
-            try {
-                Optional<User> firstUser = userRepository.findAll().stream().findFirst();
-                if (firstUser.isPresent()) {
-                    System.out.println("Using first available user for BETA testing: " + firstUser.get().getUsername());
-                    return firstUser.get().getId();
-                }
-            } catch (Exception e) {
-                System.out.println("Failed to find users in database: " + e.getMessage());
-            }
-
-            throw new RuntimeException("No users found in database for BETA testing");
+            // TEMPORARY: Force use of the user that has profiles for MinIO testing
+            String testUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
+            System.out.println("🔧 TEMPORARY: Using hardcoded user ID for MinIO testing: " + testUserId);
+            return testUserId;
         }
 
         // Production mode: use normal authentication
