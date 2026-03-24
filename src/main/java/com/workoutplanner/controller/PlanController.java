@@ -379,6 +379,63 @@ public class PlanController {
         }
     }
 
+    @GetMapping("/debug-auth-flow")
+    public ResponseEntity<Map<String, Object>> debugAuthFlow(HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String userId = getCurrentUserId(request);
+            result.put("resolved_user_id", userId);
+
+            // Check user existence
+            Optional<User> user = userRepository.findById(userId);
+            result.put("user_exists", user.isPresent());
+            if (user.isPresent()) {
+                result.put("username", user.get().getUsername());
+                result.put("email", user.get().getEmail());
+            }
+
+            // Check profiles for this specific user ID
+            Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(userId);
+            result.put("workout_profile_exists", workoutProfile.isPresent());
+            if (workoutProfile.isPresent()) {
+                result.put("workout_profile_id", workoutProfile.get().getId());
+                result.put("workout_profile_created", workoutProfile.get().getCreatedAt());
+            }
+
+            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(userId);
+            result.put("diet_profile_exists", dietProfile.isPresent());
+            if (dietProfile.isPresent()) {
+                result.put("diet_profile_id", dietProfile.get().getId());
+                result.put("diet_profile_created", dietProfile.get().getCreatedAt());
+            }
+
+            result.put("both_profiles_exist", workoutProfile.isPresent() && dietProfile.isPresent());
+
+            // List all users with profiles for debugging
+            java.util.List<User> allUsers = userRepository.findAll();
+            java.util.List<Map<String, Object>> usersWithProfiles = new java.util.ArrayList<>();
+            for (User u : allUsers) {
+                Optional<WorkoutProfile> wp = workoutProfileRepository.findByUserId(u.getId());
+                Optional<DietProfile> dp = dietProfileRepository.findByUserId(u.getId());
+                if (wp.isPresent() && dp.isPresent()) {
+                    usersWithProfiles.add(Map.of(
+                        "user_id", u.getId(),
+                        "username", u.getUsername(),
+                        "workout_profile_created", wp.get().getCreatedAt(),
+                        "diet_profile_created", dp.get().getCreatedAt()
+                    ));
+                }
+            }
+            result.put("users_with_both_profiles", usersWithProfiles);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            result.put("error_type", e.getClass().getSimpleName());
+            return ResponseEntity.ok(result);
+        }
+    }
+
     @GetMapping("/diet-foods")
     public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods(HttpServletRequest request) {
         String userId = getCurrentUserId(request);
