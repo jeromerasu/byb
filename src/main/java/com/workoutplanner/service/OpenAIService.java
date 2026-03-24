@@ -113,13 +113,13 @@ public class OpenAIService {
 
             "Return TWO separate JSON objects:\n\n" +
 
-            "Generate a complete 4-week workout plan with this exact structure (no placeholders):\n\n" +
+            "Generate a complete 4-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"4-Week Workout Plan\",\n" +
+            "  \"title\": \"4-Week 5-Day Workout Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
-            "      \"day_1\": {\n" +
+            "      \"monday\": {\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Exercise Name\",\n" +
@@ -130,11 +130,83 @@ public class OpenAIService {
             "            \"instructions\": \"Detailed instructions\"\n" +
             "          }\n" +
             "        ]\n" +
+            "      },\n" +
+            "      \"tuesday\": {\n" +
+            "        \"exercises\": [\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"back\", \"biceps\"],\n" +
+            "            \"instructions\": \"Detailed instructions\"\n" +
+            "          }\n" +
+            "        ]\n" +
+            "      },\n" +
+            "      \"wednesday\": {\n" +
+            "        \"exercises\": [\n" +
+            "          {\n" +
+            "            \"name\": \"Rest Day Active Recovery\",\n" +
+            "            \"sets\": 1,\n" +
+            "            \"reps\": 1,\n" +
+            "            \"weight_type\": \"rest\",\n" +
+            "            \"muscle_groups\": [],\n" +
+            "            \"instructions\": \"Light stretching or walking\"\n" +
+            "          }\n" +
+            "        ]\n" +
+            "      },\n" +
+            "      \"thursday\": {\n" +
+            "        \"exercises\": [\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"legs\", \"glutes\"],\n" +
+            "            \"instructions\": \"Detailed instructions\"\n" +
+            "          }\n" +
+            "        ]\n" +
+            "      },\n" +
+            "      \"friday\": {\n" +
+            "        \"exercises\": [\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"shoulders\", \"arms\"],\n" +
+            "            \"instructions\": \"Detailed instructions\"\n" +
+            "          }\n" +
+            "        ]\n" +
+            "      },\n" +
+            "      \"saturday\": {\n" +
+            "        \"exercises\": [\n" +
+            "          {\n" +
+            "            \"name\": \"Rest Day\",\n" +
+            "            \"sets\": 0,\n" +
+            "            \"reps\": 0,\n" +
+            "            \"weight_type\": \"rest\",\n" +
+            "            \"muscle_groups\": [],\n" +
+            "            \"instructions\": \"Complete rest day\"\n" +
+            "          }\n" +
+            "        ]\n" +
+            "      },\n" +
+            "      \"sunday\": {\n" +
+            "        \"exercises\": [\n" +
+            "          {\n" +
+            "            \"name\": \"Rest Day\",\n" +
+            "            \"sets\": 0,\n" +
+            "            \"reps\": 0,\n" +
+            "            \"weight_type\": \"rest\",\n" +
+            "            \"muscle_groups\": [],\n" +
+            "            \"instructions\": \"Complete rest day\"\n" +
+            "          }\n" +
+            "        ]\n" +
             "      }\n" +
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (day_1 through day_7) with full exercise details for each day.\n\n" +
+            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
 
             "Generate a complete 4-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
@@ -142,7 +214,7 @@ public class OpenAIService {
             "  \"title\": \"4-Week Nutrition Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
-            "      \"day_1\": {\n" +
+            "      \"monday\": {\n" +
             "        \"meals\": [\n" +
             "          {\n" +
             "            \"meal_type\": \"breakfast|lunch|dinner|snack\",\n" +
@@ -166,7 +238,7 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (day_1 through day_7) with full meal details and daily totals for each day.",
+            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full meal details and daily totals for each day.",
 
             workoutProfile.getAge() != null ? workoutProfile.getAge() : 25,
             workoutProfile.getGender() != null ? workoutProfile.getGender().name() : "MALE",
