@@ -30,7 +30,7 @@ public class ObjectStorageService {
 
     public ObjectStorageService(
             S3Client s3Client,
-            @Value("${minio.bucket-name:workout-ai-storage}") String bucketName,
+            @Value("${minio.bucket-name:workout-plans}") String bucketName,
             @Value("${minio.auto-create-bucket:true}") boolean autoCreateBucket,
             ObjectMapper objectMapper) {
 
