@@ -143,6 +143,36 @@ public class PlanController {
     }
 
 
+    @GetMapping("/debug-status")
+    public ResponseEntity<Map<String, Object>> debugStatus(HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            String userId = getCurrentUserId(request);
+            result.put("user_id", userId);
+            result.put("beta_mode", betaMode);
+
+            // Check user existence
+            Optional<User> user = userRepository.findById(userId);
+            result.put("user_exists", user.isPresent());
+            if (user.isPresent()) {
+                result.put("username", user.get().getUsername());
+            }
+
+            // Check profiles
+            Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(userId);
+            result.put("workout_profile_exists", workoutProfile.isPresent());
+
+            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(userId);
+            result.put("diet_profile_exists", dietProfile.isPresent());
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            return ResponseEntity.ok(result);
+        }
+    }
+
     @GetMapping("/diet-foods")
     public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods(HttpServletRequest request) {
         String userId = getCurrentUserId(request);
