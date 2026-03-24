@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -143,6 +144,40 @@ public class PlanController {
             }
             return new RuntimeException("Unexpected error during current week retrieval", throwable);
         });
+    }
+
+    @GetMapping("/debug-profiles")
+    public ResponseEntity<Map<String, Object>> debugProfiles() {
+        String testUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // Test user lookup
+            Optional<User> user = userRepository.findById(testUserId);
+            result.put("user_found", user.isPresent());
+            if (user.isPresent()) {
+                result.put("user_username", user.get().getUsername());
+            }
+
+            // Test workout profile lookup
+            Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(testUserId);
+            result.put("workout_profile_found", workoutProfile.isPresent());
+            if (workoutProfile.isPresent()) {
+                result.put("workout_profile_id", workoutProfile.get().getId());
+            }
+
+            // Test diet profile lookup
+            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(testUserId);
+            result.put("diet_profile_found", dietProfile.isPresent());
+            if (dietProfile.isPresent()) {
+                result.put("diet_profile_id", dietProfile.get().getId());
+            }
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            return ResponseEntity.ok(result);
+        }
     }
 
     @GetMapping("/diet-foods")
