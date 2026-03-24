@@ -122,7 +122,7 @@ public class DietController {
             }
 
             // Fallback to hardcoded user ID for BETA mode if no valid token
-            return "84648790-8991-4f5f-b22b-9569c809cac6"; // test_be006 user ID
+            return "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf"; // test_public_endpoint user ID
         }
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
