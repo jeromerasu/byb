@@ -33,10 +33,16 @@ public class ObjectStorageConfig {
         System.out.println("   Access Key: " + (accessKey != null ? accessKey.substring(0, Math.min(3, accessKey.length())) + "***" : "null"));
         System.out.println("   Region: " + region);
 
+        // Handle URL-encoded credentials
+        String decodedAccessKey = java.net.URLDecoder.decode(accessKey, java.nio.charset.StandardCharsets.UTF_8);
+        String decodedSecretKey = java.net.URLDecoder.decode(secretKey, java.nio.charset.StandardCharsets.UTF_8);
+
+        System.out.println("   Decoded Access Key: " + (decodedAccessKey != null ? decodedAccessKey.substring(0, Math.min(3, decodedAccessKey.length())) + "***" : "null"));
+
         S3ClientBuilder clientBuilder = S3Client.builder();
 
-        // Set credentials for MinIO
-        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+        // Set credentials for MinIO using decoded values
+        AwsBasicCredentials credentials = AwsBasicCredentials.create(decodedAccessKey, decodedSecretKey);
         clientBuilder.credentialsProvider(StaticCredentialsProvider.create(credentials));
 
         // Set region
