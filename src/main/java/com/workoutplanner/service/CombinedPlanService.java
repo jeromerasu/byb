@@ -52,9 +52,9 @@ public class CombinedPlanService {
 
             LocalDateTime now = LocalDateTime.now();
 
-            // Generate dynamic bucket names based on user context
-            String workoutBucketName = generateBucketName(userId, "workout");
-            String dietBucketName = generateBucketName(userId, "diet");
+            // Use separate buckets for workout and diet plans
+            String workoutBucketName = "workout";
+            String dietBucketName = "diet";
 
             // Use OpenAI to generate both plans in a single API call
             OpenAIService.CombinedPlanResult openAIResult = openAIService.generateCombinedPlans(workoutProfile, dietProfile);
@@ -89,12 +89,7 @@ public class CombinedPlanService {
         }
     }
 
-    private String generateBucketName(String userId, String planType) {
-        // Create user-specific bucket names for better organization
-        // Format: workout-plans-{planType}-{userIdPrefix}
-        String userIdPrefix = userId.substring(0, Math.min(8, userId.length()));
-        return String.format("workout-plans-%s-%s", planType, userIdPrefix);
-    }
+    // Removed old generateBucketName method - now using separate "workout" and "diet" buckets
 
     private WorkoutPlanResult storeWorkoutPlan(String bucketName, String userId, WorkoutProfile profile,
                                                 Map<String, Object> workoutPlan, LocalDateTime timestamp) {

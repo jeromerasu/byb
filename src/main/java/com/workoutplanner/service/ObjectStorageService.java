@@ -87,31 +87,21 @@ public class ObjectStorageService {
             // Ensure bucket exists
             ensureBucketExists(bucketName);
 
-            // Determine week number
-            String weekNumber = "week" + getCurrentWeekNumber();
+            // Determine current month number
+            String monthNumber = "month-" + getCurrentMonthNumber();
 
             // Convert plan to Map for processing
             Map<String, Object> planMap = convertToMap(workoutPlan);
 
-            // Store main plan
-            String planKey = String.format("workout/%s/weeklyplan/%s/plan.json", userId, weekNumber);
+            // Store main plan with new structure: {user}/month-{n}/workout-plan.json
+            String planKey = String.format("%s/%s/workout-plan.json", userId, monthNumber);
 
-            // Extract and store exercises separately
-            Object exercises = planMap.get("exercises");
-            if (exercises instanceof List<?> exercisesList) {
-                storeExerciseMetadataInStorage(bucketName, userId, exercisesList);
-                // Remove exercises from main plan (will be loaded separately)
-                planMap.put("exercisesStoredSeparately", true);
-                planMap.put("exercisesLocation", "exercises/");
-                planMap.remove("exercises");
-            }
-
+            // Store the complete plan (no need to separate exercises for 30-day plans)
             storeObject(bucketName, planKey, planMap, "workout-plan");
 
-            // Return the week directory key
-            String storageKey = String.format("workout/%s/weeklyplan/%s", userId, weekNumber);
-            System.out.println("💪 Stored workout plan in structured format: " + planKey);
-            return storageKey;
+            // Return the plan key for future retrieval
+            System.out.println("💪 Stored workout plan: " + planKey);
+            return planKey;
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to store workout plan", e);
@@ -130,31 +120,24 @@ public class ObjectStorageService {
         }
 
         try {
-            // Determine week number
-            String weekNumber = "week" + getCurrentWeekNumber();
+            // Ensure bucket exists
+            ensureBucketExists(bucketName);
+
+            // Determine current month number
+            String monthNumber = "month-" + getCurrentMonthNumber();
 
             // Convert plan to Map for processing
             Map<String, Object> planMap = convertToMap(dietPlan);
 
-            // Store main plan
-            String planKey = String.format("diet/%s/weeklyplan/%s/plan.json", userId, weekNumber);
+            // Store main plan with new structure: {user}/month-{n}/diet-plan.json
+            String planKey = String.format("%s/%s/diet-plan.json", userId, monthNumber);
 
-            // Extract and store meal metadata separately
-            Object weeklyPlan = planMap.get("weeklyPlan");
-            if (weeklyPlan instanceof List<?> weeklyPlanList) {
-                storeMealMetadataInStorage(bucketName, userId, weeklyPlanList);
-                // Remove detailed meals from main plan (will be loaded separately)
-                planMap.put("mealsStoredSeparately", true);
-                planMap.put("mealsLocation", "meals/");
-                planMap.remove("weeklyPlan");
-            }
-
+            // Store the complete plan (no need to separate meals for 30-day plans)
             storeObject(bucketName, planKey, planMap, "diet-plan");
 
-            // Return the week directory key
-            String storageKey = String.format("diet/%s/weeklyplan/%s", userId, weekNumber);
-            System.out.println("🥗 Stored diet plan in structured format: " + planKey);
-            return storageKey;
+            // Return the plan key for future retrieval
+            System.out.println("🥗 Stored diet plan: " + planKey);
+            return planKey;
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to store diet plan", e);
@@ -230,21 +213,8 @@ public class ObjectStorageService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> retrieveWorkoutPlan(String bucketName, String userId, String storageKey) {
         try {
-            // storageKey format: "workout/{userId}/weeklyplan/{week}"
-            String planKey = storageKey + "/plan.json";
-
-            // Load main plan
-            Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, planKey, Map.class).orElse(new HashMap<>());
-
-            // If exercises are stored separately, load them
-            if (Boolean.TRUE.equals(plan.get("exercisesStoredSeparately"))) {
-                List<Map<String, Object>> exercises = loadExerciseMetadataFromStorage(bucketName, userId, extractWeekFromStorageKey(storageKey));
-                plan.put("exercises", exercises);
-                // Clean up metadata fields
-                plan.remove("exercisesStoredSeparately");
-                plan.remove("exercisesLocation");
-            }
-
+            // storageKey is now the direct path: {userId}/month-{n}/workout-plan.json
+            Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, storageKey, Map.class).orElse(new HashMap<>());
             return plan;
 
         } catch (Exception e) {
@@ -258,21 +228,8 @@ public class ObjectStorageService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> retrieveDietPlan(String bucketName, String userId, String storageKey) {
         try {
-            // storageKey format: "diet/{userId}/weeklyplan/{week}"
-            String planKey = storageKey + "/plan.json";
-
-            // Load main plan
-            Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, planKey, Map.class).orElse(new HashMap<>());
-
-            // If meals are stored separately, load them
-            if (Boolean.TRUE.equals(plan.get("mealsStoredSeparately"))) {
-                List<Map<String, Object>> weeklyPlan = loadMealMetadataFromStorage(bucketName, userId, extractWeekFromStorageKey(storageKey));
-                plan.put("weeklyPlan", weeklyPlan);
-                // Clean up metadata fields
-                plan.remove("mealsStoredSeparately");
-                plan.remove("mealsLocation");
-            }
-
+            // storageKey is now the direct path: {userId}/month-{n}/diet-plan.json
+            Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, storageKey, Map.class).orElse(new HashMap<>());
             return plan;
 
         } catch (Exception e) {
@@ -561,6 +518,12 @@ public class ObjectStorageService {
     }
 
     // Helper methods for structured storage approach
+
+    private String getCurrentMonthNumber() {
+        // Return current month number (1-12)
+        LocalDateTime now = LocalDateTime.now();
+        return String.valueOf(now.getMonthValue());
+    }
 
     private String getCurrentWeekNumber() {
         // Simple implementation - can be enhanced to use actual week numbers or date-based
