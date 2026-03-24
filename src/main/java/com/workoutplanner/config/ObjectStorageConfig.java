@@ -28,6 +28,11 @@ public class ObjectStorageConfig {
 
     @Bean
     public S3Client s3Client() {
+        System.out.println("🔧 Configuring MinIO S3 Client:");
+        System.out.println("   Endpoint: " + endpoint);
+        System.out.println("   Access Key: " + (accessKey != null ? accessKey.substring(0, Math.min(3, accessKey.length())) + "***" : "null"));
+        System.out.println("   Region: " + region);
+
         S3ClientBuilder clientBuilder = S3Client.builder();
 
         // Set credentials for MinIO
@@ -41,6 +46,7 @@ public class ObjectStorageConfig {
         clientBuilder.endpointOverride(URI.create(endpoint));
         clientBuilder.forcePathStyle(true);
 
+        System.out.println("✅ S3Client configured for MinIO");
         return clientBuilder.build();
     }
 }

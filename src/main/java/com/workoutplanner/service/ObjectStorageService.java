@@ -104,7 +104,12 @@ public class ObjectStorageService {
             return planKey;
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to store workout plan", e);
+            System.err.println("❌ Failed to store workout plan in MinIO:");
+            System.err.println("   Bucket: " + bucketName);
+            System.err.println("   User ID: " + userId);
+            System.err.println("   Error: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to store workout plan: " + e.getMessage(), e);
         }
     }
 
