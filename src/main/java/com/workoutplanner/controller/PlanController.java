@@ -148,22 +148,29 @@ public class PlanController {
 
     @GetMapping("/debug-profiles")
     public ResponseEntity<Map<String, Object>> debugProfiles() {
-        String testUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
         Map<String, Object> result = new HashMap<>();
 
         try {
-            // Test user lookup
-            Optional<User> user = userRepository.findById(testUserId);
-            result.put("user_found", user.isPresent());
-            if (user.isPresent()) {
-                result.put("user_username", user.get().getUsername());
+            // Get the first available user instead of hardcoded ID
+            java.util.List<User> allUsers = userRepository.findAll();
+            result.put("total_users_count", allUsers.size());
+
+            if (allUsers.isEmpty()) {
+                result.put("error", "No users found in database");
+                return ResponseEntity.ok(result);
             }
+
+            User testUser = allUsers.get(0);
+            String testUserId = testUser.getId();
+            result.put("test_user_id", testUserId);
+            result.put("test_user_username", testUser.getUsername());
 
             // Test workout profile lookup
             Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(testUserId);
             result.put("workout_profile_found", workoutProfile.isPresent());
             if (workoutProfile.isPresent()) {
                 result.put("workout_profile_id", workoutProfile.get().getId());
+                result.put("workout_profile_fitness_level", workoutProfile.get().getFitnessLevel());
             }
 
             // Test diet profile lookup
@@ -171,11 +178,13 @@ public class PlanController {
             result.put("diet_profile_found", dietProfile.isPresent());
             if (dietProfile.isPresent()) {
                 result.put("diet_profile_id", dietProfile.get().getId());
+                result.put("diet_profile_type", dietProfile.get().getDietType());
             }
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             result.put("error", e.getMessage());
+            result.put("error_class", e.getClass().getSimpleName());
             return ResponseEntity.ok(result);
         }
     }
@@ -251,10 +260,15 @@ public class PlanController {
                 }
             }
 
-            // TEMPORARY: Force use of the user that has profiles for MinIO testing
-            String testUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
-            System.out.println("🔧 TEMPORARY: Using hardcoded user ID for MinIO testing: " + testUserId);
-            return testUserId;
+            // Fallback: use first available user from database
+            java.util.List<User> allUsers = userRepository.findAll();
+            if (!allUsers.isEmpty()) {
+                User firstUser = allUsers.get(0);
+                System.out.println("Using first available user for BETA testing: " + firstUser.getUsername());
+                return firstUser.getId();
+            }
+
+            throw new RuntimeException("No users found in database for BETA testing");
         }
 
         // Production mode: use normal authentication
