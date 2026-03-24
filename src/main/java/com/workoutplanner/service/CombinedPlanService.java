@@ -9,6 +9,8 @@ import com.workoutplanner.model.User;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import java.util.*;
 
 @Service
 public class CombinedPlanService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CombinedPlanService.class);
 
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
@@ -43,24 +47,24 @@ public class CombinedPlanService {
 
     public CombinedPlanResponseDto generateCombinedPlan(String userId) {
         try {
-            System.out.println("🔍 DEBUG: generateCombinedPlan called with userId: " + userId);
+            logger.debug("generateCombinedPlan called with userId: {}", userId);
 
             // Validate user exists first
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isEmpty()) {
                 throw new RuntimeException("User not found with ID: " + userId);
             }
-            System.out.println("👤 User found: " + userOpt.get().getUsername());
+            logger.info("User found: {}", userOpt.get().getUsername());
 
             // Get or validate profiles exist
             Optional<WorkoutProfile> workoutProfileOpt = workoutProfileRepository.findByUserId(userId);
-            System.out.println("🏋️ Workout profile search result: " + (workoutProfileOpt.isPresent() ? "FOUND" : "NOT_FOUND"));
+            logger.debug("Workout profile search result: {}", workoutProfileOpt.isPresent() ? "FOUND" : "NOT_FOUND");
 
             WorkoutProfile workoutProfile = workoutProfileOpt
                     .orElseThrow(() -> new RuntimeException("Workout profile not found"));
 
             Optional<DietProfile> dietProfileOpt = dietProfileRepository.findByUserId(userId);
-            System.out.println("🍽️ Diet profile search result: " + (dietProfileOpt.isPresent() ? "FOUND" : "NOT_FOUND"));
+            logger.debug("Diet profile search result: {}", dietProfileOpt.isPresent() ? "FOUND" : "NOT_FOUND");
 
             DietProfile dietProfile = dietProfileOpt
                     .orElseThrow(() -> new RuntimeException("Diet profile not found"));

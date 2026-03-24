@@ -14,6 +14,8 @@ import com.workoutplanner.service.PlanParsingService;
 import com.workoutplanner.service.StorageService;
 import com.workoutplanner.service.ObjectStorageService;
 import com.workoutplanner.service.JwtService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,8 @@ import java.util.Optional;
 @RequestMapping("/api/v1/plan")
 @CrossOrigin(origins = "*")
 public class PlanController {
+
+    private static final Logger logger = LoggerFactory.getLogger(PlanController.class);
 
     private final CombinedPlanService combinedPlanService;
     private final PlanParsingService planParsingService;
@@ -271,7 +275,7 @@ public class PlanController {
     @GetMapping("/debug-storage")
     public ResponseEntity<Map<String, Object>> debugStorage() {
         try {
-            System.out.println("🔍 Debug storage endpoint called");
+            logger.debug("Debug storage endpoint called");
             Map<String, Object> debugInfo = objectStorageService.getStorageDebugInfo();
             return ResponseEntity.ok(debugInfo);
         } catch (Exception e) {
@@ -285,7 +289,7 @@ public class PlanController {
     @GetMapping("/debug-buckets")
     public ResponseEntity<Map<String, Object>> debugBuckets() {
         try {
-            System.out.println("🪣 Debug buckets endpoint called");
+            logger.debug("Debug buckets endpoint called");
             List<String> buckets = objectStorageService.listAllBuckets();
 
             Map<String, Object> result = new HashMap<>();
@@ -316,7 +320,7 @@ public class PlanController {
     @GetMapping("/debug-bucket/{bucketName}")
     public ResponseEntity<Map<String, Object>> debugBucketObjects(@PathVariable String bucketName) {
         try {
-            System.out.println("📁 Debug bucket objects endpoint called for: " + bucketName);
+            logger.debug("Debug bucket objects endpoint called for bucket: {}", bucketName);
             List<Map<String, Object>> objects = objectStorageService.listAllObjectsInBucket(bucketName);
 
             Map<String, Object> result = new HashMap<>();
@@ -337,7 +341,7 @@ public class PlanController {
     @PostMapping("/debug-test-bucket/{bucketName}")
     public ResponseEntity<Map<String, Object>> testBucketCreation(@PathVariable String bucketName) {
         try {
-            System.out.println("🧪 Test bucket creation endpoint called for: " + bucketName);
+            logger.debug("Test bucket creation endpoint called for bucket: {}", bucketName);
             Map<String, Object> testResult = objectStorageService.testBucketCreation(bucketName);
             return ResponseEntity.ok(testResult);
         } catch (Exception e) {
@@ -352,7 +356,7 @@ public class PlanController {
     @GetMapping("/debug-connectivity")
     public ResponseEntity<Map<String, Object>> testConnectivity() {
         try {
-            System.out.println("🔌 Connectivity test endpoint called");
+            logger.debug("Connectivity test endpoint called");
             Map<String, Object> connectivityResult = objectStorageService.testConnectivity();
             return ResponseEntity.ok(connectivityResult);
         } catch (Exception e) {
@@ -414,53 +418,53 @@ public class PlanController {
     }
 
     private String getCurrentUserId(HttpServletRequest request) {
-        System.out.println("🔍 DEBUG: getCurrentUserId called - betaMode: " + betaMode);
+        logger.debug("getCurrentUserId called - betaMode: {}", betaMode);
 
         // In BETA mode, find a user that actually has both profiles
         if (betaMode) {
-            System.out.println("🔍 BETA mode active - finding user with both profiles");
+            logger.debug("BETA mode active - finding user with both profiles");
 
             // Find the first user that has both workout and diet profiles
             java.util.List<WorkoutProfile> workoutProfiles = workoutProfileRepository.findAll();
-            System.out.println("📊 Total workout profiles found: " + workoutProfiles.size());
+            logger.debug("Total workout profiles found: {}", workoutProfiles.size());
 
             if (!workoutProfiles.isEmpty()) {
                 for (int i = 0; i < workoutProfiles.size(); i++) {
                     WorkoutProfile wp = workoutProfiles.get(i);
                     String candidateUserId = wp.getUserId();
-                    System.out.println("🏋️ Checking workout profile #" + (i+1) + " for user: " + candidateUserId);
+                    logger.debug("Checking workout profile #{} for user: {}", i+1, candidateUserId);
 
                     // Check if this user also has a diet profile
                     Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(candidateUserId);
-                    System.out.println("🍽️ Diet profile search for user " + candidateUserId + ": " + (dietProfile.isPresent() ? "FOUND" : "NOT_FOUND"));
+                    logger.debug("Diet profile search for user {}: {}", candidateUserId, dietProfile.isPresent() ? "FOUND" : "NOT_FOUND");
 
                     if (dietProfile.isPresent()) {
-                        System.out.println("✅ Found user with both profiles - using: " + candidateUserId);
+                        logger.info("Found user with both profiles - using: {}", candidateUserId);
                         return candidateUserId;
                     }
                 }
 
                 // No user found with both profiles, use first workout profile user anyway
                 String firstUserId = workoutProfiles.get(0).getUserId();
-                System.out.println("⚠️ No user found with both profiles, using first workout profile user: " + firstUserId);
+                logger.warn("No user found with both profiles, using first workout profile user: {}", firstUserId);
                 return firstUserId;
             }
 
             // No workout profiles at all - fallback to hardcoded test user
             String fallbackUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
-            System.out.println("❌ No workout profiles found at all - fallback to hardcoded test user ID: " + fallbackUserId);
+            logger.warn("No workout profiles found at all - fallback to hardcoded test user ID: {}", fallbackUserId);
             return fallbackUserId;
         }
 
         // Production mode: use normal authentication
-        System.out.println("🔐 Production mode: checking SecurityContext authentication");
+        logger.debug("Production mode: checking SecurityContext authentication");
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             String userId = ((User) authentication.getPrincipal()).getId();
-            System.out.println("✅ Authenticated user found: " + userId);
+            logger.info("Authenticated user found: {}", userId);
             return userId;
         }
-        System.out.println("❌ User not authenticated in production mode");
+        logger.warn("User not authenticated in production mode");
         throw new RuntimeException("User not authenticated");
     }
 }
