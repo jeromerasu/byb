@@ -39,7 +39,7 @@ public class SecurityConfig {
     private final PasswordEncoder passwordEncoder;
 
     // Security is ENABLED by default. Only disabled when explicitly setting BETA=true
-    @Value("${beta.mode:false}")
+    @Value("${beta.mode:${BETA:false}}")
     private boolean betaMode;
 
     @Autowired
