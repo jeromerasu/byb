@@ -103,4 +103,7 @@ public interface DietProfileRepository extends JpaRepository<DietProfile, String
 
     @Query("SELECT d FROM DietProfile d WHERE d.proteinGoalGrams > :minProtein AND d.dietType = :dietType")
     List<DietProfile> findHighProteinProfilesByDietType(@Param("minProtein") Integer minProtein, @Param("dietType") DietProfile.DietType dietType);
+
+    // Delete by user ID
+    void deleteByUserId(String userId);
 }

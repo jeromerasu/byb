@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -209,6 +210,7 @@ public class PlanController {
     }
 
     @PostMapping("/cleanup-test-users")
+    @Transactional
     public ResponseEntity<Map<String, Object>> cleanupTestUsers() {
         Map<String, Object> result = new HashMap<>();
 

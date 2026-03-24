@@ -85,4 +85,7 @@ public interface WorkoutProfileRepository extends JpaRepository<WorkoutProfile, 
 
     @Query("SELECT COUNT(w) FROM WorkoutProfile w WHERE w.currentPlanStorageKey IS NOT NULL")
     long countProfilesWithPlans();
+
+    // Delete by user ID
+    void deleteByUserId(String userId);
 }
