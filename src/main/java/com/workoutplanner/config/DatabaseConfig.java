@@ -33,11 +33,13 @@ public class DatabaseConfig {
                 .filter(e -> e.getKey().contains("DATABASE") || e.getKey().contains("DB") || e.getKey().contains("POSTGRES"))
                 .forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
 
-        // Look for the original postgres:// URL that Render provides
+        // Look for the original DATABASE_URL that Render provides
         String originalDatabaseUrl = System.getenv("DATABASE_URL");
 
         if (originalDatabaseUrl != null && !originalDatabaseUrl.isEmpty()) {
-            System.out.println("Found DATABASE_URL environment variable: " + originalDatabaseUrl);
+            // Clean up the URL by removing any line breaks or whitespace
+            originalDatabaseUrl = originalDatabaseUrl.replaceAll("\\s+", "").trim();
+            System.out.println("Found DATABASE_URL environment variable (cleaned): " + originalDatabaseUrl);
 
             if (originalDatabaseUrl.startsWith("postgres://") || originalDatabaseUrl.startsWith("postgresql://")) {
                 // Parse Render-style DATABASE_URL and convert to JDBC format
@@ -66,6 +68,43 @@ public class DatabaseConfig {
                         .username(username)
                         .password(password)
                         .build();
+            } else if (originalDatabaseUrl.startsWith("jdbc:postgresql://")) {
+                // Handle already-JDBC formatted URLs that might have line breaks
+                System.out.println("Cleaning malformed JDBC URL...");
+
+                // Try to extract the components from the malformed JDBC URL
+                // Remove "jdbc:postgresql://" prefix
+                String urlPart = originalDatabaseUrl.substring("jdbc:postgresql://".length());
+
+                // Split on @ to separate credentials from host/db
+                String[] parts = urlPart.split("@");
+                if (parts.length == 2) {
+                    String credentials = parts[0];
+                    String hostAndDb = parts[1];
+
+                    // Extract username and password
+                    String[] credParts = credentials.split(":");
+                    String username = credParts[0];
+                    String password = credParts.length > 1 ? credParts[1] : "";
+
+                    // Extract host, port, and database
+                    String[] hostDbParts = hostAndDb.split("/");
+                    String hostPort = hostDbParts[0];
+                    String database = hostDbParts.length > 1 ? hostDbParts[1] : "";
+
+                    // Rebuild the clean JDBC URL
+                    String cleanJdbcUrl = "jdbc:postgresql://" + hostPort + "/" + database;
+
+                    System.out.println("Reconstructed JDBC URL: " + cleanJdbcUrl);
+                    System.out.println("Username: " + username);
+
+                    return DataSourceBuilder.create()
+                            .driverClassName("org.postgresql.Driver")
+                            .url(cleanJdbcUrl)
+                            .username(username)
+                            .password(password)
+                            .build();
+                }
             }
         }
 
