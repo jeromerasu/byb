@@ -50,7 +50,7 @@ public class OpenAIService {
             OpenAIRequest request = new OpenAIRequest();
             request.setModel(openaiModel);
             request.setTemperature(0.7);
-            request.setMaxTokens(4000);
+            request.setMaxTokens(8000);
             request.setMessages(Arrays.asList(
                 new OpenAIRequest.OpenAIMessage("system", getSystemPrompt()),
                 new OpenAIRequest.OpenAIMessage("user", prompt)
