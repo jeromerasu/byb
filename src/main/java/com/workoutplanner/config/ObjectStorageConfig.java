@@ -1,5 +1,7 @@
 package com.workoutplanner.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +15,8 @@ import java.net.URI;
 
 @Configuration
 public class ObjectStorageConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(ObjectStorageConfig.class);
 
     @Bean
     public S3Client s3Client() {
@@ -28,11 +32,11 @@ public class ObjectStorageConfig {
         if (endpoint == null) endpoint = "http://localhost:9000";
         if (region == null) region = "us-east-1";
 
-        System.out.println("🔧 Configuring MinIO S3 Client (Direct Env Variables):");
-        System.out.println("   Endpoint: " + endpoint);
-        System.out.println("   Raw Access Key: " + (rawAccessKey != null ? rawAccessKey.substring(0, Math.min(3, rawAccessKey.length())) + "***" : "null"));
-        System.out.println("   Region: " + region);
-        System.out.println("   📝 Reading environment variables directly to bypass Spring property issues...");
+        logger.info("Configuring MinIO S3 Client (Direct Env Variables)");
+        logger.info("Endpoint: {}", endpoint);
+        logger.info("Raw Access Key: {}", (rawAccessKey != null ? rawAccessKey.substring(0, Math.min(3, rawAccessKey.length())) + "***" : "null"));
+        logger.info("Region: {}", region);
+        logger.debug("Reading environment variables directly to bypass Spring property issues");
 
         String decodedAccessKey;
         String decodedSecretKey;
@@ -42,17 +46,17 @@ public class ObjectStorageConfig {
             decodedAccessKey = java.net.URLDecoder.decode(rawAccessKey, java.nio.charset.StandardCharsets.UTF_8);
             decodedSecretKey = java.net.URLDecoder.decode(rawSecretKey, java.nio.charset.StandardCharsets.UTF_8);
 
-            System.out.println("   Decoded Access Key: " + (decodedAccessKey != null ? decodedAccessKey.substring(0, Math.min(3, decodedAccessKey.length())) + "***" : "null"));
+            logger.debug("Decoded Access Key: {}", (decodedAccessKey != null ? decodedAccessKey.substring(0, Math.min(3, decodedAccessKey.length())) + "***" : "null"));
 
             // If the decoded version is the same as raw, they weren't URL-encoded
             if (decodedAccessKey.equals(rawAccessKey)) {
-                System.out.println("   ℹ️ Credentials were not URL-encoded, using as-is");
+                logger.debug("Credentials were not URL-encoded, using as-is");
             } else {
-                System.out.println("   ✅ Credentials were URL-encoded and have been decoded");
+                logger.info("Credentials were URL-encoded and have been decoded");
             }
 
         } catch (Exception e) {
-            System.out.println("   ⚠️ URL decoding failed, using raw credentials: " + e.getMessage());
+            logger.warn("URL decoding failed, using raw credentials: {}", e.getMessage());
             decodedAccessKey = rawAccessKey;
             decodedSecretKey = rawSecretKey;
         }
@@ -63,24 +67,23 @@ public class ObjectStorageConfig {
             // Set credentials for MinIO using decoded values
             AwsBasicCredentials credentials = AwsBasicCredentials.create(decodedAccessKey, decodedSecretKey);
             clientBuilder.credentialsProvider(StaticCredentialsProvider.create(credentials));
-            System.out.println("   ✅ AWS credentials configured");
+            logger.debug("AWS credentials configured");
 
             // Set region
             clientBuilder.region(Region.of(region));
-            System.out.println("   ✅ Region configured: " + region);
+            logger.debug("Region configured: {}", region);
 
             // Set MinIO endpoint and force path-style access (required for MinIO)
             clientBuilder.endpointOverride(URI.create(endpoint));
             clientBuilder.forcePathStyle(true);
-            System.out.println("   ✅ Endpoint and path-style access configured");
+            logger.debug("Endpoint and path-style access configured");
 
             S3Client client = clientBuilder.build();
-            System.out.println("🚀 S3Client successfully created for MinIO");
+            logger.info("S3Client successfully created for MinIO");
             return client;
 
         } catch (Exception e) {
-            System.out.println("❌ Failed to configure S3Client: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Failed to configure S3Client: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to configure MinIO S3Client", e);
         }
     }

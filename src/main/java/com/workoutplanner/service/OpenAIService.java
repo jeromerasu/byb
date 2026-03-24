@@ -14,9 +14,13 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class OpenAIService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OpenAIService.class);
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -259,8 +263,8 @@ public class OpenAIService {
 
     private CombinedPlanResult parseCombinedResponse(String content) {
         try {
-            System.out.println("DEBUG: OpenAI Response Content Length: " + content.length());
-            System.out.println("DEBUG: OpenAI Response Preview: " + content.substring(0, Math.min(500, content.length())));
+            logger.debug("OpenAI Response Content Length: {}", content.length());
+            logger.debug("OpenAI Response Preview: {}", content.substring(0, Math.min(500, content.length())));
 
             // Try multiple marker variations for flexibility
             String[] workoutMarkers = {"WORKOUT_PLAN_JSON:", "workout plan", "workout:", "\"workout\"", "```json"};
@@ -291,8 +295,8 @@ public class OpenAIService {
                 }
             }
 
-            System.out.println("DEBUG: Found workout marker '" + actualWorkoutMarker + "' at position: " + workoutStart);
-            System.out.println("DEBUG: Found diet marker '" + actualDietMarker + "' at position: " + dietStart);
+            logger.debug("Found workout marker '{}' at position: {}", actualWorkoutMarker, workoutStart);
+            logger.debug("Found diet marker '{}' at position: {}", actualDietMarker, dietStart);
 
             if (workoutStart == -1 || dietStart == -1) {
                 // Try to extract JSON objects directly
@@ -307,8 +311,8 @@ public class OpenAIService {
             String dietJsonStr = content.substring(dietStart + actualDietMarker.length()).trim();
             dietJsonStr = cleanJsonString(dietJsonStr);
 
-            System.out.println("DEBUG: Extracted workout JSON length: " + workoutJsonStr.length());
-            System.out.println("DEBUG: Extracted diet JSON length: " + dietJsonStr.length());
+            logger.debug("Extracted workout JSON length: {}", workoutJsonStr.length());
+            logger.debug("Extracted diet JSON length: {}", dietJsonStr.length());
 
             // Parse JSON strings
             Map<String, Object> workoutPlan = objectMapper.readValue(workoutJsonStr, Map.class);
@@ -323,7 +327,7 @@ public class OpenAIService {
 
     private CombinedPlanResult extractJSONObjectsDirectly(String content) {
         try {
-            System.out.println("DEBUG: Attempting direct JSON extraction");
+            logger.debug("Attempting direct JSON extraction");
 
             // Find all JSON objects in the response
             int firstBrace = content.indexOf('{');
@@ -368,8 +372,8 @@ public class OpenAIService {
             String dietJsonStr = content.substring(secondBrace, dietEnd);
             dietJsonStr = cleanJsonString(dietJsonStr);
 
-            System.out.println("DEBUG: Direct extraction - workout JSON length: " + workoutJsonStr.length());
-            System.out.println("DEBUG: Direct extraction - diet JSON length: " + dietJsonStr.length());
+            logger.debug("Direct extraction - workout JSON length: {}", workoutJsonStr.length());
+            logger.debug("Direct extraction - diet JSON length: {}", dietJsonStr.length());
 
             Map<String, Object> workoutPlan = objectMapper.readValue(workoutJsonStr, Map.class);
             Map<String, Object> dietPlan = objectMapper.readValue(dietJsonStr, Map.class);
