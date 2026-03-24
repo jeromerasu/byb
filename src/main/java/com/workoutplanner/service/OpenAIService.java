@@ -121,10 +121,17 @@ public class OpenAIService {
             "            \"instructions\": \"Detailed instructions\"\n" +
             "          }\n" +
             "        ]\n" +
-            "      }\n" +
-            "      // ... continue for 7 days\n" +
-            "    }\n" +
-            "    // ... continue for 4 weeks\n" +
+            "      },\n" +
+            "      \"day_2\": { \"exercises\": [...] },\n" +
+            "      \"day_3\": { \"exercises\": [...] },\n" +
+            "      \"day_4\": { \"exercises\": [...] },\n" +
+            "      \"day_5\": { \"exercises\": [...] },\n" +
+            "      \"day_6\": { \"exercises\": [...] },\n" +
+            "      \"day_7\": { \"exercises\": [...] }\n" +
+            "    },\n" +
+            "    \"week_2\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
+            "    \"week_3\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
+            "    \"week_4\": { \"day_1\": {...}, \"day_2\": {...} }\n" +
             "  }\n" +
             "}\n\n" +
 
@@ -153,10 +160,17 @@ public class OpenAIService {
             "          \"carbs\": 200,\n" +
             "          \"fats\": 65\n" +
             "        }\n" +
-            "      }\n" +
-            "      // ... continue for 7 days\n" +
-            "    }\n" +
-            "    // ... continue for 4 weeks\n" +
+            "      },\n" +
+            "      \"day_2\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
+            "      \"day_3\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
+            "      \"day_4\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
+            "      \"day_5\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
+            "      \"day_6\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
+            "      \"day_7\": { \"meals\": [...], \"daily_totals\": {...} }\n" +
+            "    },\n" +
+            "    \"week_2\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
+            "    \"week_3\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
+            "    \"week_4\": { \"day_1\": {...}, \"day_2\": {...} }\n" +
             "  }\n" +
             "}",
 
@@ -210,11 +224,14 @@ public class OpenAIService {
     }
 
     private String cleanJsonString(String jsonStr) {
-        // Remove markdown code blocks and extra whitespace
+        // Remove markdown code blocks, comments, and extra whitespace
         return jsonStr.replaceAll("```json", "")
                      .replaceAll("```", "")
+                     .replaceAll("//.*$", "")  // Remove single line comments
+                     .replaceAll("/\\*.*?\\*/", "")  // Remove multi-line comments
                      .replaceAll("^\\s+", "")
                      .replaceAll("\\s+$", "")
+                     .replaceAll("\\n\\s*\\n", "\n")  // Remove empty lines
                      .trim();
     }
 
