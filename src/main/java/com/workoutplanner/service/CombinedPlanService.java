@@ -45,10 +45,12 @@ public class CombinedPlanService {
         try {
             System.out.println("🔍 DEBUG: generateCombinedPlan called with userId: " + userId);
 
-            // Validate user exists
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            System.out.println("✅ User found: " + user.getUsername() + " (ID: " + user.getId() + ")");
+            // Validate user exists first
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isEmpty()) {
+                throw new RuntimeException("User not found with ID: " + userId);
+            }
+            System.out.println("👤 User found: " + userOpt.get().getUsername());
 
             // Get or validate profiles exist
             Optional<WorkoutProfile> workoutProfileOpt = workoutProfileRepository.findByUserId(userId);

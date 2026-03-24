@@ -68,17 +68,13 @@ public class PlanController {
                 CombinedPlanResponseDto response = combinedPlanService.generateCombinedPlan(userId);
                 return ResponseEntity.ok(response);
             } catch (RuntimeException e) {
-                // TEMPORARY DEBUG: Show original error message
-                String originalError = e.getMessage();
-                System.out.println("🚨 ORIGINAL ERROR FROM CombinedPlanService: " + originalError);
-
                 // Handle specific error scenarios with appropriate HTTP status codes
                 String errorMessage = e.getMessage();
 
                 if (errorMessage.contains("User not found")) {
-                    throw new RuntimeException("User not authenticated or not found. Original: " + originalError);
+                    throw new RuntimeException("User not authenticated or not found");
                 } else if (errorMessage.contains("profile not found")) {
-                    throw new RuntimeException("User profiles not complete. Please set up workout and diet profiles first. Original: " + originalError);
+                    throw new RuntimeException("User profiles not complete. Please set up workout and diet profiles first");
                 } else {
                     throw new RuntimeException("Failed to generate combined plan: " + errorMessage);
                 }
@@ -146,49 +142,6 @@ public class PlanController {
         });
     }
 
-    @GetMapping("/debug-userid")
-    public ResponseEntity<Map<String, Object>> debugUserId(HttpServletRequest request) {
-        Map<String, Object> result = new HashMap<>();
-
-        try {
-            // Get the actual user ID that getCurrentUserId() returns
-            String actualUserId = getCurrentUserId(request);
-            result.put("actual_user_id_from_getCurrentUserId", actualUserId);
-
-            // Check profiles for this specific user ID
-            Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(actualUserId);
-            result.put("workout_profile_found_for_actual_user", workoutProfile.isPresent());
-            if (workoutProfile.isPresent()) {
-                result.put("workout_profile_id", workoutProfile.get().getId());
-            }
-
-            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(actualUserId);
-            result.put("diet_profile_found_for_actual_user", dietProfile.isPresent());
-            if (dietProfile.isPresent()) {
-                result.put("diet_profile_id", dietProfile.get().getId());
-            }
-
-            // Also show profiles that exist for any user
-            java.util.List<WorkoutProfile> allWorkoutProfiles = workoutProfileRepository.findAll();
-            java.util.List<DietProfile> allDietProfiles = dietProfileRepository.findAll();
-
-            result.put("total_workout_profiles", allWorkoutProfiles.size());
-            result.put("total_diet_profiles", allDietProfiles.size());
-
-            if (!allWorkoutProfiles.isEmpty()) {
-                result.put("existing_workout_profile_user_id", allWorkoutProfiles.get(0).getUserId());
-            }
-            if (!allDietProfiles.isEmpty()) {
-                result.put("existing_diet_profile_user_id", allDietProfiles.get(0).getUserId());
-            }
-
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            result.put("error", e.getMessage());
-            result.put("error_class", e.getClass().getSimpleName());
-            return ResponseEntity.ok(result);
-        }
-    }
 
     @GetMapping("/diet-foods")
     public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods(HttpServletRequest request) {
