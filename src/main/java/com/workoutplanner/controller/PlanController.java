@@ -187,8 +187,10 @@ public class PlanController {
     }
 
     private String getCurrentUserId(HttpServletRequest request) {
-        // In BETA mode, try to extract from JWT token first
+        // In BETA mode, always allow access with fallback user
         if (betaMode) {
+            System.out.println("BETA mode active - allowing public access");
+
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 try {
@@ -198,6 +200,7 @@ public class PlanController {
                     // Look up the user by username to get the user ID
                     Optional<User> user = userRepository.findByUsername(username);
                     if (user.isPresent()) {
+                        System.out.println("Using authenticated user: " + user.get().getUsername());
                         return user.get().getId();
                     }
                 } catch (Exception e) {
@@ -205,18 +208,23 @@ public class PlanController {
                 }
             }
 
-            // For public endpoint testing without authentication, use any existing user
-            // Find the first available user in the database
-            Optional<User> firstUser = userRepository.findAll().stream().findFirst();
-            if (firstUser.isPresent()) {
-                System.out.println("Using first available user for BETA testing: " + firstUser.get().getUsername());
-                return firstUser.get().getId();
+            // For public endpoint testing without authentication, try to use any existing user
+            try {
+                Optional<User> firstUser = userRepository.findAll().stream().findFirst();
+                if (firstUser.isPresent()) {
+                    System.out.println("Using first available user for BETA testing: " + firstUser.get().getUsername());
+                    return firstUser.get().getId();
+                }
+            } catch (Exception e) {
+                System.out.println("Failed to find users in database: " + e.getMessage());
             }
 
-            // Fallback to hardcoded user ID if no users exist
-            return "630f6351-fbd8-4e2c-87a5-1f6f30e7276b";
+            // Always fallback to hardcoded user ID in BETA mode - never throw exception
+            System.out.println("Using fallback hardcoded user ID for BETA testing");
+            return "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf"; // test_public_endpoint user ID
         }
 
+        // Production mode: use normal authentication
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return ((User) authentication.getPrincipal()).getId();
