@@ -32,6 +32,7 @@ public class ObjectStorageConfig {
         System.out.println("   Endpoint: " + endpoint);
         System.out.println("   Access Key: " + (accessKey != null ? accessKey.substring(0, Math.min(3, accessKey.length())) + "***" : "null"));
         System.out.println("   Region: " + region);
+        System.out.println("   🔄 Environment variables updated - testing connectivity...");
 
         // Handle URL-encoded credentials
         String decodedAccessKey = java.net.URLDecoder.decode(accessKey, java.nio.charset.StandardCharsets.UTF_8);
