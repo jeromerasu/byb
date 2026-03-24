@@ -39,15 +39,25 @@ public class LocalFileStorageService {
         try {
             // Create base directory
             Path storagePath = Paths.get(baseStoragePath);
+            System.out.println("💾 Attempting to create storage directory: " + storagePath.toAbsolutePath());
             Files.createDirectories(storagePath);
+            System.out.println("✅ Created base directory: " + storagePath.toAbsolutePath());
 
             // Create structured subdirectories
-            Files.createDirectories(storagePath.resolve("workout"));
-            Files.createDirectories(storagePath.resolve("diet"));
+            Path workoutPath = storagePath.resolve("workout");
+            Path dietPath = storagePath.resolve("diet");
 
-            System.out.println("📁 Local storage initialized at: " + storagePath.toAbsolutePath());
+            Files.createDirectories(workoutPath);
+            System.out.println("✅ Created workout directory: " + workoutPath.toAbsolutePath());
+
+            Files.createDirectories(dietPath);
+            System.out.println("✅ Created diet directory: " + dietPath.toAbsolutePath());
+
+            System.out.println("📁 Local storage initialized successfully at: " + storagePath.toAbsolutePath());
         } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize local storage", e);
+            System.err.println("❌ Failed to initialize local storage at: " + baseStoragePath);
+            System.err.println("❌ Error: " + e.getMessage());
+            throw new RuntimeException("Failed to initialize local storage: " + e.getMessage(), e);
         }
     }
 
@@ -62,12 +72,15 @@ public class LocalFileStorageService {
         try {
             // Determine week number (can be enhanced to accept week parameter)
             String weekNumber = "week" + getCurrentWeekNumber();
+            System.out.println("💪 Storing workout plan for user: " + userId + ", week: " + weekNumber);
 
             // Create structured directory: workout/{userId}/weeklyplan/{week}/
             Path weekDir = Paths.get(baseStoragePath, "workout", userId, "weeklyplan", weekNumber);
+            System.out.println("📂 Creating week directory: " + weekDir.toAbsolutePath());
             Files.createDirectories(weekDir);
 
             Path exercisesDir = weekDir.resolve("exercises");
+            System.out.println("📂 Creating exercises directory: " + exercisesDir.toAbsolutePath());
             Files.createDirectories(exercisesDir);
 
             // Convert plan to Map for processing
@@ -95,7 +108,11 @@ public class LocalFileStorageService {
             return storageKey;
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to store workout plan", e);
+            System.err.println("❌ Failed to store workout plan for user: " + userId);
+            System.err.println("❌ Base storage path: " + baseStoragePath);
+            System.err.println("❌ IOException: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to store workout plan: " + e.getMessage(), e);
         }
     }
 
