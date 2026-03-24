@@ -25,18 +25,15 @@ public class ObjectStorageService {
     private final S3Client s3Client;
     private final ObjectMapper objectMapper;
     private final ObjectMapper prettyObjectMapper;
-    private final String bucketName;
     private final boolean autoCreateBucket;
 
     public ObjectStorageService(
             S3Client s3Client,
-            @Value("${minio.bucket-name:workout-plans}") String bucketName,
             @Value("${minio.auto-create-bucket:true}") boolean autoCreateBucket,
             ObjectMapper objectMapper) {
 
         this.s3Client = s3Client;
         this.objectMapper = objectMapper;
-        this.bucketName = bucketName;
         this.autoCreateBucket = autoCreateBucket;
 
         // Create a pretty-printing ObjectMapper for JSON storage
@@ -44,14 +41,13 @@ public class ObjectStorageService {
         this.prettyObjectMapper.enable(SerializationFeature.INDENT_OUTPUT);
         this.prettyObjectMapper.registerModule(new JavaTimeModule());
         this.prettyObjectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        // Initialize bucket if auto-create is enabled
-        if (autoCreateBucket) {
-            initializeBucket();
-        }
     }
 
-    private void initializeBucket() {
+    private void ensureBucketExists(String bucketName) {
+        if (!autoCreateBucket) {
+            return;
+        }
+
         try {
             // Check if bucket exists
             HeadBucketRequest headBucketRequest = HeadBucketRequest.builder()
@@ -79,7 +75,7 @@ public class ObjectStorageService {
     /**
      * Store workout plan in structured object storage
      */
-    public String storeWorkoutPlan(String userId, String planTitle, Object workoutPlan) {
+    public String storeWorkoutPlan(String bucketName, String userId, String planTitle, Object workoutPlan) {
         if (workoutPlan == null) {
             throw new IllegalArgumentException("Workout plan cannot be null");
         }
@@ -88,6 +84,9 @@ public class ObjectStorageService {
         }
 
         try {
+            // Ensure bucket exists
+            ensureBucketExists(bucketName);
+
             // Determine week number
             String weekNumber = "week" + getCurrentWeekNumber();
 
@@ -100,14 +99,14 @@ public class ObjectStorageService {
             // Extract and store exercises separately
             Object exercises = planMap.get("exercises");
             if (exercises instanceof List<?> exercisesList) {
-                storeExerciseMetadataInStorage(userId, weekNumber, exercisesList);
+                storeExerciseMetadataInStorage(bucketName, userId, exercisesList);
                 // Remove exercises from main plan (will be loaded separately)
                 planMap.put("exercisesStoredSeparately", true);
                 planMap.put("exercisesLocation", "exercises/");
                 planMap.remove("exercises");
             }
 
-            storeObject(planKey, planMap, "workout-plan");
+            storeObject(bucketName, planKey, planMap, "workout-plan");
 
             // Return the week directory key
             String storageKey = String.format("workout/%s/weeklyplan/%s", userId, weekNumber);
@@ -122,7 +121,7 @@ public class ObjectStorageService {
     /**
      * Store diet plan in structured object storage
      */
-    public String storeDietPlan(String userId, String planTitle, Object dietPlan) {
+    public String storeDietPlan(String bucketName, String userId, String planTitle, Object dietPlan) {
         if (dietPlan == null) {
             throw new IllegalArgumentException("Diet plan cannot be null");
         }
@@ -143,14 +142,14 @@ public class ObjectStorageService {
             // Extract and store meal metadata separately
             Object weeklyPlan = planMap.get("weeklyPlan");
             if (weeklyPlan instanceof List<?> weeklyPlanList) {
-                storeMealMetadataInStorage(userId, weekNumber, weeklyPlanList);
+                storeMealMetadataInStorage(bucketName, userId, weeklyPlanList);
                 // Remove detailed meals from main plan (will be loaded separately)
                 planMap.put("mealsStoredSeparately", true);
                 planMap.put("mealsLocation", "meals/");
                 planMap.remove("weeklyPlan");
             }
 
-            storeObject(planKey, planMap, "diet-plan");
+            storeObject(bucketName, planKey, planMap, "diet-plan");
 
             // Return the week directory key
             String storageKey = String.format("diet/%s/weeklyplan/%s", userId, weekNumber);
@@ -165,16 +164,16 @@ public class ObjectStorageService {
     /**
      * Store workout session data
      */
-    public String storeWorkoutSession(String userId, String sessionId, Object sessionData) {
+    public String storeWorkoutSession(String bucketName, String userId, String sessionId, Object sessionData) {
         String year = String.valueOf(LocalDateTime.now().getYear());
         String key = String.format("workout-sessions/%s/%s/%s.json", userId, year, sessionId);
-        return storeObject(key, sessionData, "workout-session");
+        return storeObject(bucketName, key, sessionData, "workout-session");
     }
 
     /**
      * Generic method to store any object as pretty-printed JSON
      */
-    private String storeObject(String key, Object data, String contentType) {
+    private String storeObject(String bucketName, String key, Object data, String contentType) {
         try {
             // Convert object to pretty-printed JSON for better readability
             String jsonData = prettyObjectMapper.writeValueAsString(data);
@@ -214,32 +213,32 @@ public class ObjectStorageService {
     /**
      * Retrieve workout plan from object storage
      */
-    public <T> Optional<T> getWorkoutPlan(String storageKey, Class<T> targetClass) {
-        return getObject(storageKey, targetClass);
+    public <T> Optional<T> getWorkoutPlan(String bucketName, String storageKey, Class<T> targetClass) {
+        return getObject(bucketName, storageKey, targetClass);
     }
 
     /**
      * Retrieve diet plan from object storage
      */
-    public <T> Optional<T> getDietPlan(String storageKey, Class<T> targetClass) {
-        return getObject(storageKey, targetClass);
+    public <T> Optional<T> getDietPlan(String bucketName, String storageKey, Class<T> targetClass) {
+        return getObject(bucketName, storageKey, targetClass);
     }
 
     /**
      * Retrieve workout plan as Map from structured object storage
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> retrieveWorkoutPlan(String userId, String storageKey) {
+    public Map<String, Object> retrieveWorkoutPlan(String bucketName, String userId, String storageKey) {
         try {
             // storageKey format: "workout/{userId}/weeklyplan/{week}"
             String planKey = storageKey + "/plan.json";
 
             // Load main plan
-            Map<String, Object> plan = (Map<String, Object>) getObject(planKey, Map.class).orElse(new HashMap<>());
+            Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, planKey, Map.class).orElse(new HashMap<>());
 
             // If exercises are stored separately, load them
             if (Boolean.TRUE.equals(plan.get("exercisesStoredSeparately"))) {
-                List<Map<String, Object>> exercises = loadExerciseMetadataFromStorage(userId, extractWeekFromStorageKey(storageKey));
+                List<Map<String, Object>> exercises = loadExerciseMetadataFromStorage(bucketName, userId, extractWeekFromStorageKey(storageKey));
                 plan.put("exercises", exercises);
                 // Clean up metadata fields
                 plan.remove("exercisesStoredSeparately");
@@ -257,17 +256,17 @@ public class ObjectStorageService {
      * Retrieve diet plan as Map from structured object storage
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> retrieveDietPlan(String userId, String storageKey) {
+    public Map<String, Object> retrieveDietPlan(String bucketName, String userId, String storageKey) {
         try {
             // storageKey format: "diet/{userId}/weeklyplan/{week}"
             String planKey = storageKey + "/plan.json";
 
             // Load main plan
-            Map<String, Object> plan = (Map<String, Object>) getObject(planKey, Map.class).orElse(new HashMap<>());
+            Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, planKey, Map.class).orElse(new HashMap<>());
 
             // If meals are stored separately, load them
             if (Boolean.TRUE.equals(plan.get("mealsStoredSeparately"))) {
-                List<Map<String, Object>> weeklyPlan = loadMealMetadataFromStorage(userId, extractWeekFromStorageKey(storageKey));
+                List<Map<String, Object>> weeklyPlan = loadMealMetadataFromStorage(bucketName, userId, extractWeekFromStorageKey(storageKey));
                 plan.put("weeklyPlan", weeklyPlan);
                 // Clean up metadata fields
                 plan.remove("mealsStoredSeparately");
@@ -284,7 +283,7 @@ public class ObjectStorageService {
     /**
      * Generic method to retrieve any object from JSON storage
      */
-    public <T> Optional<T> getObject(String key, Class<T> targetClass) {
+    public <T> Optional<T> getObject(String bucketName, String key, Class<T> targetClass) {
         try {
             // Create get request
             GetObjectRequest getRequest = GetObjectRequest.builder()
@@ -317,7 +316,7 @@ public class ObjectStorageService {
     /**
      * Delete object from storage
      */
-    public void deleteObject(String key) {
+    public void deleteObject(String bucketName, String key) {
         try {
             DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
@@ -333,7 +332,7 @@ public class ObjectStorageService {
     /**
      * Check if object exists
      */
-    public boolean objectExists(String key) {
+    public boolean objectExists(String bucketName, String key) {
         try {
             HeadObjectRequest headRequest = HeadObjectRequest.builder()
                     .bucket(bucketName)
@@ -352,7 +351,7 @@ public class ObjectStorageService {
     /**
      * Get object metadata
      */
-    public Map<String, String> getObjectMetadata(String key) {
+    public Map<String, String> getObjectMetadata(String bucketName, String key) {
         try {
             HeadObjectRequest headRequest = HeadObjectRequest.builder()
                     .bucket(bucketName)
@@ -370,7 +369,7 @@ public class ObjectStorageService {
     /**
      * List objects with prefix (for user's content)
      */
-    public java.util.List<String> listUserObjects(String userId, String objectType) {
+    public java.util.List<String> listUserObjects(String bucketName, String userId, String objectType) {
         try {
             String prefix = String.format("%s/%s/", objectType, userId);
 
@@ -392,7 +391,7 @@ public class ObjectStorageService {
     /**
      * Upload a file (multipart) to object storage
      */
-    public String uploadFile(MultipartFile file, String userId, String category, String metadata) {
+    public String uploadFile(String bucketName, MultipartFile file, String userId, String category, String metadata) {
         try {
             // Generate unique file key
             String timestamp = String.valueOf(System.currentTimeMillis());
@@ -436,7 +435,7 @@ public class ObjectStorageService {
     /**
      * Download a file as byte array
      */
-    public Optional<byte[]> downloadFile(String key) {
+    public Optional<byte[]> downloadFile(String bucketName, String key) {
         try {
             GetObjectRequest getRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
@@ -456,7 +455,7 @@ public class ObjectStorageService {
     /**
      * List all files for a user across all categories
      */
-    public List<String> listAllUserFiles(String userId) {
+    public List<String> listAllUserFiles(String bucketName, String userId) {
         try {
             List<String> allFiles = new ArrayList<>();
 
@@ -468,7 +467,7 @@ public class ObjectStorageService {
 
             for (String category : categories) {
                 try {
-                    List<String> categoryFiles = listUserObjects(userId, category);
+                    List<String> categoryFiles = listUserObjects(bucketName, userId, category);
                     allFiles.addAll(categoryFiles);
                 } catch (Exception e) {
                     // Continue with other categories if one fails
@@ -485,7 +484,7 @@ public class ObjectStorageService {
     /**
      * Get storage statistics for a user
      */
-    public Map<String, Object> getUserStorageStats(String userId) {
+    public Map<String, Object> getUserStorageStats(String bucketName, String userId) {
         try {
             Map<String, Object> stats = new HashMap<>();
             Map<String, Integer> categoryStats = new HashMap<>();
@@ -545,7 +544,7 @@ public class ObjectStorageService {
     /**
      * Enhanced presigned URL generation with proper expiration
      */
-    public String generatePresignedUrl(String key, int expirationMinutes) {
+    public String generatePresignedUrl(String bucketName, String key, int expirationMinutes) {
         try {
             // For MinIO local development, return a simple URL
             // In production, you would use S3 Presigner
@@ -586,27 +585,29 @@ public class ObjectStorageService {
         }
     }
 
-    private void storeExerciseMetadataInStorage(String userId, String weekNumber, List<?> exercisesList) {
+    private void storeExerciseMetadataInStorage(String bucketName, String userId, List<?> exercisesList) {
+        String weekNumber = "week" + getCurrentWeekNumber();
         for (int i = 0; i < exercisesList.size(); i++) {
             Object exercise = exercisesList.get(i);
             String exerciseKey = String.format("workout/%s/weeklyplan/%s/exercises/exercise_%d.json", userId, weekNumber, i + 1);
-            storeObject(exerciseKey, exercise, "exercise-metadata");
+            storeObject(bucketName, exerciseKey, exercise, "exercise-metadata");
         }
     }
 
-    private void storeMealMetadataInStorage(String userId, String weekNumber, List<?> weeklyPlanList) {
+    private void storeMealMetadataInStorage(String bucketName, String userId, List<?> weeklyPlanList) {
+        String weekNumber = "week" + getCurrentWeekNumber();
         for (int i = 0; i < weeklyPlanList.size(); i++) {
             Object dayPlan = weeklyPlanList.get(i);
             if (dayPlan instanceof Map<?, ?> dayMap) {
                 String dayName = String.valueOf(dayMap.get("day"));
                 String dayKey = String.format("diet/%s/weeklyplan/%s/meals/day_%d_%s.json", userId, weekNumber, i + 1, dayName);
-                storeObject(dayKey, dayPlan, "meal-metadata");
+                storeObject(bucketName, dayKey, dayPlan, "meal-metadata");
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> loadExerciseMetadataFromStorage(String userId, String weekNumber) {
+    private List<Map<String, Object>> loadExerciseMetadataFromStorage(String bucketName, String userId, String weekNumber) {
         List<Map<String, Object>> exercises = new ArrayList<>();
         String prefix = String.format("workout/%s/weeklyplan/%s/exercises/", userId, weekNumber);
 
@@ -620,7 +621,7 @@ public class ObjectStorageService {
 
             for (S3Object s3Object : response.contents()) {
                 if (s3Object.key().endsWith(".json")) {
-                    Optional<Map> exercise = getObject(s3Object.key(), Map.class);
+                    Optional<Map> exercise = getObject(bucketName, s3Object.key(), Map.class);
                     exercise.ifPresent(exercises::add);
                 }
             }
@@ -632,7 +633,7 @@ public class ObjectStorageService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> loadMealMetadataFromStorage(String userId, String weekNumber) {
+    private List<Map<String, Object>> loadMealMetadataFromStorage(String bucketName, String userId, String weekNumber) {
         List<Map<String, Object>> weeklyPlan = new ArrayList<>();
         String prefix = String.format("diet/%s/weeklyplan/%s/meals/", userId, weekNumber);
 
@@ -646,7 +647,7 @@ public class ObjectStorageService {
 
             for (S3Object s3Object : response.contents()) {
                 if (s3Object.key().endsWith(".json")) {
-                    Optional<Map> dayPlan = getObject(s3Object.key(), Map.class);
+                    Optional<Map> dayPlan = getObject(bucketName, s3Object.key(), Map.class);
                     dayPlan.ifPresent(weeklyPlan::add);
                 }
             }

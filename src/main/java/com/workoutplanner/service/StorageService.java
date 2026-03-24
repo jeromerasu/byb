@@ -25,35 +25,35 @@ public class StorageService {
         System.out.println("🗄️  Storage mode: " + (useLocalStorage ? "LOCAL FILE STORAGE" : "OBJECT STORAGE (MinIO/S3)"));
     }
 
-    public String storeWorkoutPlan(String userId, String planTitle, Object workoutPlan) {
+    public String storeWorkoutPlan(String bucketName, String userId, String planTitle, Object workoutPlan) {
         if (useLocalStorage) {
             return localFileStorageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
         } else {
-            return objectStorageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
+            return objectStorageService.storeWorkoutPlan(bucketName, userId, planTitle, workoutPlan);
         }
     }
 
-    public String storeDietPlan(String userId, String planTitle, Object dietPlan) {
+    public String storeDietPlan(String bucketName, String userId, String planTitle, Object dietPlan) {
         if (useLocalStorage) {
             return localFileStorageService.storeDietPlan(userId, planTitle, dietPlan);
         } else {
-            return objectStorageService.storeDietPlan(userId, planTitle, dietPlan);
+            return objectStorageService.storeDietPlan(bucketName, userId, planTitle, dietPlan);
         }
     }
 
-    public Map<String, Object> retrieveWorkoutPlan(String userId, String storageKey) {
+    public Map<String, Object> retrieveWorkoutPlan(String bucketName, String userId, String storageKey) {
         if (useLocalStorage) {
             return localFileStorageService.retrieveWorkoutPlan(userId, storageKey);
         } else {
-            return objectStorageService.retrieveWorkoutPlan(userId, storageKey);
+            return objectStorageService.retrieveWorkoutPlan(bucketName, userId, storageKey);
         }
     }
 
-    public Map<String, Object> retrieveDietPlan(String userId, String storageKey) {
+    public Map<String, Object> retrieveDietPlan(String bucketName, String userId, String storageKey) {
         if (useLocalStorage) {
             return localFileStorageService.retrieveDietPlan(userId, storageKey);
         } else {
-            return objectStorageService.retrieveDietPlan(userId, storageKey);
+            return objectStorageService.retrieveDietPlan(bucketName, userId, storageKey);
         }
     }
 

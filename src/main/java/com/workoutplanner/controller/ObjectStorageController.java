@@ -51,7 +51,7 @@ public class ObjectStorageController {
             }
 
             // Upload file
-            String storageKey = objectStorageService.uploadFile(file, userId, category, metadata);
+            String storageKey = objectStorageService.uploadFile("files", file, userId, category, metadata);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -77,14 +77,14 @@ public class ObjectStorageController {
     @GetMapping("/download/{storageKey}")
     public ResponseEntity<byte[]> downloadFile(@PathVariable String storageKey) {
         try {
-            Optional<byte[]> fileData = objectStorageService.downloadFile(storageKey);
+            Optional<byte[]> fileData = objectStorageService.downloadFile("files", storageKey);
 
             if (fileData.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
             // Get file metadata to determine content type
-            Map<String, String> metadata = objectStorageService.getObjectMetadata(storageKey);
+            Map<String, String> metadata = objectStorageService.getObjectMetadata("files", storageKey);
             String contentType = metadata.getOrDefault("content-type", "application/octet-stream");
 
             return ResponseEntity.ok()
@@ -102,11 +102,11 @@ public class ObjectStorageController {
     @GetMapping("/info/{storageKey}")
     public ResponseEntity<Map<String, Object>> getFileInfo(@PathVariable String storageKey) {
         try {
-            if (!objectStorageService.objectExists(storageKey)) {
+            if (!objectStorageService.objectExists("files", storageKey)) {
                 return ResponseEntity.notFound().build();
             }
 
-            Map<String, String> metadata = objectStorageService.getObjectMetadata(storageKey);
+            Map<String, String> metadata = objectStorageService.getObjectMetadata("files", storageKey);
 
             Map<String, Object> response = new HashMap<>();
             response.put("storageKey", storageKey);
@@ -135,10 +135,10 @@ public class ObjectStorageController {
 
             if ("all".equals(objectType)) {
                 // List all files for user across all categories
-                files = objectStorageService.listAllUserFiles(userId);
+                files = objectStorageService.listAllUserFiles("files", userId);
             } else {
                 // List files in specific category
-                files = objectStorageService.listUserObjects(userId, category);
+                files = objectStorageService.listUserObjects("files", userId, category);
             }
 
             Map<String, Object> response = new HashMap<>();
@@ -170,11 +170,11 @@ public class ObjectStorageController {
                         .body(createErrorResponse("Access denied"));
             }
 
-            if (!objectStorageService.objectExists(storageKey)) {
+            if (!objectStorageService.objectExists("files", storageKey)) {
                 return ResponseEntity.notFound().build();
             }
 
-            objectStorageService.deleteObject(storageKey);
+            objectStorageService.deleteObject("files", storageKey);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -205,7 +205,7 @@ public class ObjectStorageController {
             }
 
             String key = generateFileKey(userId, category, fileName);
-            String presignedUrl = objectStorageService.generatePresignedUrl(key, expirationMinutes);
+            String presignedUrl = objectStorageService.generatePresignedUrl("files", key, expirationMinutes);
 
             Map<String, Object> response = new HashMap<>();
             response.put("presignedUrl", presignedUrl);
@@ -227,7 +227,7 @@ public class ObjectStorageController {
     @GetMapping("/stats/{userId}")
     public ResponseEntity<Map<String, Object>> getUserStorageStats(@PathVariable String userId) {
         try {
-            Map<String, Object> stats = objectStorageService.getUserStorageStats(userId);
+            Map<String, Object> stats = objectStorageService.getUserStorageStats("files", userId);
             return ResponseEntity.ok(stats);
 
         } catch (Exception e) {

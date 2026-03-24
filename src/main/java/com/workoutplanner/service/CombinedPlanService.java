@@ -22,16 +22,19 @@ public class CombinedPlanService {
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final OpenAIService openAIService;
 
     @Autowired
     public CombinedPlanService(WorkoutProfileRepository workoutProfileRepository,
                               DietProfileRepository dietProfileRepository,
                               UserRepository userRepository,
-                              StorageService storageService) {
+                              StorageService storageService,
+                              OpenAIService openAIService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
         this.storageService = storageService;
+        this.openAIService = openAIService;
     }
 
     public CombinedPlanResponseDto generateCombinedPlan(String userId) {
@@ -49,19 +52,26 @@ public class CombinedPlanService {
 
             LocalDateTime now = LocalDateTime.now();
 
-            // Generate both plans
-            WorkoutPlanResult workoutResult = generateWorkoutPlan(userId, workoutProfile, now);
-            DietPlanResult dietResult = generateDietPlan(userId, dietProfile, now);
+            // Generate dynamic bucket names based on user context
+            String workoutBucketName = generateBucketName(userId, "workout");
+            String dietBucketName = generateBucketName(userId, "diet");
+
+            // Use OpenAI to generate both plans in a single API call
+            OpenAIService.CombinedPlanResult openAIResult = openAIService.generateCombinedPlans(workoutProfile, dietProfile);
+
+            // Store both plans using dynamic bucket names
+            WorkoutPlanResult workoutResult = storeWorkoutPlan(workoutBucketName, userId, workoutProfile, openAIResult.getWorkoutPlan(), now);
+            DietPlanResult dietResult = storeDietPlan(dietBucketName, userId, dietProfile, openAIResult.getDietPlan(), now);
 
             // Create combined response
             CombinedPlanResponseDto response = new CombinedPlanResponseDto();
-            response.setMessage("Combined workout and diet plan generated successfully");
+            response.setMessage("AI-generated combined workout and diet plan created successfully");
 
             // Build plan metadata
             CombinedPlanResponseDto.PlanMetaDto planMeta = new CombinedPlanResponseDto.PlanMetaDto(
-                    "7 days", // Standard weekly plan duration
+                    "30 days", // AI generates 30-day plans
                     now,
-                    "1.0", // Version number
+                    "2.0", // Version 2.0 with OpenAI integration
                     userId,
                     workoutResult.storageKey,
                     dietResult.storageKey
@@ -79,13 +89,19 @@ public class CombinedPlanService {
         }
     }
 
-    private WorkoutPlanResult generateWorkoutPlan(String userId, WorkoutProfile profile, LocalDateTime timestamp) {
-        // Generate workout plan (reusing logic from WorkoutController)
-        Map<String, Object> workoutPlan = generateSimpleWorkoutPlan(profile);
-        String planTitle = "Workout Plan - " + timestamp.toLocalDate();
+    private String generateBucketName(String userId, String planType) {
+        // Create user-specific bucket names for better organization
+        // Format: workout-plans-{planType}-{userIdPrefix}
+        String userIdPrefix = userId.substring(0, Math.min(8, userId.length()));
+        return String.format("workout-plans-%s-%s", planType, userIdPrefix);
+    }
+
+    private WorkoutPlanResult storeWorkoutPlan(String bucketName, String userId, WorkoutProfile profile,
+                                                Map<String, Object> workoutPlan, LocalDateTime timestamp) {
+        String planTitle = "AI Workout Plan - " + timestamp.toLocalDate();
 
         try {
-            String actualStorageKey = storageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
+            String actualStorageKey = storageService.storeWorkoutPlan(bucketName, userId, planTitle, workoutPlan);
 
             // Update profile with new plan info
             profile.setCurrentPlanStorageKey(actualStorageKey);
@@ -100,23 +116,22 @@ public class CombinedPlanService {
                     planTitle,
                     actualStorageKey,
                     timestamp,
-                    "Workout plan component generated"
+                    "AI-generated workout plan stored in bucket: " + bucketName
             );
 
             return new WorkoutPlanResult(response, actualStorageKey);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate workout plan: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to store workout plan: " + e.getMessage(), e);
         }
     }
 
-    private DietPlanResult generateDietPlan(String userId, DietProfile profile, LocalDateTime timestamp) {
-        // Generate diet plan (reusing logic from DietController)
-        Map<String, Object> dietPlan = generateSimpleDietPlan(profile);
-        String planTitle = "Diet Plan - " + timestamp.toLocalDate();
+    private DietPlanResult storeDietPlan(String bucketName, String userId, DietProfile profile,
+                                         Map<String, Object> dietPlan, LocalDateTime timestamp) {
+        String planTitle = "AI Diet Plan - " + timestamp.toLocalDate();
 
         try {
-            String actualStorageKey = storageService.storeDietPlan(userId, planTitle, dietPlan);
+            String actualStorageKey = storageService.storeDietPlan(bucketName, userId, planTitle, dietPlan);
 
             // Update profile with new plan info
             profile.setCurrentPlanStorageKey(actualStorageKey);
@@ -131,15 +146,18 @@ public class CombinedPlanService {
                     planTitle,
                     actualStorageKey,
                     timestamp,
-                    "Diet plan component generated"
+                    "AI-generated diet plan stored in bucket: " + bucketName
             );
 
             return new DietPlanResult(response, actualStorageKey);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate diet plan: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to store diet plan: " + e.getMessage(), e);
         }
     }
+
+    // Note: Removed old generateWorkoutPlan and generateDietPlan methods
+    // as we now use OpenAI for plan generation
 
     // Helper classes for internal results
     private static class WorkoutPlanResult {

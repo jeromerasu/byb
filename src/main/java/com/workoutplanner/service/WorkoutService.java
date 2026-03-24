@@ -73,7 +73,7 @@ public class WorkoutService {
             String planTitle = "Workout Plan - " + LocalDateTime.now().toLocalDate();
 
             try {
-                objectStorageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
+                objectStorageService.storeWorkoutPlan("workout-plans", userId, planTitle, workoutPlan);
 
                 // Update workout profile with current plan info
                 workoutProfile.setCurrentPlanStorageKey(storageKey);
@@ -108,7 +108,7 @@ public class WorkoutService {
             }
 
             try {
-                Map<String, Object> plan = objectStorageService.retrieveWorkoutPlan(userId, profile.getCurrentPlanStorageKey());
+                Map<String, Object> plan = objectStorageService.retrieveWorkoutPlan("workout-plans", userId, profile.getCurrentPlanStorageKey());
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("planTitle", profile.getCurrentPlanTitle());
