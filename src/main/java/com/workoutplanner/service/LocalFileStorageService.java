@@ -22,7 +22,7 @@ public class LocalFileStorageService {
     private final ObjectMapper prettyObjectMapper;
     private final String baseStoragePath;
 
-    public LocalFileStorageService(@Value("${storage.local.path:./local-storage}") String baseStoragePath) {
+    public LocalFileStorageService(@Value("${storage.local.path:/tmp/workout-storage}") String baseStoragePath) {
         this.baseStoragePath = baseStoragePath;
 
         // Create a pretty-printing ObjectMapper for JSON storage
