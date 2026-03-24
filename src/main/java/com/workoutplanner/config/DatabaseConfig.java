@@ -23,16 +23,26 @@ public class DatabaseConfig {
     @Primary
     public DataSource dataSource() throws URISyntaxException {
         System.out.println("=== DatabaseConfig Debug Info ===");
-        System.out.println("DATABASE_URL: " + (databaseUrl != null ? databaseUrl.substring(0, Math.min(databaseUrl.length(), 50)) + "..." : "null"));
+        System.out.println("DATABASE_URL: " + (databaseUrl != null ? databaseUrl : "null"));
         System.out.println("DB_HOST: " + System.getenv("DB_HOST"));
         System.out.println("DB_NAME: " + System.getenv("DB_NAME"));
 
-        // Check if DATABASE_URL exists and needs conversion
-        if (databaseUrl != null && !databaseUrl.isEmpty()) {
-            if (!databaseUrl.startsWith("jdbc:")) {
+        // Print all database-related environment variables for debugging
+        System.out.println("=== All Environment Variables ===");
+        System.getenv().entrySet().stream()
+                .filter(e -> e.getKey().contains("DATABASE") || e.getKey().contains("DB") || e.getKey().contains("POSTGRES"))
+                .forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
+
+        // Look for the original postgres:// URL that Render provides
+        String originalDatabaseUrl = System.getenv("DATABASE_URL");
+
+        if (originalDatabaseUrl != null && !originalDatabaseUrl.isEmpty()) {
+            System.out.println("Found DATABASE_URL environment variable: " + originalDatabaseUrl);
+
+            if (originalDatabaseUrl.startsWith("postgres://") || originalDatabaseUrl.startsWith("postgresql://")) {
                 // Parse Render-style DATABASE_URL and convert to JDBC format
-                System.out.println("Converting DATABASE_URL to JDBC format...");
-                URI dbUri = new URI(databaseUrl);
+                System.out.println("Converting postgres:// URL to JDBC format...");
+                URI dbUri = new URI(originalDatabaseUrl);
                 String jdbcUrl = "jdbc:postgresql://" + dbUri.getHost() + ":" + dbUri.getPort() + dbUri.getPath();
 
                 String userInfo = dbUri.getUserInfo();
@@ -47,19 +57,14 @@ public class DatabaseConfig {
                     }
                 }
 
-                System.out.println("Using parsed DATABASE_URL");
+                System.out.println("Final JDBC URL: " + jdbcUrl);
+                System.out.println("Username: " + username);
+
                 return DataSourceBuilder.create()
                         .driverClassName("org.postgresql.Driver")
                         .url(jdbcUrl)
                         .username(username)
                         .password(password)
-                        .build();
-            } else {
-                // DATABASE_URL is already in JDBC format
-                System.out.println("Using DATABASE_URL as-is (already JDBC format)");
-                return DataSourceBuilder.create()
-                        .driverClassName("org.postgresql.Driver")
-                        .url(databaseUrl)
                         .build();
             }
         }
@@ -76,6 +81,8 @@ public class DatabaseConfig {
                 host, port != null ? port : "5432", database);
 
             System.out.println("Using separate DB environment variables");
+            System.out.println("Final JDBC URL: " + jdbcUrl);
+
             return DataSourceBuilder.create()
                     .driverClassName("org.postgresql.Driver")
                     .url(jdbcUrl)
@@ -83,12 +90,6 @@ public class DatabaseConfig {
                     .password(password)
                     .build();
         }
-
-        // Print all environment variables for debugging
-        System.out.println("=== All Environment Variables ===");
-        System.getenv().entrySet().stream()
-                .filter(e -> e.getKey().contains("DATABASE") || e.getKey().contains("DB") || e.getKey().contains("POSTGRES"))
-                .forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
 
         throw new IllegalStateException("No valid database configuration found. Please set DATABASE_URL or DB_HOST/DB_NAME environment variables.");
     }
