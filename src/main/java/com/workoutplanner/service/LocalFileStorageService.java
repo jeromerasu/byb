@@ -22,7 +22,7 @@ public class LocalFileStorageService {
     private final ObjectMapper prettyObjectMapper;
     private final String baseStoragePath;
 
-    public LocalFileStorageService(@Value("${storage.local.path:/tmp/workout-storage}") String baseStoragePath) {
+    public LocalFileStorageService(@Value("${storage.local.path:#{systemProperties['java.io.tmpdir']}/workout-storage}") String baseStoragePath) {
         this.baseStoragePath = baseStoragePath;
 
         // Create a pretty-printing ObjectMapper for JSON storage
@@ -37,6 +37,12 @@ public class LocalFileStorageService {
 
     private void initializeStorage() {
         try {
+            // Log environment information
+            System.out.println("🌍 Environment Info:");
+            System.out.println("   java.io.tmpdir: " + System.getProperty("java.io.tmpdir"));
+            System.out.println("   user.dir: " + System.getProperty("user.dir"));
+            System.out.println("   user.home: " + System.getProperty("user.home"));
+
             // Create base directory
             Path storagePath = Paths.get(baseStoragePath);
             System.out.println("💾 Attempting to create storage directory: " + storagePath.toAbsolutePath());
