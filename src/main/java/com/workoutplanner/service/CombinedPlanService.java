@@ -43,15 +43,24 @@ public class CombinedPlanService {
 
     public CombinedPlanResponseDto generateCombinedPlan(String userId) {
         try {
+            System.out.println("🔍 DEBUG: generateCombinedPlan called with userId: " + userId);
+
             // Validate user exists
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
+            System.out.println("✅ User found: " + user.getUsername() + " (ID: " + user.getId() + ")");
 
             // Get or validate profiles exist
-            WorkoutProfile workoutProfile = workoutProfileRepository.findByUserId(userId)
+            Optional<WorkoutProfile> workoutProfileOpt = workoutProfileRepository.findByUserId(userId);
+            System.out.println("🏋️ Workout profile search result: " + (workoutProfileOpt.isPresent() ? "FOUND" : "NOT_FOUND"));
+
+            WorkoutProfile workoutProfile = workoutProfileOpt
                     .orElseThrow(() -> new RuntimeException("Workout profile not found"));
 
-            DietProfile dietProfile = dietProfileRepository.findByUserId(userId)
+            Optional<DietProfile> dietProfileOpt = dietProfileRepository.findByUserId(userId);
+            System.out.println("🍽️ Diet profile search result: " + (dietProfileOpt.isPresent() ? "FOUND" : "NOT_FOUND"));
+
+            DietProfile dietProfile = dietProfileOpt
                     .orElseThrow(() -> new RuntimeException("Diet profile not found"));
 
             LocalDateTime now = LocalDateTime.now();
