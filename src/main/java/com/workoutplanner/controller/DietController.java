@@ -121,8 +121,18 @@ public class DietController {
                 }
             }
 
-            // Fallback to hardcoded user ID for BETA mode if no valid token
-            return "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf"; // test_public_endpoint user ID
+            // Fallback: Use any existing user from database for BETA mode
+            try {
+                Optional<User> firstUser = userRepository.findAll().stream().findFirst();
+                if (firstUser.isPresent()) {
+                    System.out.println("Using first available user for BETA testing: " + firstUser.get().getUsername());
+                    return firstUser.get().getId();
+                }
+            } catch (Exception e) {
+                System.out.println("Failed to find users in database: " + e.getMessage());
+            }
+
+            throw new RuntimeException("No users found in database for BETA testing");
         }
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
