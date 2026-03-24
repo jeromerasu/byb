@@ -414,35 +414,53 @@ public class PlanController {
     }
 
     private String getCurrentUserId(HttpServletRequest request) {
+        System.out.println("🔍 DEBUG: getCurrentUserId called - betaMode: " + betaMode);
+
         // In BETA mode, find a user that actually has both profiles
         if (betaMode) {
             System.out.println("🔍 BETA mode active - finding user with both profiles");
 
             // Find the first user that has both workout and diet profiles
             java.util.List<WorkoutProfile> workoutProfiles = workoutProfileRepository.findAll();
-            if (!workoutProfiles.isEmpty()) {
-                String candidateUserId = workoutProfiles.get(0).getUserId();
-                System.out.println("🏋️ Found workout profile for user: " + candidateUserId);
+            System.out.println("📊 Total workout profiles found: " + workoutProfiles.size());
 
-                // Check if this user also has a diet profile
-                Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(candidateUserId);
-                if (dietProfile.isPresent()) {
-                    System.out.println("🍽️ Same user has diet profile - using: " + candidateUserId);
-                    return candidateUserId;
+            if (!workoutProfiles.isEmpty()) {
+                for (int i = 0; i < workoutProfiles.size(); i++) {
+                    WorkoutProfile wp = workoutProfiles.get(i);
+                    String candidateUserId = wp.getUserId();
+                    System.out.println("🏋️ Checking workout profile #" + (i+1) + " for user: " + candidateUserId);
+
+                    // Check if this user also has a diet profile
+                    Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(candidateUserId);
+                    System.out.println("🍽️ Diet profile search for user " + candidateUserId + ": " + (dietProfile.isPresent() ? "FOUND" : "NOT_FOUND"));
+
+                    if (dietProfile.isPresent()) {
+                        System.out.println("✅ Found user with both profiles - using: " + candidateUserId);
+                        return candidateUserId;
+                    }
                 }
+
+                // No user found with both profiles, use first workout profile user anyway
+                String firstUserId = workoutProfiles.get(0).getUserId();
+                System.out.println("⚠️ No user found with both profiles, using first workout profile user: " + firstUserId);
+                return firstUserId;
             }
 
-            // Fallback to hardcoded test user
+            // No workout profiles at all - fallback to hardcoded test user
             String fallbackUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
-            System.out.println("⚠️ Fallback to hardcoded test user ID: " + fallbackUserId);
+            System.out.println("❌ No workout profiles found at all - fallback to hardcoded test user ID: " + fallbackUserId);
             return fallbackUserId;
         }
 
         // Production mode: use normal authentication
+        System.out.println("🔐 Production mode: checking SecurityContext authentication");
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
-            return ((User) authentication.getPrincipal()).getId();
+            String userId = ((User) authentication.getPrincipal()).getId();
+            System.out.println("✅ Authenticated user found: " + userId);
+            return userId;
         }
+        System.out.println("❌ User not authenticated in production mode");
         throw new RuntimeException("User not authenticated");
     }
 }
