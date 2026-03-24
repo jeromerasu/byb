@@ -349,6 +349,21 @@ public class PlanController {
         }
     }
 
+    @GetMapping("/debug-connectivity")
+    public ResponseEntity<Map<String, Object>> testConnectivity() {
+        try {
+            System.out.println("🔌 Connectivity test endpoint called");
+            Map<String, Object> connectivityResult = objectStorageService.testConnectivity();
+            return ResponseEntity.ok(connectivityResult);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", e.getMessage());
+            errorResult.put("errorType", e.getClass().getSimpleName());
+            errorResult.put("testResult", "ENDPOINT_FAILURE");
+            return ResponseEntity.ok(errorResult);
+        }
+    }
+
     @GetMapping("/diet-foods")
     public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods(HttpServletRequest request) {
         String userId = getCurrentUserId(request);

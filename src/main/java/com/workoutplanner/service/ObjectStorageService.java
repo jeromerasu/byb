@@ -749,6 +749,61 @@ public class ObjectStorageService {
     }
 
     /**
+     * Debug method to test connectivity and configuration
+     */
+    public Map<String, Object> testConnectivity() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            System.out.println("🔌 Testing MinIO connectivity and configuration...");
+
+            // Test 1: Basic S3Client initialization
+            result.put("s3ClientInitialized", s3Client != null);
+            result.put("s3ClientType", s3Client != null ? s3Client.getClass().getSimpleName() : "null");
+
+            // Test 2: Try to get service configuration (this tests basic connectivity)
+            try {
+                System.out.println("📞 Attempting to contact MinIO service...");
+                ListBucketsResponse response = s3Client.listBuckets();
+                result.put("connectivityTest", "SUCCESS");
+                result.put("bucketCount", response.buckets().size());
+                result.put("owner", response.owner() != null ? response.owner().displayName() : "unknown");
+            } catch (Exception connectError) {
+                result.put("connectivityTest", "FAILED");
+                result.put("connectivityError", connectError.getMessage());
+                result.put("connectivityErrorType", connectError.getClass().getSimpleName());
+                System.err.println("❌ Connectivity test failed: " + connectError.getMessage());
+
+                // Additional error analysis
+                if (connectError.getMessage() != null) {
+                    String errorMsg = connectError.getMessage().toLowerCase();
+                    if (errorMsg.contains("timeout") || errorMsg.contains("connection")) {
+                        result.put("likelyIssue", "Network connectivity - MinIO endpoint unreachable from Render");
+                    } else if (errorMsg.contains("access") || errorMsg.contains("auth") || errorMsg.contains("credential")) {
+                        result.put("likelyIssue", "Authentication - Invalid MinIO credentials");
+                    } else if (errorMsg.contains("ssl") || errorMsg.contains("certificate")) {
+                        result.put("likelyIssue", "SSL/TLS certificate issues");
+                    } else {
+                        result.put("likelyIssue", "Unknown MinIO service error");
+                    }
+                }
+            }
+
+            // Test 3: Configuration validation
+            result.put("autoCreateBucket", autoCreateBucket);
+
+            return result;
+
+        } catch (Exception e) {
+            System.err.println("❌ Connectivity test completely failed: " + e.getMessage());
+            e.printStackTrace();
+            result.put("testResult", "COMPLETE_FAILURE");
+            result.put("error", e.getMessage());
+            result.put("errorType", e.getClass().getSimpleName());
+            return result;
+        }
+    }
+
+    /**
      * Debug method to test bucket creation
      */
     public Map<String, Object> testBucketCreation(String bucketName) {
