@@ -86,9 +86,12 @@ public class OpenAIService {
                "CRITICAL REQUIREMENTS:\n" +
                "- Each JSON must be valid and complete - NO placeholders like [...] or {...}\n" +
                "- Generate COMPLETE data for all 4 weeks and all 7 days\n" +
-               "- Do NOT use shorthand notation or placeholders\n" +
+               "- NEVER use empty arrays [] for exercises or meals - always provide at least one item\n" +
+               "- Do NOT use shorthand notation, placeholders, or incomplete structures\n" +
                "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
-               "- Every day must have complete exercise/meal data, not references or shortcuts";
+               "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
+               "- If a day is a rest day, include a proper rest exercise/meal object\n" +
+               "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
     private String buildCombinedPrompt(WorkoutProfile workoutProfile, DietProfile dietProfile) {
@@ -215,19 +218,44 @@ public class OpenAIService {
     }
 
     private String cleanJsonString(String jsonStr) {
-        // Remove markdown code blocks, comments, placeholders, and extra whitespace
-        return jsonStr.replaceAll("```json", "")
-                     .replaceAll("```", "")
-                     .replaceAll("//.*$", "")  // Remove single line comments
-                     .replaceAll("/\\*.*?\\*/", "")  // Remove multi-line comments
-                     .replaceAll("\\[\\.\\.\\.]", "[]")  // Replace [...] placeholders with empty arrays
-                     .replaceAll("\\{\\.\\.\\.\\}", "{}")  // Replace {...} placeholders with empty objects
-                     .replaceAll("\"exercises\":\\s*\\[\\]", "\"exercises\": [{\"name\": \"Rest Day\", \"sets\": 0, \"reps\": 0, \"weight_type\": \"rest\", \"muscle_groups\": [], \"instructions\": \"Rest day - no exercises\"}]")  // Fill empty exercises
-                     .replaceAll("\"meals\":\\s*\\[\\]", "\"meals\": [{\"meal_type\": \"rest\", \"name\": \"Rest Day\", \"ingredients\": [], \"calories\": 0, \"proteins\": 0, \"carbs\": 0, \"fats\": 0, \"preparation_time\": 0, \"instructions\": \"Rest day\"}]")  // Fill empty meals
-                     .replaceAll("^\\s+", "")
-                     .replaceAll("\\s+$", "")
-                     .replaceAll("\\n\\s*\\n", "\n")  // Remove empty lines
-                     .trim();
+        // Remove markdown code blocks and comments
+        String cleaned = jsonStr.replaceAll("```json", "")
+                                .replaceAll("```", "")
+                                .replaceAll("//.*$", "")  // Remove single line comments
+                                .replaceAll("/\\*.*?\\*/", "")  // Remove multi-line comments
+                                .trim();
+
+        // Fix placeholder patterns
+        cleaned = cleaned.replaceAll("\\[\\.\\.\\.]", "[]")  // Replace [...] placeholders
+                        .replaceAll("\\{\\.\\.\\.\\}", "{}")  // Replace {...} placeholders
+                        .replaceAll("\\.\\.\\.", "");  // Remove any remaining ellipsis
+
+        // Handle empty exercise arrays - fill with rest day data
+        cleaned = cleaned.replaceAll("\"exercises\":\\s*\\[\\s*\\]",
+            "\"exercises\": [{\"name\": \"Rest Day\", \"sets\": 0, \"reps\": 0, \"weight_type\": \"rest\", \"muscle_groups\": [], \"instructions\": \"Rest day - no exercises\"}]");
+
+        // Handle empty meal arrays - fill with rest day data
+        cleaned = cleaned.replaceAll("\"meals\":\\s*\\[\\s*\\]",
+            "\"meals\": [{\"meal_type\": \"rest\", \"name\": \"Rest Day\", \"ingredients\": [], \"calories\": 0, \"proteins\": 0, \"carbs\": 0, \"fats\": 0, \"preparation_time\": 0, \"instructions\": \"Rest day\"}]");
+
+        // Remove any trailing commas before closing brackets/braces
+        cleaned = cleaned.replaceAll(",\\s*([\\]}])", "$1");
+
+        // Normalize whitespace
+        cleaned = cleaned.replaceAll("\\n\\s*\\n", "\n")  // Remove empty lines
+                        .replaceAll("^\\s+", "")
+                        .replaceAll("\\s+$", "")
+                        .trim();
+
+        // Attempt to handle truncated JSON by finding the last valid closing brace
+        if (!cleaned.endsWith("}")) {
+            int lastBrace = cleaned.lastIndexOf("}");
+            if (lastBrace > 0) {
+                cleaned = cleaned.substring(0, lastBrace + 1);
+            }
+        }
+
+        return cleaned;
     }
 
     public static class CombinedPlanResult {
