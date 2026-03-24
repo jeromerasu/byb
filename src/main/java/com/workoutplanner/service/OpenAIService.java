@@ -83,7 +83,12 @@ public class OpenAIService {
                "First provide a workout plan JSON, then provide a diet plan JSON. Use the following format:\n\n" +
                "WORKOUT_PLAN_JSON:\n{workout plan here}\n\n" +
                "DIET_PLAN_JSON:\n{diet plan here}\n\n" +
-               "Each JSON must be valid and complete. Ensure all JSON is properly formatted without any markdown code blocks.";
+               "CRITICAL REQUIREMENTS:\n" +
+               "- Each JSON must be valid and complete - NO placeholders like [...] or {...}\n" +
+               "- Generate COMPLETE data for all 4 weeks and all 7 days\n" +
+               "- Do NOT use shorthand notation or placeholders\n" +
+               "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
+               "- Every day must have complete exercise/meal data, not references or shortcuts";
     }
 
     private String buildCombinedPrompt(WorkoutProfile workoutProfile, DietProfile dietProfile) {
@@ -105,6 +110,7 @@ public class OpenAIService {
 
             "Return TWO separate JSON objects:\n\n" +
 
+            "Generate a complete 4-week workout plan with this exact structure (no placeholders):\n\n" +
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
             "  \"title\": \"4-Week Workout Plan\",\n" +
@@ -121,20 +127,13 @@ public class OpenAIService {
             "            \"instructions\": \"Detailed instructions\"\n" +
             "          }\n" +
             "        ]\n" +
-            "      },\n" +
-            "      \"day_2\": { \"exercises\": [...] },\n" +
-            "      \"day_3\": { \"exercises\": [...] },\n" +
-            "      \"day_4\": { \"exercises\": [...] },\n" +
-            "      \"day_5\": { \"exercises\": [...] },\n" +
-            "      \"day_6\": { \"exercises\": [...] },\n" +
-            "      \"day_7\": { \"exercises\": [...] }\n" +
-            "    },\n" +
-            "    \"week_2\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
-            "    \"week_3\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
-            "    \"week_4\": { \"day_1\": {...}, \"day_2\": {...} }\n" +
+            "      }\n" +
+            "    }\n" +
             "  }\n" +
-            "}\n\n" +
+            "}\n" +
+            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (day_1 through day_7) with full exercise details for each day.\n\n" +
 
+            "Generate a complete 4-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
             "{\n" +
             "  \"title\": \"4-Week Nutrition Plan\",\n" +
@@ -160,19 +159,11 @@ public class OpenAIService {
             "          \"carbs\": 200,\n" +
             "          \"fats\": 65\n" +
             "        }\n" +
-            "      },\n" +
-            "      \"day_2\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
-            "      \"day_3\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
-            "      \"day_4\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
-            "      \"day_5\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
-            "      \"day_6\": { \"meals\": [...], \"daily_totals\": {...} },\n" +
-            "      \"day_7\": { \"meals\": [...], \"daily_totals\": {...} }\n" +
-            "    },\n" +
-            "    \"week_2\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
-            "    \"week_3\": { \"day_1\": {...}, \"day_2\": {...} },\n" +
-            "    \"week_4\": { \"day_1\": {...}, \"day_2\": {...} }\n" +
+            "      }\n" +
+            "    }\n" +
             "  }\n" +
-            "}",
+            "}\n" +
+            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (day_1 through day_7) with full meal details and daily totals for each day.",
 
             workoutProfile.getAge() != null ? workoutProfile.getAge() : 25,
             workoutProfile.getGender() != null ? workoutProfile.getGender().name() : "MALE",
@@ -224,11 +215,15 @@ public class OpenAIService {
     }
 
     private String cleanJsonString(String jsonStr) {
-        // Remove markdown code blocks, comments, and extra whitespace
+        // Remove markdown code blocks, comments, placeholders, and extra whitespace
         return jsonStr.replaceAll("```json", "")
                      .replaceAll("```", "")
                      .replaceAll("//.*$", "")  // Remove single line comments
                      .replaceAll("/\\*.*?\\*/", "")  // Remove multi-line comments
+                     .replaceAll("\\[\\.\\.\\.]", "[]")  // Replace [...] placeholders with empty arrays
+                     .replaceAll("\\{\\.\\.\\.\\}", "{}")  // Replace {...} placeholders with empty objects
+                     .replaceAll("\"exercises\":\\s*\\[\\]", "\"exercises\": [{\"name\": \"Rest Day\", \"sets\": 0, \"reps\": 0, \"weight_type\": \"rest\", \"muscle_groups\": [], \"instructions\": \"Rest day - no exercises\"}]")  // Fill empty exercises
+                     .replaceAll("\"meals\":\\s*\\[\\]", "\"meals\": [{\"meal_type\": \"rest\", \"name\": \"Rest Day\", \"ingredients\": [], \"calories\": 0, \"proteins\": 0, \"carbs\": 0, \"fats\": 0, \"preparation_time\": 0, \"instructions\": \"Rest day\"}]")  // Fill empty meals
                      .replaceAll("^\\s+", "")
                      .replaceAll("\\s+$", "")
                      .replaceAll("\\n\\s*\\n", "\n")  // Remove empty lines
