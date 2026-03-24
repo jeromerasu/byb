@@ -22,29 +22,46 @@ public class DatabaseConfig {
     @Bean
     @Primary
     public DataSource dataSource() throws URISyntaxException {
-        if (databaseUrl != null && !databaseUrl.isEmpty() && !databaseUrl.startsWith("jdbc:")) {
-            // Parse Render-style DATABASE_URL and convert to JDBC format
-            URI dbUri = new URI(databaseUrl);
-            String jdbcUrl = "jdbc:postgresql://" + dbUri.getHost() + ":" + dbUri.getPort() + dbUri.getPath();
+        System.out.println("=== DatabaseConfig Debug Info ===");
+        System.out.println("DATABASE_URL: " + (databaseUrl != null ? databaseUrl.substring(0, Math.min(databaseUrl.length(), 50)) + "..." : "null"));
+        System.out.println("DB_HOST: " + System.getenv("DB_HOST"));
+        System.out.println("DB_NAME: " + System.getenv("DB_NAME"));
 
-            String userInfo = dbUri.getUserInfo();
-            String username = null;
-            String password = null;
+        // Check if DATABASE_URL exists and needs conversion
+        if (databaseUrl != null && !databaseUrl.isEmpty()) {
+            if (!databaseUrl.startsWith("jdbc:")) {
+                // Parse Render-style DATABASE_URL and convert to JDBC format
+                System.out.println("Converting DATABASE_URL to JDBC format...");
+                URI dbUri = new URI(databaseUrl);
+                String jdbcUrl = "jdbc:postgresql://" + dbUri.getHost() + ":" + dbUri.getPort() + dbUri.getPath();
 
-            if (userInfo != null) {
-                String[] userInfoParts = userInfo.split(":");
-                username = userInfoParts[0];
-                if (userInfoParts.length > 1) {
-                    password = userInfoParts[1];
+                String userInfo = dbUri.getUserInfo();
+                String username = null;
+                String password = null;
+
+                if (userInfo != null) {
+                    String[] userInfoParts = userInfo.split(":");
+                    username = userInfoParts[0];
+                    if (userInfoParts.length > 1) {
+                        password = userInfoParts[1];
+                    }
                 }
-            }
 
-            return DataSourceBuilder.create()
-                    .driverClassName("org.postgresql.Driver")
-                    .url(jdbcUrl)
-                    .username(username)
-                    .password(password)
-                    .build();
+                System.out.println("Using parsed DATABASE_URL");
+                return DataSourceBuilder.create()
+                        .driverClassName("org.postgresql.Driver")
+                        .url(jdbcUrl)
+                        .username(username)
+                        .password(password)
+                        .build();
+            } else {
+                // DATABASE_URL is already in JDBC format
+                System.out.println("Using DATABASE_URL as-is (already JDBC format)");
+                return DataSourceBuilder.create()
+                        .driverClassName("org.postgresql.Driver")
+                        .url(databaseUrl)
+                        .build();
+            }
         }
 
         // If DATABASE_URL is empty or invalid, use the separate environment variables
@@ -58,6 +75,7 @@ public class DatabaseConfig {
             String jdbcUrl = String.format("jdbc:postgresql://%s:%s/%s",
                 host, port != null ? port : "5432", database);
 
+            System.out.println("Using separate DB environment variables");
             return DataSourceBuilder.create()
                     .driverClassName("org.postgresql.Driver")
                     .url(jdbcUrl)
@@ -65,6 +83,12 @@ public class DatabaseConfig {
                     .password(password)
                     .build();
         }
+
+        // Print all environment variables for debugging
+        System.out.println("=== All Environment Variables ===");
+        System.getenv().entrySet().stream()
+                .filter(e -> e.getKey().contains("DATABASE") || e.getKey().contains("DB") || e.getKey().contains("POSTGRES"))
+                .forEach(e -> System.out.println(e.getKey() + ": " + e.getValue()));
 
         throw new IllegalStateException("No valid database configuration found. Please set DATABASE_URL or DB_HOST/DB_NAME environment variables.");
     }
