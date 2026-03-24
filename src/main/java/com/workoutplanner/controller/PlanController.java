@@ -205,7 +205,15 @@ public class PlanController {
                 }
             }
 
-            // Fallback to hardcoded user ID for BETA mode if no valid token
+            // For public endpoint testing without authentication, use any existing user
+            // Find the first available user in the database
+            Optional<User> firstUser = userRepository.findAll().stream().findFirst();
+            if (firstUser.isPresent()) {
+                System.out.println("Using first available user for BETA testing: " + firstUser.get().getUsername());
+                return firstUser.get().getId();
+            }
+
+            // Fallback to hardcoded user ID if no users exist
             return "630f6351-fbd8-4e2c-87a5-1f6f30e7276b";
         }
 
