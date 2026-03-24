@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@ConditionalOnProperty(name = "storage.use-local", havingValue = "true")
 public class LocalFileStorageService {
 
     private final ObjectMapper prettyObjectMapper;
