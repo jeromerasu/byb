@@ -83,6 +83,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/workout-plans/health").permitAll()
                 .requestMatchers("/api/v1/diet-plans/health").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
+                // Temporarily allow plan endpoints for testing
+                .requestMatchers("/api/v1/plan/**").permitAll()
 
                 // Protected endpoints
                 .requestMatchers("/api/v1/workout-plans/generate").authenticated()
