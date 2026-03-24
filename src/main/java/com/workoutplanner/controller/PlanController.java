@@ -106,8 +106,11 @@ public class PlanController {
                     throw new RuntimeException("No current plans found. Please generate plans first.");
                 }
 
-                Map<String, Object> workoutPlan = storageService.retrieveWorkoutPlan("workout-plans", userId, workoutStorageKey);
-                Map<String, Object> dietPlan = storageService.retrieveDietPlan("diet-plans", userId, dietStorageKey);
+                String workoutBucketName = betaMode ? "workoutbeta" : "workout";
+                String dietBucketName = betaMode ? "dietbeta" : "diet";
+
+                Map<String, Object> workoutPlan = storageService.retrieveWorkoutPlan(workoutBucketName, userId, workoutStorageKey);
+                Map<String, Object> dietPlan = storageService.retrieveDietPlan(dietBucketName, userId, dietStorageKey);
 
                 if (workoutPlan == null || dietPlan == null) {
                     throw new RuntimeException("Failed to retrieve current plans from storage.");
@@ -156,7 +159,8 @@ public class PlanController {
                     throw new RuntimeException("No current diet plan found. Please generate plans first.");
                 }
 
-                Map<String, Object> dietPlan = storageService.retrieveDietPlan("diet-plans", userId, dietStorageKey);
+                String dietBucketName = betaMode ? "dietbeta" : "diet";
+                Map<String, Object> dietPlan = storageService.retrieveDietPlan(dietBucketName, userId, dietStorageKey);
 
                 if (dietPlan == null) {
                     throw new RuntimeException("Failed to retrieve current diet plan from storage.");

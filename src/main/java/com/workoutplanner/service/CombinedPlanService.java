@@ -10,6 +10,7 @@ import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,6 +24,9 @@ public class CombinedPlanService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final OpenAIService openAIService;
+
+    @Value("${beta.mode:false}")
+    private boolean betaMode;
 
     @Autowired
     public CombinedPlanService(WorkoutProfileRepository workoutProfileRepository,
@@ -52,9 +56,9 @@ public class CombinedPlanService {
 
             LocalDateTime now = LocalDateTime.now();
 
-            // Use separate buckets for workout and diet plans
-            String workoutBucketName = "workout";
-            String dietBucketName = "diet";
+            // Use environment-specific bucket names
+            String workoutBucketName = betaMode ? "workoutbeta" : "workout";
+            String dietBucketName = betaMode ? "dietbeta" : "diet";
 
             // Use OpenAI to generate both plans in a single API call
             OpenAIService.CombinedPlanResult openAIResult = openAIService.generateCombinedPlans(workoutProfile, dietProfile);
