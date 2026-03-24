@@ -41,13 +41,19 @@ public class ObjectStorageService {
         this.prettyObjectMapper.enable(SerializationFeature.INDENT_OUTPUT);
         this.prettyObjectMapper.registerModule(new JavaTimeModule());
         this.prettyObjectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        // Debug MinIO connection initialization
+        System.out.println("🗄️  ObjectStorageService initialized with autoCreateBucket: " + autoCreateBucket);
+        System.out.println("🔗  S3Client type: " + s3Client.getClass().getSimpleName());
     }
 
     private void ensureBucketExists(String bucketName) {
         if (!autoCreateBucket) {
+            System.out.println("🗄️  Skipping bucket creation (autoCreateBucket=false) for: " + bucketName);
             return;
         }
 
+        System.out.println("🔍  Checking if MinIO bucket exists: " + bucketName);
         try {
             // Check if bucket exists
             HeadBucketRequest headBucketRequest = HeadBucketRequest.builder()
@@ -55,20 +61,24 @@ public class ObjectStorageService {
                     .build();
 
             s3Client.headBucket(headBucketRequest);
+            System.out.println("✅  MinIO bucket exists: " + bucketName);
         } catch (NoSuchBucketException e) {
             // Bucket doesn't exist, create it
+            System.out.println("🔧  Creating MinIO bucket: " + bucketName);
             try {
                 CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
                         .bucket(bucketName)
                         .build();
 
                 s3Client.createBucket(createBucketRequest);
-                System.out.println("Created MinIO bucket: " + bucketName);
+                System.out.println("✅  Created MinIO bucket: " + bucketName);
             } catch (Exception createError) {
-                System.err.println("Failed to create MinIO bucket: " + bucketName + " - " + createError.getMessage());
+                System.err.println("❌  Failed to create MinIO bucket: " + bucketName + " - " + createError.getMessage());
+                createError.printStackTrace();
             }
         } catch (Exception e) {
-            System.err.println("Failed to check MinIO bucket: " + bucketName + " - " + e.getMessage());
+            System.err.println("❌  Failed to check MinIO bucket: " + bucketName + " - " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
