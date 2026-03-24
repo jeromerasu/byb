@@ -187,24 +187,56 @@ public class OpenAIService {
 
     private CombinedPlanResult parseCombinedResponse(String content) {
         try {
-            // Find the workout plan JSON
-            String workoutMarker = "WORKOUT_PLAN_JSON:";
-            String dietMarker = "DIET_PLAN_JSON:";
+            System.out.println("DEBUG: OpenAI Response Content Length: " + content.length());
+            System.out.println("DEBUG: OpenAI Response Preview: " + content.substring(0, Math.min(500, content.length())));
 
-            int workoutStart = content.indexOf(workoutMarker);
-            int dietStart = content.indexOf(dietMarker);
+            // Try multiple marker variations for flexibility
+            String[] workoutMarkers = {"WORKOUT_PLAN_JSON:", "workout plan", "workout:", "\"workout\"", "```json"};
+            String[] dietMarkers = {"DIET_PLAN_JSON:", "diet plan", "nutrition plan", "diet:", "\"diet\"", "\"nutrition\""};
+
+            int workoutStart = -1;
+            int dietStart = -1;
+            String actualWorkoutMarker = "";
+            String actualDietMarker = "";
+
+            // Find workout markers
+            for (String marker : workoutMarkers) {
+                int pos = content.toLowerCase().indexOf(marker.toLowerCase());
+                if (pos != -1) {
+                    workoutStart = pos;
+                    actualWorkoutMarker = marker;
+                    break;
+                }
+            }
+
+            // Find diet markers
+            for (String marker : dietMarkers) {
+                int pos = content.toLowerCase().indexOf(marker.toLowerCase());
+                if (pos != -1 && pos > workoutStart) {
+                    dietStart = pos;
+                    actualDietMarker = marker;
+                    break;
+                }
+            }
+
+            System.out.println("DEBUG: Found workout marker '" + actualWorkoutMarker + "' at position: " + workoutStart);
+            System.out.println("DEBUG: Found diet marker '" + actualDietMarker + "' at position: " + dietStart);
 
             if (workoutStart == -1 || dietStart == -1) {
-                throw new RuntimeException("Could not find required JSON markers in response");
+                // Try to extract JSON objects directly
+                return extractJSONObjectsDirectly(content);
             }
 
             // Extract workout plan JSON
-            String workoutJsonStr = content.substring(workoutStart + workoutMarker.length(), dietStart).trim();
+            String workoutJsonStr = content.substring(workoutStart + actualWorkoutMarker.length(), dietStart).trim();
             workoutJsonStr = cleanJsonString(workoutJsonStr);
 
             // Extract diet plan JSON
-            String dietJsonStr = content.substring(dietStart + dietMarker.length()).trim();
+            String dietJsonStr = content.substring(dietStart + actualDietMarker.length()).trim();
             dietJsonStr = cleanJsonString(dietJsonStr);
+
+            System.out.println("DEBUG: Extracted workout JSON length: " + workoutJsonStr.length());
+            System.out.println("DEBUG: Extracted diet JSON length: " + dietJsonStr.length());
 
             // Parse JSON strings
             Map<String, Object> workoutPlan = objectMapper.readValue(workoutJsonStr, Map.class);
@@ -213,7 +245,67 @@ public class OpenAIService {
             return new CombinedPlanResult(workoutPlan, dietPlan);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse OpenAI response: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to parse OpenAI response: " + e.getMessage() + " | Content preview: " + content.substring(0, Math.min(200, content.length())), e);
+        }
+    }
+
+    private CombinedPlanResult extractJSONObjectsDirectly(String content) {
+        try {
+            System.out.println("DEBUG: Attempting direct JSON extraction");
+
+            // Find all JSON objects in the response
+            int firstBrace = content.indexOf('{');
+            if (firstBrace == -1) {
+                throw new RuntimeException("No JSON objects found in response");
+            }
+
+            // Extract the first JSON object (workout plan)
+            int braceCount = 0;
+            int workoutEnd = -1;
+            for (int i = firstBrace; i < content.length(); i++) {
+                if (content.charAt(i) == '{') braceCount++;
+                else if (content.charAt(i) == '}') braceCount--;
+
+                if (braceCount == 0) {
+                    workoutEnd = i + 1;
+                    break;
+                }
+            }
+
+            String workoutJsonStr = content.substring(firstBrace, workoutEnd);
+            workoutJsonStr = cleanJsonString(workoutJsonStr);
+
+            // Find the second JSON object (diet plan)
+            int secondBrace = content.indexOf('{', workoutEnd);
+            if (secondBrace == -1) {
+                throw new RuntimeException("Could not find second JSON object for diet plan");
+            }
+
+            braceCount = 0;
+            int dietEnd = -1;
+            for (int i = secondBrace; i < content.length(); i++) {
+                if (content.charAt(i) == '{') braceCount++;
+                else if (content.charAt(i) == '}') braceCount--;
+
+                if (braceCount == 0) {
+                    dietEnd = i + 1;
+                    break;
+                }
+            }
+
+            String dietJsonStr = content.substring(secondBrace, dietEnd);
+            dietJsonStr = cleanJsonString(dietJsonStr);
+
+            System.out.println("DEBUG: Direct extraction - workout JSON length: " + workoutJsonStr.length());
+            System.out.println("DEBUG: Direct extraction - diet JSON length: " + dietJsonStr.length());
+
+            Map<String, Object> workoutPlan = objectMapper.readValue(workoutJsonStr, Map.class);
+            Map<String, Object> dietPlan = objectMapper.readValue(dietJsonStr, Map.class);
+
+            return new CombinedPlanResult(workoutPlan, dietPlan);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Direct JSON extraction failed: " + e.getMessage());
         }
     }
 
