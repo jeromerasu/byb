@@ -54,7 +54,7 @@ public class OpenAIService {
             OpenAIRequest request = new OpenAIRequest();
             request.setModel(openaiModel);
             request.setTemperature(0.7);
-            request.setMaxTokens(5000); // Aggressive limit to ensure we stay well within 8192 total tokens
+            request.setMaxTokens(8000); // Back to original limit with improved prompt for concise responses
             request.setMessages(Arrays.asList(
                 new OpenAIRequest.OpenAIMessage("system", getSystemPrompt()),
                 new OpenAIRequest.OpenAIMessage("user", prompt)
@@ -89,12 +89,15 @@ public class OpenAIService {
                "DIET_PLAN_JSON:\n{diet plan here}\n\n" +
                "CRITICAL REQUIREMENTS:\n" +
                "- Each JSON must be valid and complete - NO placeholders like [...] or {...}\n" +
-               "- Generate COMPLETE data for all 4 weeks and all 7 days\n" +
+               "- Generate CONCISE but complete data for all 4 weeks and 7 days\n" +
+               "- Keep descriptions and instructions brief (1-2 sentences max)\n" +
+               "- Use SHORT ingredient lists (3-5 items max per meal)\n" +
+               "- Use SIMPLE exercise names (e.g., 'Push-ups' not 'Diamond Push-ups with Perfect Form')\n" +
                "- NEVER use empty arrays [] for exercises or meals - always provide at least one item\n" +
-               "- Do NOT use shorthand notation, placeholders, or incomplete structures\n" +
                "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
                "- If a day is a rest day, include a proper rest exercise/meal object\n" +
+               "- PRIORITIZE COMPLETENESS over detail - ensure all 4 weeks are included\n" +
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
@@ -415,11 +418,37 @@ public class OpenAIService {
                         .replaceAll("\\s+$", "")
                         .trim();
 
-        // Attempt to handle truncated JSON by finding the last valid closing brace
+        // Attempt to handle truncated JSON by validating brace balance and fixing structure
         if (!cleaned.endsWith("}")) {
-            int lastBrace = cleaned.lastIndexOf("}");
-            if (lastBrace > 0) {
-                cleaned = cleaned.substring(0, lastBrace + 1);
+            logger.warn("JSON does not end with closing brace - attempting to repair");
+
+            // Count braces to determine if we have balanced structure
+            int braceCount = 0;
+            int lastValidPosition = -1;
+
+            for (int i = 0; i < cleaned.length(); i++) {
+                if (cleaned.charAt(i) == '{') {
+                    braceCount++;
+                } else if (cleaned.charAt(i) == '}') {
+                    braceCount--;
+                    if (braceCount == 0) {
+                        lastValidPosition = i + 1;
+                    }
+                }
+            }
+
+            if (lastValidPosition > 0 && lastValidPosition < cleaned.length()) {
+                cleaned = cleaned.substring(0, lastValidPosition);
+                logger.info("Truncated JSON at position {} to maintain valid structure", lastValidPosition);
+            } else if (braceCount > 0) {
+                // Add missing closing braces
+                StringBuilder sb = new StringBuilder(cleaned);
+                while (braceCount > 0) {
+                    sb.append("}");
+                    braceCount--;
+                }
+                cleaned = sb.toString();
+                logger.info("Added {} missing closing braces to repair truncated JSON", braceCount);
             }
         }
 
