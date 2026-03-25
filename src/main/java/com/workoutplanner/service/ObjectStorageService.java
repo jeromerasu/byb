@@ -808,6 +808,42 @@ public class ObjectStorageService {
     }
 
     /**
+     * Store raw byte data directly to object storage (for testing purposes)
+     */
+    public boolean storeRawData(String bucketName, String key, byte[] data) {
+        try {
+            // Ensure bucket exists
+            ensureBucketExists(bucketName);
+
+            // Prepare metadata
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("content-type", "text/plain");
+            metadata.put("upload-type", "test-file");
+            metadata.put("uploaded-at", LocalDateTime.now().toString());
+            metadata.put("size-bytes", String.valueOf(data.length));
+
+            // Create put request
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType("text/plain")
+                    .contentLength((long) data.length)
+                    .metadata(metadata)
+                    .build();
+
+            // Upload data to S3/MinIO
+            s3Client.putObject(putRequest, RequestBody.fromBytes(data));
+
+            logger.info("Successfully stored raw data: {} (size: {} bytes)", key, data.length);
+            return true;
+
+        } catch (Exception e) {
+            logger.error("Failed to store raw data: {} - {}", key, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
      * Debug method to test bucket creation
      */
     public Map<String, Object> testBucketCreation(String bucketName) {
