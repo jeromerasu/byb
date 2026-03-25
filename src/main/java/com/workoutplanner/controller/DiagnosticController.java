@@ -245,6 +245,12 @@ public class DiagnosticController {
         }
     }
 
+    @GetMapping("/test-exception")
+    public ResponseEntity<Map<String, Object>> testExceptionHandler() {
+        // Deliberately throw an exception to test our GlobalExceptionHandler
+        throw new RuntimeException("Test exception to verify GlobalExceptionHandler is working properly - this should show detailed error info");
+    }
+
     private String getStackTraceString(Exception e) {
         java.io.StringWriter sw = new java.io.StringWriter();
         java.io.PrintWriter pw = new java.io.PrintWriter(sw);
