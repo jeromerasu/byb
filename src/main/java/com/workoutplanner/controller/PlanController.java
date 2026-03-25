@@ -72,6 +72,7 @@ public class PlanController {
     @PostMapping("/generate")
     public Mono<ResponseEntity<CombinedPlanResponseDto>> generateCombinedPlan(HttpServletRequest request) {
         String userId = getCurrentUserId(request);
+        logger.info("Plan generation requested for user ID: {}", userId);
 
         return Mono.fromCallable(() -> {
             try {
@@ -80,7 +81,7 @@ public class PlanController {
             } catch (RuntimeException e) {
                 // Handle specific error scenarios with appropriate HTTP status codes
                 String errorMessage = e.getMessage();
-
+                
                 if (errorMessage.contains("User not found")) {
                     throw new RuntimeException("User not authenticated or not found");
                 } else if (errorMessage.contains("profile not found")) {
