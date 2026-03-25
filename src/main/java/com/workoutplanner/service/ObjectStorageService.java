@@ -101,14 +101,14 @@ public class ObjectStorageService {
             // Ensure bucket exists
             ensureBucketExists(bucketName);
 
-            // Determine current month number
-            String monthNumber = "month-" + getCurrentMonthNumber();
+            // Determine current week number for 1-week plans
+            String weekNumber = "week-" + getCurrentWeekNumber();
 
             // Convert plan to Map for processing
             Map<String, Object> planMap = convertToMap(workoutPlan);
 
-            // Store main plan with new structure: {user}/month-{n}/workout-plan.json
-            String planKey = String.format("%s/%s/workout-plan.json", userId, monthNumber);
+            // Store main plan with new structure: {user}/week-{n}/plan.json
+            String planKey = String.format("%s/%s/plan.json", userId, weekNumber);
 
             // Store the complete plan (no need to separate exercises for 30-day plans)
             storeObject(bucketName, planKey, planMap, "workout-plan");
@@ -142,14 +142,14 @@ public class ObjectStorageService {
             // Ensure bucket exists
             ensureBucketExists(bucketName);
 
-            // Determine current month number
-            String monthNumber = "month-" + getCurrentMonthNumber();
+            // Determine current week number for 1-week plans
+            String weekNumber = "week-" + getCurrentWeekNumber();
 
             // Convert plan to Map for processing
             Map<String, Object> planMap = convertToMap(dietPlan);
 
-            // Store main plan with new structure: {user}/month-{n}/diet-plan.json
-            String planKey = String.format("%s/%s/diet-plan.json", userId, monthNumber);
+            // Store main plan with new structure: {user}/week-{n}/plan.json
+            String planKey = String.format("%s/%s/plan.json", userId, weekNumber);
 
             // Store the complete plan (no need to separate meals for 30-day plans)
             storeObject(bucketName, planKey, planMap, "diet-plan");
@@ -232,7 +232,7 @@ public class ObjectStorageService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> retrieveWorkoutPlan(String bucketName, String userId, String storageKey) {
         try {
-            // storageKey is now the direct path: {userId}/month-{n}/workout-plan.json
+            // storageKey is now the direct path: {userId}/week-{n}/plan.json
             Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, storageKey, Map.class).orElse(new HashMap<>());
             return plan;
 
@@ -247,7 +247,7 @@ public class ObjectStorageService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> retrieveDietPlan(String bucketName, String userId, String storageKey) {
         try {
-            // storageKey is now the direct path: {userId}/month-{n}/diet-plan.json
+            // storageKey is now the direct path: {userId}/week-{n}/plan.json
             Map<String, Object> plan = (Map<String, Object>) getObject(bucketName, storageKey, Map.class).orElse(new HashMap<>());
             return plan;
 

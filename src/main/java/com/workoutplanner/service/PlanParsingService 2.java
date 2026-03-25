@@ -6,8 +6,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 @Service
 public class PlanParsingService {
@@ -20,40 +18,18 @@ public class PlanParsingService {
     }
 
     /**
-     * Extract current week data with custom plan start date
-     */
-    public CurrentWeekResponseDto extractCurrentWeek(Map<String, Object> workoutPlan, Map<String, Object> dietPlan, LocalDate planStartDate) {
-        return extractCurrentWeek(workoutPlan, dietPlan, 1, planStartDate);
-    }
-
-    /**
      * Extract specific week data from workout and diet plans
      */
     public CurrentWeekResponseDto extractCurrentWeek(Map<String, Object> workoutPlan, Map<String, Object> dietPlan, int weekIndex) {
-        return extractCurrentWeek(workoutPlan, dietPlan, weekIndex, LocalDate.now());
-    }
-
-    /**
-     * Extract specific week data from workout and diet plans with custom start date
-     */
-    public CurrentWeekResponseDto extractCurrentWeek(Map<String, Object> workoutPlan, Map<String, Object> dietPlan, int weekIndex, LocalDate planStartDate) {
         String weekKey = "week_" + weekIndex;
         CurrentWeekResponseDto response = new CurrentWeekResponseDto("current_combined_plan", weekIndex, weekKey);
 
-        // Set plan start and end dates
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        LocalDate weekStartDate = planStartDate.plusWeeks(weekIndex - 1);
-        LocalDate weekEndDate = weekStartDate.plusDays(6);
-
-        response.setPlanStartDate(weekStartDate.format(formatter));
-        response.setPlanEndDate(weekEndDate.format(formatter));
-
-        // Extract workout week with dates
-        CurrentWeekResponseDto.WorkoutWeekDto workoutWeek = extractWorkoutWeek(workoutPlan, weekKey, weekStartDate);
+        // Extract workout week
+        CurrentWeekResponseDto.WorkoutWeekDto workoutWeek = extractWorkoutWeek(workoutPlan, weekKey);
         response.setWorkoutWeek(workoutWeek);
 
-        // Extract diet week with dates
-        CurrentWeekResponseDto.DietWeekDto dietWeek = extractDietWeek(dietPlan, weekKey, weekStartDate);
+        // Extract diet week
+        CurrentWeekResponseDto.DietWeekDto dietWeek = extractDietWeek(dietPlan, weekKey);
         response.setDietWeek(dietWeek);
 
         // Build catalogs
@@ -70,13 +46,6 @@ public class PlanParsingService {
      * Extract workout week data supporting both 30-day structure and legacy formats
      */
     private CurrentWeekResponseDto.WorkoutWeekDto extractWorkoutWeek(Map<String, Object> workoutPlan, String weekKey) {
-        return extractWorkoutWeek(workoutPlan, weekKey, LocalDate.now());
-    }
-
-    /**
-     * Extract workout week data with date calculation
-     */
-    private CurrentWeekResponseDto.WorkoutWeekDto extractWorkoutWeek(Map<String, Object> workoutPlan, String weekKey, LocalDate weekStartDate) {
         if (workoutPlan == null) {
             return new CurrentWeekResponseDto.WorkoutWeekDto(false, new LinkedHashMap<>());
         }
@@ -86,14 +55,14 @@ public class PlanParsingService {
         if (weeksObj instanceof Map<?, ?> weeks) {
             Object weekObj = weeks.get(weekKey);
             if (weekObj instanceof Map<?, ?> weekMap) {
-                return parseStructuredWorkoutWeek(weekMap, weekStartDate);
+                return parseStructuredWorkoutWeek(weekMap);
             }
         }
 
         // Fallback to legacy workoutDays format
         Object workoutDaysObj = workoutPlan.get("workoutDays");
         if (workoutDaysObj instanceof List<?> workoutDays) {
-            return parseLegacyWorkoutWeek(workoutDays, weekStartDate);
+            return parseLegacyWorkoutWeek(workoutDays);
         }
 
         return new CurrentWeekResponseDto.WorkoutWeekDto(false, new LinkedHashMap<>());
@@ -104,31 +73,18 @@ public class PlanParsingService {
      */
     @SuppressWarnings("unchecked")
     private CurrentWeekResponseDto.WorkoutWeekDto parseStructuredWorkoutWeek(Map<?, ?> weekMap) {
-        return parseStructuredWorkoutWeek(weekMap, LocalDate.now());
-    }
-
-    /**
-     * Parse structured 30-day workout week format with date calculation
-     */
-    @SuppressWarnings("unchecked")
-    private CurrentWeekResponseDto.WorkoutWeekDto parseStructuredWorkoutWeek(Map<?, ?> weekMap, LocalDate weekStartDate) {
         Boolean weekDone = getBooleanValue(weekMap.get("done"), false);
         Map<String, CurrentWeekResponseDto.WorkoutDayDto> days = new LinkedHashMap<>();
 
         String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        for (int i = 0; i < dayKeys.length; i++) {
-            String dayKey = dayKeys[i];
-            LocalDate dayDate = weekStartDate.plusDays(i);
-            String dateString = dayDate.format(formatter);
-
+        for (String dayKey : dayKeys) {
             Object dayObj = weekMap.get(dayKey);
             if (dayObj == null) {
                 // Try day_1, day_2, etc. format as fallback
-                for (int j = 1; j <= 7; j++) {
-                    if (weekMap.get("day_" + j) != null) {
-                        dayObj = weekMap.get("day_" + j);
+                for (int i = 1; i <= 7; i++) {
+                    if (weekMap.get("day_" + i) != null) {
+                        dayObj = weekMap.get("day_" + i);
                         break;
                     }
                 }
@@ -139,14 +95,10 @@ public class PlanParsingService {
                 String focus = getStringValue(dayMap.get("focus"), "");
                 List<CurrentWeekResponseDto.ExerciseDto> exercises = parseExercises(dayMap.get("exercises"));
 
-                CurrentWeekResponseDto.WorkoutDayDto workoutDay = new CurrentWeekResponseDto.WorkoutDayDto(dayDone, focus, exercises);
-                workoutDay.setDate(dateString);
-                days.put(dayKey, workoutDay);
+                days.put(dayKey, new CurrentWeekResponseDto.WorkoutDayDto(dayDone, focus, exercises));
             } else {
                 // Empty day
-                CurrentWeekResponseDto.WorkoutDayDto workoutDay = new CurrentWeekResponseDto.WorkoutDayDto(false, "", new ArrayList<>());
-                workoutDay.setDate(dateString);
-                days.put(dayKey, workoutDay);
+                days.put(dayKey, new CurrentWeekResponseDto.WorkoutDayDto(false, "", new ArrayList<>()));
             }
         }
 
@@ -158,41 +110,22 @@ public class PlanParsingService {
      */
     @SuppressWarnings("unchecked")
     private CurrentWeekResponseDto.WorkoutWeekDto parseLegacyWorkoutWeek(List<?> workoutDays) {
-        return parseLegacyWorkoutWeek(workoutDays, LocalDate.now());
-    }
-
-    /**
-     * Parse legacy workout format and convert to current week with date calculation
-     */
-    @SuppressWarnings("unchecked")
-    private CurrentWeekResponseDto.WorkoutWeekDto parseLegacyWorkoutWeek(List<?> workoutDays, LocalDate weekStartDate) {
         Map<String, CurrentWeekResponseDto.WorkoutDayDto> days = new LinkedHashMap<>();
         String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (int i = 0; i < Math.min(7, workoutDays.size()); i++) {
-            LocalDate dayDate = weekStartDate.plusDays(i);
-            String dateString = dayDate.format(formatter);
-
             Object dayObj = workoutDays.get(i);
             if (dayObj instanceof Map<?, ?> dayMap) {
                 String focus = getStringValue(dayMap.get("focus"), "");
                 List<CurrentWeekResponseDto.ExerciseDto> exercises = parseExercises(dayMap.get("exercises"));
 
-                CurrentWeekResponseDto.WorkoutDayDto workoutDay = new CurrentWeekResponseDto.WorkoutDayDto(false, focus, exercises);
-                workoutDay.setDate(dateString);
-                days.put(dayKeys[i], workoutDay);
+                days.put(dayKeys[i], new CurrentWeekResponseDto.WorkoutDayDto(false, focus, exercises));
             }
         }
 
         // Fill remaining days
         for (int i = workoutDays.size(); i < 7; i++) {
-            LocalDate dayDate = weekStartDate.plusDays(i);
-            String dateString = dayDate.format(formatter);
-
-            CurrentWeekResponseDto.WorkoutDayDto workoutDay = new CurrentWeekResponseDto.WorkoutDayDto(false, "", new ArrayList<>());
-            workoutDay.setDate(dateString);
-            days.put(dayKeys[i], workoutDay);
+            days.put(dayKeys[i], new CurrentWeekResponseDto.WorkoutDayDto(false, "", new ArrayList<>()));
         }
 
         return new CurrentWeekResponseDto.WorkoutWeekDto(false, days);
@@ -203,14 +136,6 @@ public class PlanParsingService {
      */
     @SuppressWarnings("unchecked")
     private CurrentWeekResponseDto.DietWeekDto extractDietWeek(Map<String, Object> dietPlan, String weekKey) {
-        return extractDietWeek(dietPlan, weekKey, LocalDate.now());
-    }
-
-    /**
-     * Extract diet week data with date calculation
-     */
-    @SuppressWarnings("unchecked")
-    private CurrentWeekResponseDto.DietWeekDto extractDietWeek(Map<String, Object> dietPlan, String weekKey, LocalDate weekStartDate) {
         if (dietPlan == null) {
             return new CurrentWeekResponseDto.DietWeekDto(false, new LinkedHashMap<>());
         }
@@ -220,12 +145,12 @@ public class PlanParsingService {
         if (weeksObj instanceof Map<?, ?> weeks) {
             Object weekObj = weeks.get(weekKey);
             if (weekObj instanceof Map<?, ?> weekMap) {
-                return parseStructuredDietWeek(weekMap, weekStartDate);
+                return parseStructuredDietWeek(weekMap);
             }
         }
 
         // Fallback to legacy format
-        return parseLegacyDietWeek(dietPlan, weekStartDate);
+        return parseLegacyDietWeek(dietPlan);
     }
 
     /**
@@ -233,37 +158,20 @@ public class PlanParsingService {
      */
     @SuppressWarnings("unchecked")
     private CurrentWeekResponseDto.DietWeekDto parseStructuredDietWeek(Map<?, ?> weekMap) {
-        return parseStructuredDietWeek(weekMap, LocalDate.now());
-    }
-
-    /**
-     * Parse structured diet week with date calculation
-     */
-    @SuppressWarnings("unchecked")
-    private CurrentWeekResponseDto.DietWeekDto parseStructuredDietWeek(Map<?, ?> weekMap, LocalDate weekStartDate) {
         Boolean weekDone = getBooleanValue(weekMap.get("done"), false);
         Map<String, CurrentWeekResponseDto.DietDayDto> days = new LinkedHashMap<>();
 
         String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        for (int i = 0; i < dayKeys.length; i++) {
-            String dayKey = dayKeys[i];
-            LocalDate dayDate = weekStartDate.plusDays(i);
-            String dateString = dayDate.format(formatter);
-
+        for (String dayKey : dayKeys) {
             Object dayObj = weekMap.get(dayKey);
             if (dayObj instanceof Map<?, ?> dayMap) {
                 Boolean dayDone = getBooleanValue(dayMap.get("done"), false);
                 List<CurrentWeekResponseDto.MealDto> meals = parseMeals(dayMap.get("meals"));
 
-                CurrentWeekResponseDto.DietDayDto dietDay = new CurrentWeekResponseDto.DietDayDto(dayDone, meals);
-                dietDay.setDate(dateString);
-                days.put(dayKey, dietDay);
+                days.put(dayKey, new CurrentWeekResponseDto.DietDayDto(dayDone, meals));
             } else {
-                CurrentWeekResponseDto.DietDayDto dietDay = new CurrentWeekResponseDto.DietDayDto(false, new ArrayList<>());
-                dietDay.setDate(dateString);
-                days.put(dayKey, dietDay);
+                days.put(dayKey, new CurrentWeekResponseDto.DietDayDto(false, new ArrayList<>()));
             }
         }
 
@@ -275,31 +183,17 @@ public class PlanParsingService {
      */
     @SuppressWarnings("unchecked")
     private CurrentWeekResponseDto.DietWeekDto parseLegacyDietWeek(Map<String, Object> dietPlan) {
-        return parseLegacyDietWeek(dietPlan, LocalDate.now());
-    }
-
-    /**
-     * Parse legacy diet format with date calculation
-     */
-    @SuppressWarnings("unchecked")
-    private CurrentWeekResponseDto.DietWeekDto parseLegacyDietWeek(Map<String, Object> dietPlan, LocalDate weekStartDate) {
         Map<String, CurrentWeekResponseDto.DietDayDto> days = new LinkedHashMap<>();
         String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         // Look for weeklyPlan or similar structures
         Object weeklyPlanObj = dietPlan.get("weeklyPlan");
         if (weeklyPlanObj instanceof List<?> weeklyPlan) {
             for (int i = 0; i < Math.min(7, weeklyPlan.size()); i++) {
-                LocalDate dayDate = weekStartDate.plusDays(i);
-                String dateString = dayDate.format(formatter);
-
                 Object dayObj = weeklyPlan.get(i);
                 if (dayObj instanceof Map<?, ?> dayMap) {
                     List<CurrentWeekResponseDto.MealDto> meals = parseMeals(dayMap.get("meals"));
-                    CurrentWeekResponseDto.DietDayDto dietDay = new CurrentWeekResponseDto.DietDayDto(false, meals);
-                    dietDay.setDate(dateString);
-                    days.put(dayKeys[i], dietDay);
+                    days.put(dayKeys[i], new CurrentWeekResponseDto.DietDayDto(false, meals));
                 }
             }
         }
@@ -307,12 +201,7 @@ public class PlanParsingService {
         // Fill remaining days
         for (int i = 0; i < 7; i++) {
             if (!days.containsKey(dayKeys[i])) {
-                LocalDate dayDate = weekStartDate.plusDays(i);
-                String dateString = dayDate.format(formatter);
-
-                CurrentWeekResponseDto.DietDayDto dietDay = new CurrentWeekResponseDto.DietDayDto(false, new ArrayList<>());
-                dietDay.setDate(dateString);
-                days.put(dayKeys[i], dietDay);
+                days.put(dayKeys[i], new CurrentWeekResponseDto.DietDayDto(false, new ArrayList<>()));
             }
         }
 

@@ -9,8 +9,6 @@ public class CurrentWeekResponseDto {
     private String source;
     private Integer weekIndex;
     private String weekKey;
-    private String planStartDate; // When this plan starts (ISO date format: YYYY-MM-DD)
-    private String planEndDate; // When this plan ends (ISO date format: YYYY-MM-DD)
     private WorkoutWeekDto workoutWeek;
     private DietWeekDto dietWeek;
     private List<ExerciseCatalogDto> exerciseCatalog;
@@ -82,22 +80,6 @@ public class CurrentWeekResponseDto {
         this.dietFoodCatalog = dietFoodCatalog;
     }
 
-    public String getPlanStartDate() {
-        return planStartDate;
-    }
-
-    public void setPlanStartDate(String planStartDate) {
-        this.planStartDate = planStartDate;
-    }
-
-    public String getPlanEndDate() {
-        return planEndDate;
-    }
-
-    public void setPlanEndDate(String planEndDate) {
-        this.planEndDate = planEndDate;
-    }
-
     // Nested DTOs
     public static class WorkoutWeekDto {
         private Boolean done;
@@ -130,7 +112,6 @@ public class CurrentWeekResponseDto {
     public static class WorkoutDayDto {
         private Boolean done;
         private String focus;
-        private String date; // ISO date format: YYYY-MM-DD
         private List<ExerciseDto> exercises;
 
         public WorkoutDayDto() {}
@@ -155,14 +136,6 @@ public class CurrentWeekResponseDto {
 
         public void setFocus(String focus) {
             this.focus = focus;
-        }
-
-        public String getDate() {
-            return date;
-        }
-
-        public void setDate(String date) {
-            this.date = date;
         }
 
         public List<ExerciseDto> getExercises() {
@@ -270,7 +243,6 @@ public class CurrentWeekResponseDto {
 
     public static class DietDayDto {
         private Boolean done;
-        private String date; // ISO date format: YYYY-MM-DD
         private List<MealDto> meals;
 
         public DietDayDto() {}
@@ -286,14 +258,6 @@ public class CurrentWeekResponseDto {
 
         public void setDone(Boolean done) {
             this.done = done;
-        }
-
-        public String getDate() {
-            return date;
-        }
-
-        public void setDate(String date) {
-            this.date = date;
         }
 
         public List<MealDto> getMeals() {

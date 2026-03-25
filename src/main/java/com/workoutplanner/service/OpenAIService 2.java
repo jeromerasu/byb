@@ -89,7 +89,7 @@ public class OpenAIService {
                "DIET_PLAN_JSON:\n{diet plan here}\n\n" +
                "CRITICAL REQUIREMENTS:\n" +
                "- Each JSON must be valid and complete - NO placeholders like [...] or {...}\n" +
-               "- Generate CONCISE but complete data for 1 week and 7 days\n" +
+               "- Generate CONCISE but complete data for 4 weeks and 7 days\n" +
                "- Keep descriptions and instructions VERY brief (5-10 words max)\n" +
                "- Use SHORT ingredient lists (2-3 items max per meal)\n" +
                "- Use SIMPLE exercise names (e.g., 'Push-ups', 'Squats', 'Plank')\n" +
@@ -97,13 +97,13 @@ public class OpenAIService {
                "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
                "- If a day is a rest day, include a proper rest exercise/meal object\n" +
-               "- PRIORITIZE COMPLETENESS over detail - ensure the full week is included\n" +
+               "- PRIORITIZE COMPLETENESS over detail - ensure all 4 weeks are included fully\n" +
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
     private String buildCombinedPrompt(WorkoutProfile workoutProfile, DietProfile dietProfile) {
         return String.format(
-            "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
+            "Create a personalized 4-week fitness and nutrition plan for:\n\n" +
             "**User Profile:**\n" +
             "- Age: %d, Gender: %s\n" +
             "- Weight: %.1fkg, Height: %dcm\n" +
@@ -120,10 +120,10 @@ public class OpenAIService {
 
             "Return TWO separate JSON objects:\n\n" +
 
-            "Generate a complete 1-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
+            "Generate a complete 4-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"1-Week 5-Day Workout Plan\",\n" +
+            "  \"title\": \"4-Week 5-Day Workout Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"monday\": {\n" +
@@ -213,18 +213,18 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
+            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
 
-            "Generate a complete 1-week nutrition plan with this exact structure (no placeholders):\n\n" +
+            "Generate a complete 4-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"1-Week Nutrition Plan\",\n" +
+            "  \"title\": \"4-Week Nutrition Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"monday\": {\n" +
             "        \"meals\": [\n" +
             "          {\n" +
-            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"meal_type\": \"breakfast|lunch|dinner|snack\",\n" +
             "            \"name\": \"Meal Name\",\n" +
             "            \"ingredients\": [\"ingredient1\", \"ingredient2\"],\n" +
             "            \"calories\": 400,\n" +
@@ -232,17 +232,6 @@ public class OpenAIService {
             "            \"carbs\": 45,\n" +
             "            \"fats\": 12,\n" +
             "            \"preparation_time\": 15,\n" +
-            "            \"instructions\": \"Preparation instructions\"\n" +
-            "          },\n" +
-            "          {\n" +
-            "            \"meal_type\": \"lunch\",\n" +
-            "            \"name\": \"Meal Name\",\n" +
-            "            \"ingredients\": [\"ingredient1\", \"ingredient2\"],\n" +
-            "            \"calories\": 500,\n" +
-            "            \"proteins\": 30,\n" +
-            "            \"carbs\": 50,\n" +
-            "            \"fats\": 15,\n" +
-            "            \"preparation_time\": 20,\n" +
             "            \"instructions\": \"Preparation instructions\"\n" +
             "          }\n" +
             "        ],\n" +
@@ -252,35 +241,11 @@ public class OpenAIService {
             "          \"carbs\": 200,\n" +
             "          \"fats\": 65\n" +
             "        }\n" +
-            "      },\n" +
-            "      \"tuesday\": {\n" +
-            "        \"meals\": [ /* Add meals for Tuesday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
-            "      },\n" +
-            "      \"wednesday\": {\n" +
-            "        \"meals\": [ /* Add meals for Wednesday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
-            "      },\n" +
-            "      \"thursday\": {\n" +
-            "        \"meals\": [ /* Add meals for Thursday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
-            "      },\n" +
-            "      \"friday\": {\n" +
-            "        \"meals\": [ /* Add meals for Friday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
-            "      },\n" +
-            "      \"saturday\": {\n" +
-            "        \"meals\": [ /* Add meals for Saturday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
-            "      },\n" +
-            "      \"sunday\": {\n" +
-            "        \"meals\": [ /* Add meals for Sunday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
             "      }\n" +
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for all 7 days (monday through sunday) with actual meal details and daily totals for each day. Replace all /* comments */ with real meal data.",
+            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full meal details and daily totals for each day.",
 
             workoutProfile.getAge() != null ? workoutProfile.getAge() : 25,
             workoutProfile.getGender() != null ? workoutProfile.getGender().name() : "MALE",
