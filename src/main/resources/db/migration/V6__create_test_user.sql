@@ -22,8 +22,8 @@ VALUES (
 
 -- Also update any existing profiles to ensure they reference our test user
 -- (The profiles already exist for this user ID, but this ensures consistency)
-UPDATE workout_profiles SET user_id = '3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf'
+UPDATE workout_profile SET user_id = '3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf'
 WHERE user_id IS NOT NULL;
 
-UPDATE diet_profiles SET user_id = '3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf'
+UPDATE diet_profile SET user_id = '3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf'
 WHERE user_id IS NOT NULL;
