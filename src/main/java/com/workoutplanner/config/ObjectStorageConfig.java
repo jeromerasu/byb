@@ -3,6 +3,7 @@ package com.workoutplanner.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -19,6 +20,7 @@ public class ObjectStorageConfig {
     private static final Logger logger = LoggerFactory.getLogger(ObjectStorageConfig.class);
 
     @Bean
+    @ConditionalOnProperty(name = "storage.use-local", havingValue = "false", matchIfMissing = true)
     public S3Client s3Client() {
         // Read environment variables directly to avoid Spring property resolution issues
         String rawAccessKey = System.getenv("MINIO_ROOT_USER");

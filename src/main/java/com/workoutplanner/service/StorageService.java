@@ -14,13 +14,13 @@ public class StorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
 
-    private final ObjectStorageService objectStorageService;
+    private final Optional<ObjectStorageService> objectStorageService;
     private final Optional<LocalFileStorageService> localFileStorageService;
     private final boolean useLocalStorage;
 
     @Autowired
     public StorageService(
-            ObjectStorageService objectStorageService,
+            Optional<ObjectStorageService> objectStorageService,
             Optional<LocalFileStorageService> localFileStorageService,
             @Value("${storage.use-local:false}") boolean useLocalStorage) {
         this.objectStorageService = objectStorageService;
@@ -35,7 +35,8 @@ public class StorageService {
             return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
                     .storeWorkoutPlan(userId, planTitle, workoutPlan);
         } else {
-            return objectStorageService.storeWorkoutPlan(bucketName, userId, planTitle, workoutPlan);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .storeWorkoutPlan(bucketName, userId, planTitle, workoutPlan);
         }
     }
 
@@ -44,7 +45,8 @@ public class StorageService {
             return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
                     .storeDietPlan(userId, planTitle, dietPlan);
         } else {
-            return objectStorageService.storeDietPlan(bucketName, userId, planTitle, dietPlan);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .storeDietPlan(bucketName, userId, planTitle, dietPlan);
         }
     }
 
@@ -53,7 +55,8 @@ public class StorageService {
             return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
                     .retrieveWorkoutPlan(userId, storageKey);
         } else {
-            return objectStorageService.retrieveWorkoutPlan(bucketName, userId, storageKey);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .retrieveWorkoutPlan(bucketName, userId, storageKey);
         }
     }
 
@@ -62,7 +65,8 @@ public class StorageService {
             return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
                     .retrieveDietPlan(userId, storageKey);
         } else {
-            return objectStorageService.retrieveDietPlan(bucketName, userId, storageKey);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .retrieveDietPlan(bucketName, userId, storageKey);
         }
     }
 
