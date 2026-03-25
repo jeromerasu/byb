@@ -3,12 +3,16 @@ package com.workoutplanner.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class StorageService {
+
+    private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
 
     private final ObjectStorageService objectStorageService;
     private final Optional<LocalFileStorageService> localFileStorageService;
@@ -23,7 +27,7 @@ public class StorageService {
         this.localFileStorageService = localFileStorageService;
         this.useLocalStorage = useLocalStorage;
 
-        System.out.println("🗄️  Storage mode: " + (useLocalStorage ? "LOCAL FILE STORAGE" : "OBJECT STORAGE (MinIO/S3)"));
+        logger.info("Storage mode initialized: {}", useLocalStorage ? "LOCAL FILE STORAGE" : "OBJECT STORAGE (MinIO/S3)");
     }
 
     public String storeWorkoutPlan(String bucketName, String userId, String planTitle, Object workoutPlan) {

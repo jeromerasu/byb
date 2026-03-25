@@ -81,7 +81,7 @@ public class PlanController {
             } catch (RuntimeException e) {
                 // Handle specific error scenarios with appropriate HTTP status codes
                 String errorMessage = e.getMessage();
-                
+
                 if (errorMessage.contains("User not found")) {
                     throw new RuntimeException("User not authenticated or not found");
                 } else if (errorMessage.contains("profile not found")) {
@@ -543,5 +543,38 @@ public class PlanController {
         }
         logger.warn("User not authenticated in production mode");
         throw new RuntimeException("User not authenticated");
+    }
+
+    @GetMapping("/debug-storage-config")
+    public ResponseEntity<Map<String, Object>> debugStorageConfiguration() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            // Check current storage configuration
+            result.put("using_local_storage", storageService.isUsingLocalStorage());
+            result.put("storage_mode", storageService.isUsingLocalStorage() ? "LOCAL_FILE_STORAGE" : "MINIO_OBJECT_STORAGE");
+            result.put("beta_mode", betaMode);
+
+            // Check environment variables
+            Map<String, String> envVars = new HashMap<>();
+            envVars.put("MINIO_ENDPOINT", System.getenv("MINIO_ENDPOINT"));
+            envVars.put("MINIO_ROOT_USER", System.getenv("MINIO_ROOT_USER") != null ? "[SET]" : "[NOT_SET]");
+            envVars.put("MINIO_ROOT_PASSWORD", System.getenv("MINIO_ROOT_PASSWORD") != null ? "[SET]" : "[NOT_SET]");
+            result.put("environment_variables", envVars);
+
+            // Check bucket names that would be used
+            String workoutBucket = betaMode ? "workoutbeta" : "workout";
+            String dietBucket = betaMode ? "dietbeta" : "diet";
+            result.put("workout_bucket_name", workoutBucket);
+            result.put("diet_bucket_name", dietBucket);
+
+            result.put("status", "SUCCESS");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("status", "ERROR");
+            result.put("error", e.getMessage());
+            result.put("error_type", e.getClass().getSimpleName());
+            logger.error("Error in storage config debug: {}", e.getMessage(), e);
+            return ResponseEntity.ok(result);
+        }
     }
 }
