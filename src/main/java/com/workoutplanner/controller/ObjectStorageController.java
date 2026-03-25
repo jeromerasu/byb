@@ -238,6 +238,50 @@ public class ObjectStorageController {
         }
     }
 
+    /**
+     * Upload a dummy test file to object storage
+     */
+    @PostMapping("/test-upload/{userId}")
+    public ResponseEntity<Map<String, Object>> uploadDummyFile(@PathVariable String userId) {
+        try {
+            // Create dummy file content
+            String dummyContent = "This is a test file for MinIO object storage validation.\n" +
+                    "Timestamp: " + java.time.LocalDateTime.now() + "\n" +
+                    "User ID: " + userId + "\n" +
+                    "Test successful!";
+
+            byte[] fileContent = dummyContent.getBytes();
+            String fileName = "test-file-" + System.currentTimeMillis() + ".txt";
+
+            // Create a mock MultipartFile for testing
+            MultipartFile mockFile = new org.springframework.mock.web.MockMultipartFile(
+                    "file",
+                    fileName,
+                    "text/plain",
+                    fileContent
+            );
+
+            // Upload to MinIO using existing method
+            String storageKey = objectStorageService.uploadFile("files", mockFile, userId, "documents", "test upload");
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Dummy file uploaded successfully to MinIO");
+            response.put("storageKey", storageKey);
+            response.put("fileName", fileName);
+            response.put("fileSize", fileContent.length);
+            response.put("contentType", "text/plain");
+            response.put("userId", userId);
+            response.put("uploadedAt", java.time.LocalDateTime.now().toString());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Dummy file upload failed: " + e.getMessage()));
+        }
+    }
+
     // Helper methods
 
     private boolean isValidCategory(String category) {
