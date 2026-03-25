@@ -4,12 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.core.sync.RequestBody;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -114,6 +118,113 @@ public class DiagnosticController {
             result.put("diagnostic_error", e.getMessage());
             result.put("diagnostic_stack_trace", getStackTraceString(e));
             return ResponseEntity.ok(result);
+        }
+    }
+
+    @PostMapping("/minio-upload-test")
+    public ResponseEntity<Map<String, Object>> testMinIOUploadDirectly() {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // Create S3Client manually (same as diagnostic test)
+            String endpoint = System.getenv("MINIO_ENDPOINT");
+            String rawAccessKey = System.getenv("MINIO_ROOT_USER");
+            String rawSecretKey = System.getenv("MINIO_ROOT_PASSWORD");
+            String region = System.getenv("MINIO_REGION");
+
+            if (endpoint == null || rawAccessKey == null || rawSecretKey == null) {
+                result.put("error", "Missing MinIO environment variables");
+                return ResponseEntity.status(500).body(result);
+            }
+
+            if (region == null) region = "us-east-1";
+
+            // URL decode credentials
+            String accessKey, secretKey;
+            try {
+                accessKey = java.net.URLDecoder.decode(rawAccessKey, "UTF-8");
+                secretKey = java.net.URLDecoder.decode(rawSecretKey, "UTF-8");
+            } catch (Exception decodeError) {
+                // Keep original if decode fails
+                accessKey = rawAccessKey;
+                secretKey = rawSecretKey;
+                logger.info("URL decode failed, using original credentials: {}", decodeError.getMessage());
+            }
+
+            // Create credentials and S3Client
+            AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+
+            S3Client s3Client = S3Client.builder()
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .region(Region.of(region))
+                .serviceConfiguration(S3Configuration.builder()
+                    .pathStyleAccessEnabled(true)
+                    .build())
+                .build();
+
+            result.put("s3_client_created", true);
+
+            // Test bucket creation
+            String testBucket = "test-bucket-upload";
+            try {
+                HeadBucketRequest headBucketRequest = HeadBucketRequest.builder()
+                    .bucket(testBucket)
+                    .build();
+                s3Client.headBucket(headBucketRequest);
+                result.put("bucket_exists", true);
+            } catch (NoSuchBucketException e) {
+                // Create bucket
+                CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
+                    .bucket(testBucket)
+                    .build();
+                s3Client.createBucket(createBucketRequest);
+                result.put("bucket_created", true);
+            }
+
+            // Test file upload
+            String testKey = "test-uploads/test-file-" + System.currentTimeMillis() + ".txt";
+            String testContent = "MinIO upload test successful!\nTimestamp: " + java.time.LocalDateTime.now() +
+                                "\nUser ID: test-user\nTest successful!";
+            byte[] contentBytes = testContent.getBytes("UTF-8");
+
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(testBucket)
+                .key(testKey)
+                .contentType("text/plain")
+                .contentLength((long) contentBytes.length)
+                .build();
+
+            s3Client.putObject(putRequest, RequestBody.fromBytes(contentBytes));
+
+            result.put("upload_success", true);
+            result.put("uploaded_key", testKey);
+            result.put("uploaded_size", contentBytes.length);
+            result.put("bucket_name", testBucket);
+
+            // Verify upload by downloading
+            GetObjectRequest getRequest = GetObjectRequest.builder()
+                .bucket(testBucket)
+                .key(testKey)
+                .build();
+
+            byte[] downloadedData = s3Client.getObject(getRequest).readAllBytes();
+            String downloadedContent = new String(downloadedData, "UTF-8");
+
+            result.put("download_success", true);
+            result.put("downloaded_size", downloadedData.length);
+            result.put("content_matches", testContent.equals(downloadedContent));
+
+            result.put("message", "MinIO upload and download test completed successfully!");
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            result.put("error_type", e.getClass().getSimpleName());
+            result.put("message", "MinIO upload test failed");
+            result.put("stack_trace", getStackTraceString(e));
+            logger.error("MinIO upload test failed", e);
+            return ResponseEntity.status(500).body(result);
         }
     }
 
