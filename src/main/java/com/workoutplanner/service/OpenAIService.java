@@ -89,15 +89,15 @@ public class OpenAIService {
                "DIET_PLAN_JSON:\n{diet plan here}\n\n" +
                "CRITICAL REQUIREMENTS:\n" +
                "- Each JSON must be valid and complete - NO placeholders like [...] or {...}\n" +
-               "- Generate CONCISE but complete data for all 4 weeks and 7 days\n" +
-               "- Keep descriptions and instructions brief (1-2 sentences max)\n" +
-               "- Use SHORT ingredient lists (3-5 items max per meal)\n" +
-               "- Use SIMPLE exercise names (e.g., 'Push-ups' not 'Diamond Push-ups with Perfect Form')\n" +
+               "- Generate CONCISE but complete data for 4 weeks and 7 days\n" +
+               "- Keep descriptions and instructions VERY brief (5-10 words max)\n" +
+               "- Use SHORT ingredient lists (2-3 items max per meal)\n" +
+               "- Use SIMPLE exercise names (e.g., 'Push-ups', 'Squats', 'Plank')\n" +
                "- NEVER use empty arrays [] for exercises or meals - always provide at least one item\n" +
                "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
                "- If a day is a rest day, include a proper rest exercise/meal object\n" +
-               "- PRIORITIZE COMPLETENESS over detail - ensure all 4 weeks are included\n" +
+               "- PRIORITIZE COMPLETENESS over detail - ensure all 4 weeks are included fully\n" +
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
