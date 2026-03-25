@@ -54,7 +54,7 @@ public class OpenAIService {
             OpenAIRequest request = new OpenAIRequest();
             request.setModel(openaiModel);
             request.setTemperature(0.7);
-            request.setMaxTokens(16000); // Using gpt-3.5-turbo-1106 with 16K context length - doubled token limit
+            request.setMaxTokens(6500); // Temporary fix for 8K context limit until deployment issues resolved
             request.setMessages(Arrays.asList(
                 new OpenAIRequest.OpenAIMessage("system", getSystemPrompt()),
                 new OpenAIRequest.OpenAIMessage("user", prompt)
@@ -89,7 +89,7 @@ public class OpenAIService {
                "DIET_PLAN_JSON:\n{diet plan here}\n\n" +
                "CRITICAL REQUIREMENTS:\n" +
                "- Each JSON must be valid and complete - NO placeholders like [...] or {...}\n" +
-               "- Generate CONCISE but complete data for 4 weeks and 7 days\n" +
+               "- Generate CONCISE but complete data for 1 week and 7 days\n" +
                "- Keep descriptions and instructions VERY brief (5-10 words max)\n" +
                "- Use SHORT ingredient lists (2-3 items max per meal)\n" +
                "- Use SIMPLE exercise names (e.g., 'Push-ups', 'Squats', 'Plank')\n" +
@@ -97,13 +97,13 @@ public class OpenAIService {
                "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
                "- If a day is a rest day, include a proper rest exercise/meal object\n" +
-               "- PRIORITIZE COMPLETENESS over detail - ensure all 4 weeks are included fully\n" +
+               "- PRIORITIZE COMPLETENESS over detail - ensure the full week is included\n" +
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
     private String buildCombinedPrompt(WorkoutProfile workoutProfile, DietProfile dietProfile) {
         return String.format(
-            "Create a personalized 4-week fitness and nutrition plan for:\n\n" +
+            "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
             "**User Profile:**\n" +
             "- Age: %d, Gender: %s\n" +
             "- Weight: %.1fkg, Height: %dcm\n" +
@@ -120,10 +120,10 @@ public class OpenAIService {
 
             "Return TWO separate JSON objects:\n\n" +
 
-            "Generate a complete 4-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
+            "Generate a complete 1-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"4-Week 5-Day Workout Plan\",\n" +
+            "  \"title\": \"1-Week 5-Day Workout Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"monday\": {\n" +
@@ -213,12 +213,12 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
+            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
 
-            "Generate a complete 4-week nutrition plan with this exact structure (no placeholders):\n\n" +
+            "Generate a complete 1-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"4-Week Nutrition Plan\",\n" +
+            "  \"title\": \"1-Week Nutrition Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"monday\": {\n" +
@@ -245,7 +245,7 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for all 4 weeks (week_1, week_2, week_3, week_4) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full meal details and daily totals for each day.",
+            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full meal details and daily totals for each day.",
 
             workoutProfile.getAge() != null ? workoutProfile.getAge() : 25,
             workoutProfile.getGender() != null ? workoutProfile.getGender().name() : "MALE",
