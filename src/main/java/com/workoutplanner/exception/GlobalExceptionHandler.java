@@ -51,9 +51,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         // Log the full exception details for debugging
         logger.error("❌ GlobalExceptionHandler caught unhandled exception: {}", ex.getMessage(), ex);
-        System.err.println("❌ GlobalExceptionHandler - Exception Type: " + ex.getClass().getSimpleName());
-        System.err.println("❌ GlobalExceptionHandler - Exception Message: " + ex.getMessage());
-        ex.printStackTrace();
 
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
@@ -62,10 +59,8 @@ public class GlobalExceptionHandler {
         response.put("message", ex.getMessage()); // Show actual error message instead of generic text
         response.put("exceptionType", ex.getClass().getSimpleName()); // Include exception type for debugging
 
-        // Add stack trace in debug mode for detailed troubleshooting
-        if (logger.isDebugEnabled()) {
-            response.put("stackTrace", getStackTrace(ex));
-        }
+        // Always include stack trace for detailed troubleshooting in production debugging
+        response.put("stackTrace", getStackTrace(ex));
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
