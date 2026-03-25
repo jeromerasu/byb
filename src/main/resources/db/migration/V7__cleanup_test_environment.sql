@@ -5,8 +5,8 @@
 WITH users_with_both_profiles AS (
     SELECT DISTINCT u.id as user_id, u.username, u.email
     FROM users u
-    WHERE EXISTS (SELECT 1 FROM workout_profiles wp WHERE wp.user_id = u.id)
-      AND EXISTS (SELECT 1 FROM diet_profiles dp WHERE dp.user_id = u.id)
+    WHERE EXISTS (SELECT 1 FROM workout_profile wp WHERE wp.user_id = u.id)
+      AND EXISTS (SELECT 1 FROM diet_profile dp WHERE dp.user_id = u.id)
 ),
 
 -- Get the first user with both profiles to keep
@@ -25,11 +25,11 @@ users_to_delete AS (
 )
 
 -- Delete workout profiles for users to be deleted
-DELETE FROM workout_profiles
+DELETE FROM workout_profile
 WHERE user_id IN (SELECT user_id FROM users_to_delete);
 
 -- Delete diet profiles for users to be deleted
-DELETE FROM diet_profiles
+DELETE FROM diet_profile
 WHERE user_id IN (SELECT user_id FROM users_to_delete);
 
 -- Delete the users themselves
@@ -45,8 +45,8 @@ DECLARE
     kept_user_info RECORD;
 BEGIN
     SELECT COUNT(*) INTO remaining_users_count FROM users;
-    SELECT COUNT(*) INTO remaining_workout_profiles FROM workout_profiles;
-    SELECT COUNT(*) INTO remaining_diet_profiles FROM diet_profiles;
+    SELECT COUNT(*) INTO remaining_workout_profiles FROM workout_profile;
+    SELECT COUNT(*) INTO remaining_diet_profiles FROM diet_profile;
 
     -- Get info about the kept user
     SELECT u.id, u.username, u.email INTO kept_user_info
