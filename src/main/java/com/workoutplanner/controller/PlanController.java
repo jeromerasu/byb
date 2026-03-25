@@ -577,4 +577,43 @@ public class PlanController {
             return ResponseEntity.ok(result);
         }
     }
+
+    @PostMapping("/test-minio-upload")
+    public ResponseEntity<Map<String, Object>> testMinioUpload(HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String userId = getCurrentUserId(request);
+            String testBucket = betaMode ? "workoutbeta" : "workout";
+
+            // Create a simple test object
+            Map<String, Object> testData = new HashMap<>();
+            testData.put("test_message", "Hello MinIO from Render!");
+            testData.put("timestamp", java.time.LocalDateTime.now().toString());
+            testData.put("user_id", userId);
+            testData.put("bucket", testBucket);
+            testData.put("environment", "production");
+
+            logger.info("Testing MinIO upload to bucket: {} for user: {}", testBucket, userId);
+
+            // Store using the StorageService to test actual storage path
+            String storageKey = storageService.storeWorkoutPlan(testBucket, userId, "test-plan", testData);
+
+            result.put("success", true);
+            result.put("bucket", testBucket);
+            result.put("user_id", userId);
+            result.put("storage_key", storageKey);
+            result.put("test_data", testData);
+            result.put("message", "MinIO upload test completed successfully");
+
+            logger.info("MinIO upload test successful. Storage key: {}", storageKey);
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            result.put("error_type", e.getClass().getSimpleName());
+            logger.error("MinIO upload test failed: {}", e.getMessage(), e);
+            return ResponseEntity.ok(result);
+        }
+    }
 }
