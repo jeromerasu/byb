@@ -12,7 +12,6 @@ import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.CombinedPlanService;
 import com.workoutplanner.service.PlanParsingService;
 import com.workoutplanner.service.StorageService;
-import com.workoutplanner.service.ObjectStorageService;
 import com.workoutplanner.service.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +40,6 @@ public class PlanController {
     private final CombinedPlanService combinedPlanService;
     private final PlanParsingService planParsingService;
     private final StorageService storageService;
-    private final ObjectStorageService objectStorageService;
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
@@ -54,7 +52,6 @@ public class PlanController {
     public PlanController(CombinedPlanService combinedPlanService,
                          PlanParsingService planParsingService,
                          StorageService storageService,
-                         ObjectStorageService objectStorageService,
                          WorkoutProfileRepository workoutProfileRepository,
                          DietProfileRepository dietProfileRepository,
                          UserRepository userRepository,
@@ -62,7 +59,6 @@ public class PlanController {
         this.combinedPlanService = combinedPlanService;
         this.planParsingService = planParsingService;
         this.storageService = storageService;
-        this.objectStorageService = objectStorageService;
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
@@ -288,7 +284,8 @@ public class PlanController {
     public ResponseEntity<Map<String, Object>> debugStorage() {
         try {
             logger.debug("Debug storage endpoint called");
-            Map<String, Object> debugInfo = objectStorageService.getStorageDebugInfo();
+            Map<String, Object> debugInfo = new HashMap<>();
+            debugInfo.put("error", "ObjectStorageService not available - MinIO configuration issue");
             return ResponseEntity.ok(debugInfo);
         } catch (Exception e) {
             Map<String, Object> errorResult = new HashMap<>();
@@ -302,7 +299,9 @@ public class PlanController {
     public ResponseEntity<Map<String, Object>> debugBuckets() {
         try {
             logger.debug("Debug buckets endpoint called");
-            List<String> buckets = objectStorageService.listAllBuckets();
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", "ObjectStorageService not available - MinIO configuration issue");
+            return ResponseEntity.ok(errorResult);
 
             Map<String, Object> result = new HashMap<>();
             result.put("totalBuckets", buckets.size());
@@ -312,7 +311,7 @@ public class PlanController {
             Map<String, Integer> bucketObjectCounts = new HashMap<>();
             for (String bucketName : buckets) {
                 try {
-                    List<Map<String, Object>> objects = objectStorageService.listAllObjectsInBucket(bucketName);
+                    // ObjectStorageService not available
                     bucketObjectCounts.put(bucketName, objects.size());
                 } catch (Exception e) {
                     bucketObjectCounts.put(bucketName, -1); // Error indicator
@@ -333,7 +332,9 @@ public class PlanController {
     public ResponseEntity<Map<String, Object>> debugBucketObjects(@PathVariable String bucketName) {
         try {
             logger.debug("Debug bucket objects endpoint called for bucket: {}", bucketName);
-            List<Map<String, Object>> objects = objectStorageService.listAllObjectsInBucket(bucketName);
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", "ObjectStorageService not available - MinIO configuration issue");
+            return ResponseEntity.ok(errorResult);
 
             Map<String, Object> result = new HashMap<>();
             result.put("bucketName", bucketName);
@@ -354,7 +355,8 @@ public class PlanController {
     public ResponseEntity<Map<String, Object>> testBucketCreation(@PathVariable String bucketName) {
         try {
             logger.debug("Test bucket creation endpoint called for bucket: {}", bucketName);
-            Map<String, Object> testResult = objectStorageService.testBucketCreation(bucketName);
+            Map<String, Object> testResult = new HashMap<>();
+            testResult.put("error", "ObjectStorageService not available - MinIO configuration issue");
             return ResponseEntity.ok(testResult);
         } catch (Exception e) {
             Map<String, Object> errorResult = new HashMap<>();
@@ -369,7 +371,8 @@ public class PlanController {
     public ResponseEntity<Map<String, Object>> testConnectivity() {
         try {
             logger.debug("Connectivity test endpoint called");
-            Map<String, Object> connectivityResult = objectStorageService.testConnectivity();
+            Map<String, Object> connectivityResult = new HashMap<>();
+            connectivityResult.put("error", "ObjectStorageService not available - MinIO configuration issue");
             return ResponseEntity.ok(connectivityResult);
         } catch (Exception e) {
             Map<String, Object> errorResult = new HashMap<>();
