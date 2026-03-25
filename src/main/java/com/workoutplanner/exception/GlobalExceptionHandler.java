@@ -1,5 +1,7 @@
 package com.workoutplanner.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,6 +15,8 @@ import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
@@ -45,12 +49,31 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        // Log the full exception details for debugging
+        logger.error("❌ GlobalExceptionHandler caught unhandled exception: {}", ex.getMessage(), ex);
+        System.err.println("❌ GlobalExceptionHandler - Exception Type: " + ex.getClass().getSimpleName());
+        System.err.println("❌ GlobalExceptionHandler - Exception Message: " + ex.getMessage());
+        ex.printStackTrace();
+
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
         response.put("error", "Unexpected Error");
-        response.put("message", "An unexpected error occurred");
+        response.put("message", ex.getMessage()); // Show actual error message instead of generic text
+        response.put("exceptionType", ex.getClass().getSimpleName()); // Include exception type for debugging
+
+        // Add stack trace in debug mode for detailed troubleshooting
+        if (logger.isDebugEnabled()) {
+            response.put("stackTrace", getStackTrace(ex));
+        }
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private String getStackTrace(Exception e) {
+        java.io.StringWriter sw = new java.io.StringWriter();
+        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+        e.printStackTrace(pw);
+        return sw.toString();
     }
 }
