@@ -126,13 +126,30 @@ public class DiagnosticController {
         Map<String, Object> result = new HashMap<>();
 
         try {
+            System.out.println("🧪 Starting direct MinIO upload test...");
+            logger.info("Direct MinIO upload test started");
+
             // Create S3Client manually (same as diagnostic test)
             String endpoint = System.getenv("MINIO_ENDPOINT");
             String rawAccessKey = System.getenv("MINIO_ROOT_USER");
             String rawSecretKey = System.getenv("MINIO_ROOT_PASSWORD");
             String region = System.getenv("MINIO_REGION");
 
+            System.out.println("🔧 Environment variables check:");
+            System.out.println("   MINIO_ENDPOINT: " + (endpoint != null ? endpoint : "NULL"));
+            System.out.println("   MINIO_ROOT_USER: " + (rawAccessKey != null ? rawAccessKey.substring(0, Math.min(10, rawAccessKey.length())) + "..." : "NULL"));
+            System.out.println("   MINIO_ROOT_PASSWORD: " + (rawSecretKey != null ? "[" + rawSecretKey.length() + " characters]" : "NULL"));
+            System.out.println("   MINIO_REGION: " + (region != null ? region : "NULL"));
+
+            result.put("environment_check", Map.of(
+                "endpoint_provided", endpoint != null,
+                "access_key_provided", rawAccessKey != null,
+                "secret_key_provided", rawSecretKey != null,
+                "region_provided", region != null
+            ));
+
             if (endpoint == null || rawAccessKey == null || rawSecretKey == null) {
+                System.err.println("❌ Missing MinIO environment variables");
                 result.put("error", "Missing MinIO environment variables");
                 return ResponseEntity.status(500).body(result);
             }

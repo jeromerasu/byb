@@ -243,27 +243,70 @@ public class ObjectStorageController {
      */
     @PostMapping("/test-upload/{userId}")
     public ResponseEntity<Map<String, Object>> uploadDummyFile(@PathVariable String userId) {
+        Map<String, Object> debugInfo = new HashMap<>();
         try {
-            // Create dummy file content
+            // Step 1: Log method entry
+            System.out.println("🚀 Starting MinIO dummy file upload for user: " + userId);
+            debugInfo.put("step1_method_entry", "SUCCESS - uploadDummyFile called with userId: " + userId);
+
+            // Step 2: Create dummy file content
             String dummyContent = "This is a test file for MinIO object storage validation.\n" +
                     "Timestamp: " + java.time.LocalDateTime.now() + "\n" +
                     "User ID: " + userId + "\n" +
                     "Test successful!";
-
             byte[] fileContent = dummyContent.getBytes();
             String fileName = "test-file-" + System.currentTimeMillis() + ".txt";
+            String storageKey = "documents/" + userId + "/" + fileName;
 
-            // Create a mock MultipartFile for testing
-            MultipartFile mockFile = new org.springframework.mock.web.MockMultipartFile(
-                    "file",
-                    fileName,
-                    "text/plain",
-                    fileContent
-            );
+            System.out.println("📄 Created dummy content - Size: " + fileContent.length + " bytes, Key: " + storageKey);
+            debugInfo.put("step2_content_creation", "SUCCESS - Created " + fileContent.length + " bytes");
+            debugInfo.put("storageKey", storageKey);
+            debugInfo.put("fileName", fileName);
 
-            // Upload to MinIO using existing method
-            String storageKey = objectStorageService.uploadFile("files", mockFile, userId, "documents", "test upload");
+            // Step 3: Check ObjectStorageService availability
+            if (objectStorageService == null) {
+                System.err.println("❌ CRITICAL: ObjectStorageService is NULL - Service not injected properly!");
+                debugInfo.put("step3_service_check", "FAILED - ObjectStorageService is NULL");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(createDebugErrorResponse("ObjectStorageService not available - dependency injection failed", debugInfo));
+            }
 
+            System.out.println("✅ ObjectStorageService available: " + objectStorageService.getClass().getSimpleName());
+            debugInfo.put("step3_service_check", "SUCCESS - ObjectStorageService available");
+            debugInfo.put("serviceType", objectStorageService.getClass().getSimpleName());
+
+            // Step 4: Attempt file upload with detailed error capture
+            System.out.println("📤 Attempting to upload to MinIO with key: " + storageKey);
+            debugInfo.put("step4_upload_attempt", "STARTED");
+
+            boolean uploadResult;
+            try {
+                uploadResult = objectStorageService.storeRawData("files", storageKey, fileContent);
+                debugInfo.put("step4_upload_attempt", "COMPLETED - Result: " + uploadResult);
+                System.out.println("📤 Upload method returned: " + uploadResult);
+            } catch (Exception uploadException) {
+                System.err.println("❌ Upload method threw exception: " + uploadException.getMessage());
+                uploadException.printStackTrace();
+                debugInfo.put("step4_upload_attempt", "EXCEPTION - " + uploadException.getMessage());
+                debugInfo.put("uploadExceptionType", uploadException.getClass().getSimpleName());
+                debugInfo.put("uploadStackTrace", getStackTraceAsString(uploadException));
+
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(createDebugErrorResponse("Upload method threw exception: " + uploadException.getMessage(), debugInfo));
+            }
+
+            // Step 5: Check upload result
+            if (!uploadResult) {
+                System.err.println("❌ Upload returned false - MinIO operation failed");
+                debugInfo.put("step5_result_check", "FAILED - Upload returned false");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(createDebugErrorResponse("Failed to upload file to MinIO - storeRawData returned false", debugInfo));
+            }
+
+            System.out.println("✅ MinIO upload successful!");
+            debugInfo.put("step5_result_check", "SUCCESS - Upload completed successfully");
+
+            // Step 6: Build success response
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Dummy file uploaded successfully to MinIO");
@@ -273,12 +316,21 @@ public class ObjectStorageController {
             response.put("contentType", "text/plain");
             response.put("userId", userId);
             response.put("uploadedAt", java.time.LocalDateTime.now().toString());
+            response.put("debugInfo", debugInfo);
 
+            System.out.println("🎉 Returning success response");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
+            System.err.println("❌ CRITICAL: Unexpected exception in uploadDummyFile: " + e.getMessage());
+            e.printStackTrace();
+
+            debugInfo.put("criticalException", e.getMessage());
+            debugInfo.put("criticalExceptionType", e.getClass().getSimpleName());
+            debugInfo.put("criticalStackTrace", getStackTraceAsString(e));
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Dummy file upload failed: " + e.getMessage()));
+                    .body(createDebugErrorResponse("Critical exception in uploadDummyFile: " + e.getMessage(), debugInfo));
         }
     }
 
@@ -301,5 +353,22 @@ public class ObjectStorageController {
         error.put("error", message);
         error.put("timestamp", java.time.LocalDateTime.now().toString());
         return error;
+    }
+
+    private Map<String, Object> createDebugErrorResponse(String message, Map<String, Object> debugInfo) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("success", false);
+        error.put("error", message);
+        error.put("timestamp", java.time.LocalDateTime.now().toString());
+        error.put("debugInfo", debugInfo);
+        error.put("debugMode", true);
+        return error;
+    }
+
+    private String getStackTraceAsString(Exception e) {
+        java.io.StringWriter sw = new java.io.StringWriter();
+        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+        e.printStackTrace(pw);
+        return sw.toString();
     }
 }
