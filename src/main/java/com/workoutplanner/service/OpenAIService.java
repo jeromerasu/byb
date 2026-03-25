@@ -54,7 +54,7 @@ public class OpenAIService {
             OpenAIRequest request = new OpenAIRequest();
             request.setModel(openaiModel);
             request.setTemperature(0.7);
-            request.setMaxTokens(8000); // Back to original limit with improved prompt for concise responses
+            request.setMaxTokens(16000); // Using gpt-3.5-turbo-1106 with 16K context length - doubled token limit
             request.setMessages(Arrays.asList(
                 new OpenAIRequest.OpenAIMessage("system", getSystemPrompt()),
                 new OpenAIRequest.OpenAIMessage("user", prompt)
