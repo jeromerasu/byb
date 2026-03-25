@@ -18,12 +18,12 @@ public class DietService {
 
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
-    private final ObjectStorageService objectStorageService;
+    private final Optional<ObjectStorageService> objectStorageService;
 
     @Autowired
     public DietService(DietProfileRepository dietProfileRepository,
                       UserRepository userRepository,
-                      ObjectStorageService objectStorageService) {
+                      Optional<ObjectStorageService> objectStorageService) {
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
         this.objectStorageService = objectStorageService;
@@ -73,7 +73,8 @@ public class DietService {
             String planTitle = "Diet Plan - " + LocalDateTime.now().toLocalDate();
 
             try {
-                objectStorageService.storeDietPlan(userId, planTitle, dietPlan);
+                objectStorageService.orElseThrow(() -> new RuntimeException("Object storage service not available"))
+                    .storeDietPlan("diet", userId, planTitle, dietPlan);
 
                 // Update diet profile with current plan info
                 dietProfile.setCurrentPlanStorageKey(storageKey);
@@ -108,7 +109,8 @@ public class DietService {
             }
 
             try {
-                Map<String, Object> plan = objectStorageService.retrieveDietPlan(userId, profile.getCurrentPlanStorageKey());
+                Map<String, Object> plan = objectStorageService.orElseThrow(() -> new RuntimeException("Object storage service not available"))
+                    .retrieveDietPlan("diet", userId, profile.getCurrentPlanStorageKey());
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("planTitle", profile.getCurrentPlanTitle());

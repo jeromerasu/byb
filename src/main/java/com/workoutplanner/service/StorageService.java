@@ -3,57 +3,70 @@ package com.workoutplanner.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class StorageService {
 
-    private final ObjectStorageService objectStorageService;
-    private final LocalFileStorageService localFileStorageService;
+    private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
+
+    private final Optional<ObjectStorageService> objectStorageService;
+    private final Optional<LocalFileStorageService> localFileStorageService;
     private final boolean useLocalStorage;
 
     @Autowired
     public StorageService(
-            ObjectStorageService objectStorageService,
-            LocalFileStorageService localFileStorageService,
+            Optional<ObjectStorageService> objectStorageService,
+            Optional<LocalFileStorageService> localFileStorageService,
             @Value("${storage.use-local:false}") boolean useLocalStorage) {
         this.objectStorageService = objectStorageService;
         this.localFileStorageService = localFileStorageService;
         this.useLocalStorage = useLocalStorage;
 
-        System.out.println("🗄️  Storage mode: " + (useLocalStorage ? "LOCAL FILE STORAGE" : "OBJECT STORAGE (MinIO/S3)"));
+        logger.info("Storage mode initialized: {}", useLocalStorage ? "LOCAL FILE STORAGE" : "OBJECT STORAGE (MinIO/S3)");
     }
 
-    public String storeWorkoutPlan(String userId, String planTitle, Object workoutPlan) {
+    public String storeWorkoutPlan(String bucketName, String userId, String planTitle, Object workoutPlan) {
         if (useLocalStorage) {
-            return localFileStorageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
+            return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
+                    .storeWorkoutPlan(userId, planTitle, workoutPlan);
         } else {
-            return objectStorageService.storeWorkoutPlan(userId, planTitle, workoutPlan);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .storeWorkoutPlan(bucketName, userId, planTitle, workoutPlan);
         }
     }
 
-    public String storeDietPlan(String userId, String planTitle, Object dietPlan) {
+    public String storeDietPlan(String bucketName, String userId, String planTitle, Object dietPlan) {
         if (useLocalStorage) {
-            return localFileStorageService.storeDietPlan(userId, planTitle, dietPlan);
+            return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
+                    .storeDietPlan(userId, planTitle, dietPlan);
         } else {
-            return objectStorageService.storeDietPlan(userId, planTitle, dietPlan);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .storeDietPlan(bucketName, userId, planTitle, dietPlan);
         }
     }
 
-    public Map<String, Object> retrieveWorkoutPlan(String userId, String storageKey) {
+    public Map<String, Object> retrieveWorkoutPlan(String bucketName, String userId, String storageKey) {
         if (useLocalStorage) {
-            return localFileStorageService.retrieveWorkoutPlan(userId, storageKey);
+            return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
+                    .retrieveWorkoutPlan(userId, storageKey);
         } else {
-            return objectStorageService.retrieveWorkoutPlan(userId, storageKey);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .retrieveWorkoutPlan(bucketName, userId, storageKey);
         }
     }
 
-    public Map<String, Object> retrieveDietPlan(String userId, String storageKey) {
+    public Map<String, Object> retrieveDietPlan(String bucketName, String userId, String storageKey) {
         if (useLocalStorage) {
-            return localFileStorageService.retrieveDietPlan(userId, storageKey);
+            return localFileStorageService.orElseThrow(() -> new RuntimeException("Local storage requested but not available"))
+                    .retrieveDietPlan(userId, storageKey);
         } else {
-            return objectStorageService.retrieveDietPlan(userId, storageKey);
+            return objectStorageService.orElseThrow(() -> new RuntimeException("Object storage requested but not available"))
+                    .retrieveDietPlan(bucketName, userId, storageKey);
         }
     }
 

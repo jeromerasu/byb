@@ -111,6 +111,23 @@ GET /api/v1/diet-plans/saved
 Authorization: Bearer <jwt-token>
 ```
 
+### Structured plan response contract (v1)
+`/api/v1/workout/plan/generate`, `/api/v1/workout/plan/current`, `/api/v1/diet/plan/generate`, `/api/v1/diet/plan/current` now return stable top-level fields for frontend parsing while keeping legacy `plan` object.
+
+Workout response top-level keys:
+- `message`, `planTitle`, `storageKey`, `createdAt`
+- `title`, `phaseLabel`, `durationMin`, `calories`
+- `exercises[]` with: `name`, `prescription`, `muscle`
+- `plan` (legacy/full payload)
+
+Diet response top-level keys:
+- `message`, `planTitle`, `storageKey`, `createdAt`
+- `title`, `phaseLabel`, `calories`, `mealsPerDay`, `dietType`
+- `summary` (calories/meals/restrictions/cuisine/shoppingListCount)
+- `plan` (legacy/full payload)
+
+If stored or generated plan content is unstructured, backend applies fallback normalization so required keys are always present.
+
 ### Health Monitoring
 ```bash
 # Main health check
@@ -177,6 +194,17 @@ src/
 - `JWT_SECRET` - JWT signing secret (optional, auto-generated)
 - `JWT_EXPIRATION` - Token expiration in ms (default: 24h)
 - `SPRING_PROFILES_ACTIVE` - Active profile (dev/prod)
+- `BETA_MODE` / `beta.mode` - Set to `true` to disable auth for local dev testing only
+
+### Dev Mode (Frontend + Backend local testing)
+For rapid mobile iteration, you can run backend in dev-auth-bypass mode:
+
+```bash
+export BETA_MODE=true
+mvn spring-boot:run
+```
+
+⚠️ Never use this in production. Keep `BETA_MODE=false` (default) in deployed environments.
 
 ### Application Properties (application.yml)
 ```yaml

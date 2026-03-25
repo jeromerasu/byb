@@ -39,7 +39,7 @@ public class SecurityConfig {
     private final PasswordEncoder passwordEncoder;
 
     // Security is ENABLED by default. Only disabled when explicitly setting BETA=true
-    @Value("${beta.mode:false}")
+    @Value("${beta.mode:${BETA:false}}")
     private boolean betaMode;
 
     @Autowired
@@ -83,6 +83,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/workout-plans/health").permitAll()
                 .requestMatchers("/api/v1/diet-plans/health").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
+                // Temporarily allow plan endpoints for testing
+                .requestMatchers("/api/v1/plan/**").permitAll()
 
                 // Protected endpoints
                 .requestMatchers("/api/v1/workout-plans/generate").authenticated()
