@@ -616,4 +616,36 @@ public class PlanController {
             return ResponseEntity.ok(result);
         }
     }
+
+    @GetMapping("/debug-env-vars")
+    public ResponseEntity<Map<String, Object>> debugEnvironmentVariables() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            // Check raw environment variables directly
+            String minioEndpoint = System.getenv("MINIO_ENDPOINT");
+            String minioUser = System.getenv("MINIO_ROOT_USER");
+            String minioPassword = System.getenv("MINIO_ROOT_PASSWORD");
+            String minioRegion = System.getenv("MINIO_REGION");
+
+            result.put("MINIO_ENDPOINT", minioEndpoint != null ? minioEndpoint : "[NOT_SET]");
+            result.put("MINIO_ROOT_USER", minioUser != null ? minioUser.substring(0, Math.min(10, minioUser.length())) + "..." : "[NOT_SET]");
+            result.put("MINIO_ROOT_PASSWORD", minioPassword != null ? "[SET - LENGTH: " + minioPassword.length() + "]" : "[NOT_SET]");
+            result.put("MINIO_REGION", minioRegion != null ? minioRegion : "[NOT_SET]");
+
+            // Check storage configuration
+            result.put("using_local_storage", storageService.isUsingLocalStorage());
+            result.put("beta_mode", betaMode);
+
+            // Test if we can read other basic environment variables
+            result.put("JAVA_HOME", System.getenv("JAVA_HOME") != null ? "[SET]" : "[NOT_SET]");
+            result.put("PORT", System.getenv("PORT") != null ? System.getenv("PORT") : "[NOT_SET]");
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            result.put("error_type", e.getClass().getSimpleName());
+            logger.error("Error checking environment variables: {}", e.getMessage(), e);
+            return ResponseEntity.ok(result);
+        }
+    }
 }
