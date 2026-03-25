@@ -509,7 +509,15 @@ public class PlanController {
                 }
             }
 
-            // Fallback: use first user with both profiles
+            // Fallback: Use the known test user ID that has both profiles
+            String testUserId = "3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf";
+            Optional<User> testUser = userRepository.findById(testUserId);
+            if (testUser.isPresent()) {
+                logger.info("BETA mode fallback: Using known test user: {} ({})", testUser.get().getUsername(), testUserId);
+                return testUserId;
+            }
+
+            // If test user doesn't exist, find first user with both profiles
             java.util.List<User> allUsers = userRepository.findAll();
             for (User user : allUsers) {
                 Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(user.getId());
@@ -521,14 +529,7 @@ public class PlanController {
                 }
             }
 
-            // Final fallback: use first user
-            if (!allUsers.isEmpty()) {
-                String userId = allUsers.get(0).getId();
-                logger.warn("BETA mode final fallback: Using first user: {} ({})", allUsers.get(0).getUsername(), userId);
-                return userId;
-            }
-
-            throw new RuntimeException("BETA mode: No users found in database");
+            throw new RuntimeException("BETA mode: No users with complete profiles found in database");
         }
 
         // Production mode: use normal authentication
