@@ -301,25 +301,8 @@ public class PlanController {
             logger.debug("Debug buckets endpoint called");
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("error", "ObjectStorageService not available - MinIO configuration issue");
+            errorResult.put("reason", "MinIO debug endpoints removed due to startup validation approach");
             return ResponseEntity.ok(errorResult);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("totalBuckets", buckets.size());
-            result.put("bucketNames", buckets);
-
-            // Get object count for each bucket
-            Map<String, Integer> bucketObjectCounts = new HashMap<>();
-            for (String bucketName : buckets) {
-                try {
-                    // ObjectStorageService not available
-                    bucketObjectCounts.put(bucketName, objects.size());
-                } catch (Exception e) {
-                    bucketObjectCounts.put(bucketName, -1); // Error indicator
-                }
-            }
-            result.put("bucketObjectCounts", bucketObjectCounts);
-
-            return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("error", e.getMessage());
@@ -333,15 +316,10 @@ public class PlanController {
         try {
             logger.debug("Debug bucket objects endpoint called for bucket: {}", bucketName);
             Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("bucketName", bucketName);
             errorResult.put("error", "ObjectStorageService not available - MinIO configuration issue");
+            errorResult.put("reason", "MinIO debug endpoints removed due to startup validation approach");
             return ResponseEntity.ok(errorResult);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("bucketName", bucketName);
-            result.put("objectCount", objects.size());
-            result.put("objects", objects);
-
-            return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("bucketName", bucketName);

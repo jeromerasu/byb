@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Service
-@ConditionalOnProperty(name = "storage.use-local", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "storage.use-local", havingValue = "false", matchIfMissing = false)
 public class ObjectStorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectStorageService.class);

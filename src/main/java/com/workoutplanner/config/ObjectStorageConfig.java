@@ -3,7 +3,6 @@ package com.workoutplanner.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -20,8 +19,13 @@ public class ObjectStorageConfig {
     private static final Logger logger = LoggerFactory.getLogger(ObjectStorageConfig.class);
 
     @Bean
-    @ConditionalOnProperty(name = "storage.use-local", havingValue = "false", matchIfMissing = true)
-    public S3Client s3Client() {
+    public S3Client s3Client(@Value("${storage.use-local:false}") boolean useLocalStorage) {
+
+        // Skip MinIO configuration if using local storage
+        if (useLocalStorage) {
+            logger.info("Local storage enabled - skipping MinIO S3Client creation");
+            return null;
+        }
         // Read environment variables directly to avoid Spring property resolution issues
         String rawAccessKey = System.getenv("MINIO_ROOT_USER");
         String rawSecretKey = System.getenv("MINIO_ROOT_PASSWORD");
@@ -82,7 +86,19 @@ public class ObjectStorageConfig {
 
             S3Client client = clientBuilder.build();
             logger.info("S3Client successfully created for MinIO");
-            return client;
+
+            // Validate MinIO connectivity at startup
+            try {
+                logger.info("Validating MinIO connectivity with your provided credentials...");
+                client.listBuckets();
+                logger.info("✅ MinIO connectivity validated successfully");
+                return client;
+
+            } catch (Exception e) {
+                logger.error("❌ MinIO connectivity validation failed: {}", e.getMessage());
+                logger.error("Deployment will fail as requested to prevent degraded operation");
+                throw new RuntimeException("MinIO connectivity validation failed at startup - failing deployment", e);
+            }
 
         } catch (Exception e) {
             logger.error("Failed to configure S3Client: {}", e.getMessage(), e);

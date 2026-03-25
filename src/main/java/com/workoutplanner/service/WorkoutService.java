@@ -18,12 +18,12 @@ public class WorkoutService {
 
     private final WorkoutProfileRepository workoutProfileRepository;
     private final UserRepository userRepository;
-    private final ObjectStorageService objectStorageService;
+    private final Optional<ObjectStorageService> objectStorageService;
 
     @Autowired
     public WorkoutService(WorkoutProfileRepository workoutProfileRepository,
                          UserRepository userRepository,
-                         ObjectStorageService objectStorageService) {
+                         Optional<ObjectStorageService> objectStorageService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.userRepository = userRepository;
         this.objectStorageService = objectStorageService;
@@ -73,7 +73,8 @@ public class WorkoutService {
             String planTitle = "Workout Plan - " + LocalDateTime.now().toLocalDate();
 
             try {
-                objectStorageService.storeWorkoutPlan("workout", userId, planTitle, workoutPlan);
+                objectStorageService.orElseThrow(() -> new RuntimeException("Object storage service not available"))
+                    .storeWorkoutPlan("workout", userId, planTitle, workoutPlan);
 
                 // Update workout profile with current plan info
                 workoutProfile.setCurrentPlanStorageKey(storageKey);
@@ -108,7 +109,8 @@ public class WorkoutService {
             }
 
             try {
-                Map<String, Object> plan = objectStorageService.retrieveWorkoutPlan("workout", userId, profile.getCurrentPlanStorageKey());
+                Map<String, Object> plan = objectStorageService.orElseThrow(() -> new RuntimeException("Object storage service not available"))
+                    .retrieveWorkoutPlan("workout", userId, profile.getCurrentPlanStorageKey());
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("planTitle", profile.getCurrentPlanTitle());
