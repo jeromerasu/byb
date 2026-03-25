@@ -628,7 +628,7 @@ public class PlanController {
             String minioRegion = System.getenv("MINIO_REGION");
 
             result.put("MINIO_ENDPOINT", minioEndpoint != null ? minioEndpoint : "[NOT_SET]");
-            result.put("MINIO_ROOT_USER", minioUser != null ? minioUser.substring(0, Math.min(10, minioUser.length())) + "..." : "[NOT_SET]");
+            result.put("MINIO_ROOT_USER", minioUser != null && minioUser.length() > 0 ? minioUser.substring(0, Math.min(10, minioUser.length())) + "..." : "[NOT_SET]");
             result.put("MINIO_ROOT_PASSWORD", minioPassword != null ? "[SET - LENGTH: " + minioPassword.length() + "]" : "[NOT_SET]");
             result.put("MINIO_REGION", minioRegion != null ? minioRegion : "[NOT_SET]");
 
