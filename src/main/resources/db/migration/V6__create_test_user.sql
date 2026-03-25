@@ -5,7 +5,7 @@
 DELETE FROM users WHERE id != '3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf';
 
 -- Insert our test user if it doesn't already exist
-INSERT INTO users (id, username, email, password, first_name, last_name, created_at, updated_at)
+INSERT INTO users (id, username, email, password_hash, first_name, last_name, created_at, updated_at)
 VALUES (
     '3d91b1cd-aa94-48ec-b91f-edcb1e69bbbf',
     'test_consistent_user',
