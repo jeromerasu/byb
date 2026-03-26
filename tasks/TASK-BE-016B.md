@@ -12,6 +12,7 @@ Area: worker execution service, combined plan generation integration
 
 ## In Scope
 - For each claimed queue item, call combined generation flow
+- Add proper structured logging (SLF4J) for generation request/response lifecycle, schema validation outcomes, and error classification
 - Ensure strict JSON schema handling for generated output
 - Write generated week metadata for downstream persistence
 - Handle generation errors cleanly and return to queue state handling
@@ -27,6 +28,7 @@ Area: worker execution service, combined plan generation integration
 1. Claimed queue items generate next-week workout + diet plans successfully.
 2. Failures are surfaced with actionable error state.
 3. Output remains schema-valid for storage and frontend retrieval.
+4. Structured logs capture generation lifecycle and validation outcomes.
 
 ## Test Steps
 1. Process sample queue row end-to-end through generation call.

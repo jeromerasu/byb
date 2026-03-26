@@ -12,6 +12,7 @@ Area: run logging, metrics, cleanup job/endpoints
 
 ## In Scope
 - Run summary logging (`scanned/claimed/generated/failed/skipped`)
+- Add proper structured logging (SLF4J) and consistent log fields/correlation IDs for operational analysis across scan + worker phases
 - Operational endpoint/metrics exposure for pipeline health
 - Cleanup policy for old terminal queue rows (`done/failed` retention window)
 - Basic reconciliation hook/report for missing storage artifacts vs registry rows
@@ -26,6 +27,7 @@ Area: run logging, metrics, cleanup job/endpoints
 1. Pipeline run summaries are queryable and informative.
 2. Queue retention cleanup runs safely without deleting active work.
 3. Operators can inspect pipeline health quickly.
+4. Structured logs provide consistent operational traces across scan and worker phases.
 
 ## Test Steps
 1. Execute worker run and verify summary metrics emitted.

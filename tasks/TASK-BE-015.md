@@ -13,6 +13,7 @@ Area: internal job endpoint, scan service, queue upsert logic
 ## In Scope
 - Add internal endpoint:
   - `POST /internal/jobs/plan-rollover-scan`
+- Add proper structured logging (SLF4J) for scan start/end, eligibility decisions, enqueue results, and auth failures
 - Secure endpoint with internal token check
 - Scan active subscribed users only
 - Compute user `nextWeekStart` (timezone-safe strategy)
@@ -31,6 +32,7 @@ Area: internal job endpoint, scan service, queue upsert logic
 1. Scan only enqueues users with active subscription + missing next week.
 2. Re-running scan does not duplicate queue records.
 3. Internal endpoint is protected and returns deterministic summary JSON.
+4. Structured logs capture scan lifecycle and enqueue decisions.
 
 ## Test Steps
 1. Seed users with mixed subscription states.

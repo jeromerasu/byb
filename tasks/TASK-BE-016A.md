@@ -12,6 +12,7 @@ Area: worker service, queue status transitions, batch controls
 
 ## In Scope
 - Poll queue (`pending`, `next_retry_at <= now`)
+- Add proper structured logging (SLF4J) for batch polling, claim outcomes, lock contention, and runtime budget exits
 - Claim rows atomically (`pending -> processing`)
 - Batch size controls and runtime budget guards
 - Persist processing metadata (`started_at`, worker marker)
@@ -27,6 +28,7 @@ Area: worker service, queue status transitions, batch controls
 1. Worker claims queue rows without double-processing.
 2. Batch and timeout guards prevent long-run timeouts.
 3. Queue state transitions are auditable.
+4. Structured logs capture claims, batch limits, and contention outcomes.
 
 ## Test Steps
 1. Seed pending queue rows.

@@ -12,6 +12,7 @@ Area: queue retry policy, failure classification, terminal state handling
 
 ## In Scope
 - Retry transient failures with backoff (e.g., 1m/5m/15m)
+- Add proper structured logging (SLF4J) for retry scheduling decisions, attempt counts, and terminal failure transitions
 - Track attempts and `next_retry_at`
 - Move permanent failures to terminal `failed`
 - Store `last_error` and classification metadata
@@ -27,6 +28,7 @@ Area: queue retry policy, failure classification, terminal state handling
 1. Transient failures are retried automatically with backoff.
 2. Permanent failures are marked terminal with reason.
 3. Retry behavior is deterministic and auditable in queue rows.
+4. Structured logs capture retry scheduling and terminal failure transitions.
 
 ## Test Steps
 1. Simulate transient failure and verify scheduled retry progression.

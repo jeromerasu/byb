@@ -12,6 +12,7 @@ Area: storage integration, week registry writes
 
 ## In Scope
 - Save generated workout/diet artifacts to object storage
+- Add proper structured logging (SLF4J) for object-storage write lifecycle, registry upserts, and idempotency skips
 - Capture and persist storage keys in `user_week_plan`
 - Mark queue status `done` on success
 - Enforce idempotent writes keyed by `(user_id, week_start)`
@@ -27,6 +28,7 @@ Area: storage integration, week registry writes
 1. Generated plans are stored and keys are saved in `user_week_plan`.
 2. Queue rows transition to `done` only after successful persistence.
 3. Duplicate writes for same user/week are prevented.
+4. Structured logs capture storage writes, registry updates, and idempotent skips.
 
 ## Test Steps
 1. Run worker path with valid generated payload.
