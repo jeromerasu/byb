@@ -20,6 +20,13 @@
 - [ ] TASK-BE-010 — API - Diet Food Catalog List from Generated Plan Responses — **READY**
 - [ ] TASK-BE-011 — API - Persist First-Time Tutorial Completion State — **READY**
 - [ ] TASK-BE-012 — API/DB - Persist User Theme Preferences (Colorway/Accent) — **READY**
+- [ ] TASK-BE-014 — Plan Generation Pipeline - DB Foundation (Week Registry + Queue) — **READY**
+- [ ] TASK-BE-015 — Plan Generation Pipeline - Daily Scan Job (Subscription + Missing Next Week) — **READY**
+- [ ] TASK-BE-016A — Plan Generation Worker - Queue Claiming, Locking, and Batching — **READY**
+- [ ] TASK-BE-016B — Plan Generation Worker - Workout+Diet Generation Execution Path — **READY**
+- [ ] TASK-BE-016C — Plan Generation Worker - Persistence to Object Storage + Week Registry Update — **READY**
+- [ ] TASK-BE-016D — Plan Generation Worker - Retry, Backoff, and Failure Policy — **READY**
+- [ ] TASK-BE-016E — Plan Generation Worker - Operational Controls, Metrics, and Cleanup — **READY**
 - [ ] TASK-BE-003 — Auth/Profile Unification for Mobile — **BACKLOG**
 
 ## Notes
