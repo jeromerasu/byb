@@ -13,9 +13,10 @@ Area: internal job endpoint, scan service, queue upsert logic
 ## In Scope
 - Add endpoint for scan stage:
   - `POST /internal/jobs/plan-rollover-scan`
-- Add environment-gated public testing mode for this endpoint:
-  - public access allowed only in `test/beta` when `jobs.internal.auth.required=false`
-  - auth required in `prod` (default)
+- During current testing phase, keep endpoint open by default and add clear TODO comments in controller/config:
+  - `TODO(PROD-HARDEN): re-enable internal auth token before production cutover`
+  - include target date/owner note in code comment
+- Keep auth toggle scaffolding in place for later hardening (`jobs.internal.auth.required`)
 - Add proper structured logging (SLF4J) for scan start/end, eligibility decisions, enqueue results, auth failures, and auth-bypass mode warnings
 - Secure endpoint with internal token check
 - Scan active subscribed users only
@@ -34,9 +35,9 @@ Area: internal job endpoint, scan service, queue upsert logic
 ## Acceptance Criteria
 1. Scan only enqueues users with active subscription + missing next week.
 2. Re-running scan does not duplicate queue records.
-3. Endpoint supports env-gated testing mode (public in test/beta only) and remains protected in prod.
+3. Endpoint is open for testing phase and includes explicit `TODO(PROD-HARDEN)` comments for auth re-enable before production.
 4. Endpoint returns deterministic summary JSON.
-5. Structured logs capture scan lifecycle, enqueue decisions, and auth mode state.
+5. Structured logs capture scan lifecycle, enqueue decisions, and current auth mode state.
 
 ## Test Steps
 1. Seed users with mixed subscription states.
