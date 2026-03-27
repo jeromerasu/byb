@@ -4,6 +4,7 @@ import com.workoutplanner.model.PlanGenerationQueue;
 import com.workoutplanner.service.PlanGenerationExecutorService;
 import com.workoutplanner.service.PlanPersistenceService;
 import com.workoutplanner.service.QueueClaimService;
+import com.workoutplanner.service.QueueRetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,13 +15,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * TASK-BE-016A/B: Orchestrator that wires scan → claim → execute pipeline.
+ * TASK-BE-016A/B/C/D: Orchestrator — scan → claim → execute → persist/retry pipeline.
  *
  * Each scheduled tick:
  * 1. Recover stale CLAIMED locks (016A)
  * 2. Find claimable PENDING rows (015)
  * 3. Claim a batch (016A)
- * 4. Execute each claimed entry (016B) — failure handling delegated to 016D
+ * 4. Execute each claimed entry (016B)
+ * 5. On success: persist plans + mark COMPLETED (016C)
+ * 6. On failure: apply retry/backoff policy (016D)
  */
 @Component
 public class QueueOrchestrator {
@@ -31,6 +34,7 @@ public class QueueOrchestrator {
     private final QueueClaimService claimService;
     private final PlanGenerationExecutorService executorService;
     private final PlanPersistenceService persistenceService;
+    private final QueueRetryService retryService;
 
     @Value("${queue.scanner.batch-size:5}")
     private int batchSize;
@@ -41,11 +45,13 @@ public class QueueOrchestrator {
     public QueueOrchestrator(QueueScannerJob scannerJob,
                              QueueClaimService claimService,
                              PlanGenerationExecutorService executorService,
-                             PlanPersistenceService persistenceService) {
+                             PlanPersistenceService persistenceService,
+                             QueueRetryService retryService) {
         this.scannerJob = scannerJob;
         this.claimService = claimService;
         this.executorService = executorService;
         this.persistenceService = persistenceService;
+        this.retryService = retryService;
     }
 
     /**
@@ -118,12 +124,12 @@ public class QueueOrchestrator {
     }
 
     /**
-     * Failure hook — retry policy wired in 016D.
+     * Failure hook — delegates to QueueRetryService (016D) for retry/backoff/fail decision.
      */
     protected void onExecutionFailure(PlanGenerationQueue entry,
                                       PlanGenerationExecutorService.PlanGenerationException ex) {
-        log.error("queue.orchestrate.generation_fail id={} userId={} fatal={} error={}",
-                entry.getId(), entry.getUserId(), ex.isFatal(), ex.getMessage());
-        claimService.markFailed(entry, ex.getMessage());
+        log.error("queue.orchestrate.generation_fail id={} userId={} fatal={} attempt={} error={}",
+                entry.getId(), entry.getUserId(), ex.isFatal(), entry.getAttemptCount(), ex.getMessage());
+        retryService.handleFailure(entry, ex);
     }
 }
