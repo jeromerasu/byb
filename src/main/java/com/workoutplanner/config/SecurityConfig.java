@@ -85,6 +85,10 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 // Temporarily allow plan endpoints for testing
                 .requestMatchers("/api/v1/plan/**").permitAll()
+                // Admin endpoints (ops/testing use)
+                .requestMatchers("/api/v1/admin/**").permitAll()
+                // Queue metrics endpoint (ops)
+                .requestMatchers("/api/v1/queue/metrics").permitAll()
 
                 // Protected endpoints
                 .requestMatchers("/api/v1/workout-plans/generate").authenticated()
