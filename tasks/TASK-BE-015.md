@@ -11,9 +11,12 @@ Repo: `byb`
 Area: internal job endpoint, scan service, queue upsert logic
 
 ## In Scope
-- Add internal endpoint:
+- Add endpoint for scan stage:
   - `POST /internal/jobs/plan-rollover-scan`
-- Add proper structured logging (SLF4J) for scan start/end, eligibility decisions, enqueue results, and auth failures
+- Add environment-gated public testing mode for this endpoint:
+  - public access allowed only in `test/beta` when `jobs.internal.auth.required=false`
+  - auth required in `prod` (default)
+- Add proper structured logging (SLF4J) for scan start/end, eligibility decisions, enqueue results, auth failures, and auth-bypass mode warnings
 - Secure endpoint with internal token check
 - Scan active subscribed users only
 - Compute user `nextWeekStart` (timezone-safe strategy)
@@ -31,8 +34,9 @@ Area: internal job endpoint, scan service, queue upsert logic
 ## Acceptance Criteria
 1. Scan only enqueues users with active subscription + missing next week.
 2. Re-running scan does not duplicate queue records.
-3. Internal endpoint is protected and returns deterministic summary JSON.
-4. Structured logs capture scan lifecycle and enqueue decisions.
+3. Endpoint supports env-gated testing mode (public in test/beta only) and remains protected in prod.
+4. Endpoint returns deterministic summary JSON.
+5. Structured logs capture scan lifecycle, enqueue decisions, and auth mode state.
 
 ## Test Steps
 1. Seed users with mixed subscription states.
