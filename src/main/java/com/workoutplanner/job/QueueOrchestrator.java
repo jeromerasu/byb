@@ -2,6 +2,7 @@ package com.workoutplanner.job;
 
 import com.workoutplanner.model.PlanGenerationQueue;
 import com.workoutplanner.service.PlanGenerationExecutorService;
+import com.workoutplanner.service.PlanPersistenceService;
 import com.workoutplanner.service.QueueClaimService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class QueueOrchestrator {
     private final QueueScannerJob scannerJob;
     private final QueueClaimService claimService;
     private final PlanGenerationExecutorService executorService;
+    private final PlanPersistenceService persistenceService;
 
     @Value("${queue.scanner.batch-size:5}")
     private int batchSize;
@@ -38,10 +40,12 @@ public class QueueOrchestrator {
 
     public QueueOrchestrator(QueueScannerJob scannerJob,
                              QueueClaimService claimService,
-                             PlanGenerationExecutorService executorService) {
+                             PlanGenerationExecutorService executorService,
+                             PlanPersistenceService persistenceService) {
         this.scannerJob = scannerJob;
         this.claimService = claimService;
         this.executorService = executorService;
+        this.persistenceService = persistenceService;
     }
 
     /**
@@ -98,14 +102,19 @@ public class QueueOrchestrator {
     }
 
     /**
-     * Success hook — persistence wired in 016C.
+     * Success hook — persists plans and marks entry COMPLETED with storage keys.
      */
     protected void onExecutionSuccess(PlanGenerationQueue entry,
                                       PlanGenerationExecutorService.GenerationResult result) {
-        log.info("queue.orchestrate.generation_ok id={} userId={} (persistence wired in 016C)",
-                entry.getId(), entry.getUserId());
-        // Mark completed with empty keys until 016C wires in storage
-        claimService.markCompleted(entry, null, null);
+        try {
+            PlanPersistenceService.PersistenceResult persisted =
+                    persistenceService.persist(entry, result.getWorkoutPlan(), result.getDietPlan());
+            claimService.markCompleted(entry, persisted.getWorkoutStorageKey(), persisted.getDietStorageKey());
+        } catch (Exception ex) {
+            log.error("queue.orchestrate.persist_error id={} error={}", entry.getId(), ex.getMessage(), ex);
+            onExecutionFailure(entry, new PlanGenerationExecutorService.PlanGenerationException(
+                    "Persistence failed: " + ex.getMessage(), ex));
+        }
     }
 
     /**
