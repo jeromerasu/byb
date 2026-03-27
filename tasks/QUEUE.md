@@ -32,6 +32,8 @@
 ## Notes
 - Use `tasks/TASK_TEMPLATE.md` for all new backend tasks.
 - Follow `TESTING_REQUIREMENTS.md` for mandatory local verification before marking DONE.
+- TDD is required for backend tasks: write unit tests first, then implement.
+- Coverage target: >=80% unit test coverage for changed task scope (attach coverage evidence).
 - No backend task may be marked DONE without runtime proof block (startup, endpoint reachability, auth/path tests, and commands used).
 - Testing-phase open endpoint policy: TASK-BE-015 and TASK-BE-016A may remain open temporarily, but must include `TODO(PROD-HARDEN)` comments.
 - Pre-production gate (required before launch): re-enable internal auth protection for scan/worker endpoints and verify access control in runtime proof.

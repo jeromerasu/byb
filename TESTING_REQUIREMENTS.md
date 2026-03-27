@@ -30,7 +30,19 @@ beta.mode=true
 Ensure H2 runtime dependency is present.
 
 ## 3) Mandatory execution steps
-1. Application startup:
+0. TDD first:
+- Write unit tests for task scope before implementation changes.
+- Demonstrate red->green progression in commit history or task notes.
+
+1. Unit tests + coverage:
+```bash
+mvn test
+mvn jacoco:report
+```
+- Target **>=80% unit test coverage for changed files/modules in task scope**.
+- Include coverage summary in task deliverables.
+
+2. Application startup:
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=test -Dmaven.test.skip=true
 ```
