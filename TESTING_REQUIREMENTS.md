@@ -39,7 +39,8 @@ Ensure H2 runtime dependency is present.
 mvn test
 mvn jacoco:report
 ```
-- Target **>=80% unit test coverage for changed files/modules in task scope**.
+- Target **>=80% unit test coverage for changed, testable business-logic files/modules in task scope**.
+- Simple DTO/entity/model classes and config/wiring classes are excluded from strict threshold; document exclusions briefly.
 - Include coverage summary in task deliverables.
 
 2. Application startup:
