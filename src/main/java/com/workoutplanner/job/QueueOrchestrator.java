@@ -1,6 +1,7 @@
 package com.workoutplanner.job;
 
 import com.workoutplanner.model.PlanGenerationQueue;
+import com.workoutplanner.service.PlanGenerationExecutorService;
 import com.workoutplanner.service.QueueClaimService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,11 +13,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * TASK-BE-016A: Orchestrator that wires QueueScannerJob (discover) →
- * QueueClaimService (claim) into a single scheduled pipeline.
+ * TASK-BE-016A/B: Orchestrator that wires scan → claim → execute pipeline.
  *
- * Runs on the same cadence as the scanner.  Generation execution is
- * delegated to PlanGenerationExecutorService (016B).
+ * Each scheduled tick:
+ * 1. Recover stale CLAIMED locks (016A)
+ * 2. Find claimable PENDING rows (015)
+ * 3. Claim a batch (016A)
+ * 4. Execute each claimed entry (016B) — failure handling delegated to 016D
  */
 @Component
 public class QueueOrchestrator {
@@ -25,6 +28,7 @@ public class QueueOrchestrator {
 
     private final QueueScannerJob scannerJob;
     private final QueueClaimService claimService;
+    private final PlanGenerationExecutorService executorService;
 
     @Value("${queue.scanner.batch-size:5}")
     private int batchSize;
@@ -32,17 +36,16 @@ public class QueueOrchestrator {
     @Value("${queue.scanner.enabled:true}")
     private boolean enabled;
 
-    public QueueOrchestrator(QueueScannerJob scannerJob, QueueClaimService claimService) {
+    public QueueOrchestrator(QueueScannerJob scannerJob,
+                             QueueClaimService claimService,
+                             PlanGenerationExecutorService executorService) {
         this.scannerJob = scannerJob;
         this.claimService = claimService;
+        this.executorService = executorService;
     }
 
     /**
-     * Scheduled orchestration tick:
-     * 1. Recover stale locks
-     * 2. Find claimable rows
-     * 3. Claim a batch
-     * 4. Dispatch claimed entries for execution (wired in 016B)
+     * Scheduled orchestration tick.
      */
     @Scheduled(fixedDelayString = "${queue.scanner.fixed-delay-ms:30000}")
     public void orchestrate() {
@@ -50,7 +53,7 @@ public class QueueOrchestrator {
             return;
         }
 
-        // Step 1: recover stale locks so they re-enter PENDING
+        // Step 1: recover stale locks
         List<PlanGenerationQueue> stale = scannerJob.findStaleClaimedRows();
         for (PlanGenerationQueue entry : stale) {
             try {
@@ -71,7 +74,7 @@ public class QueueOrchestrator {
         List<String> ids = claimable.stream().map(PlanGenerationQueue::getId).collect(Collectors.toList());
         List<PlanGenerationQueue> claimed = claimService.claimBatch(ids, batchSize);
 
-        // Step 4: dispatch (execution wired in 016B via PlanGenerationExecutorService)
+        // Step 4: execute each claimed entry
         for (PlanGenerationQueue entry : claimed) {
             log.info("queue.orchestrate.dispatching id={} userId={}", entry.getId(), entry.getUserId());
             dispatchForExecution(entry);
@@ -79,11 +82,39 @@ public class QueueOrchestrator {
     }
 
     /**
-     * Dispatch hook — overridden/extended in 016B when PlanGenerationExecutorService
-     * is wired. Default: no-op with log.
+     * Dispatch: execute generation. Failure handling wired in 016D.
      */
     protected void dispatchForExecution(PlanGenerationQueue entry) {
-        log.info("queue.orchestrate.dispatch_pending id={} userId={} (executor not yet wired)",
+        try {
+            PlanGenerationExecutorService.GenerationResult result = executorService.execute(entry);
+            onExecutionSuccess(entry, result);
+        } catch (PlanGenerationExecutorService.PlanGenerationException ex) {
+            onExecutionFailure(entry, ex);
+        } catch (Exception ex) {
+            log.error("queue.orchestrate.unexpected_error id={} error={}", entry.getId(), ex.getMessage(), ex);
+            onExecutionFailure(entry, new PlanGenerationExecutorService.PlanGenerationException(
+                    "Unexpected error: " + ex.getMessage(), ex));
+        }
+    }
+
+    /**
+     * Success hook — persistence wired in 016C.
+     */
+    protected void onExecutionSuccess(PlanGenerationQueue entry,
+                                      PlanGenerationExecutorService.GenerationResult result) {
+        log.info("queue.orchestrate.generation_ok id={} userId={} (persistence wired in 016C)",
                 entry.getId(), entry.getUserId());
+        // Mark completed with empty keys until 016C wires in storage
+        claimService.markCompleted(entry, null, null);
+    }
+
+    /**
+     * Failure hook — retry policy wired in 016D.
+     */
+    protected void onExecutionFailure(PlanGenerationQueue entry,
+                                      PlanGenerationExecutorService.PlanGenerationException ex) {
+        log.error("queue.orchestrate.generation_fail id={} userId={} fatal={} error={}",
+                entry.getId(), entry.getUserId(), ex.isFatal(), ex.getMessage());
+        claimService.markFailed(entry, ex.getMessage());
     }
 }
