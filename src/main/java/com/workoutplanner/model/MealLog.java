@@ -44,6 +44,14 @@ public class MealLog {
     @Column(precision = 6, scale = 2)
     private BigDecimal carbs;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private MealRating rating;
+
+    @JsonProperty("feedback_comment")
+    @Column(name = "feedback_comment", columnDefinition = "TEXT")
+    private String feedbackComment;
+
     @NotNull(message = "Date is required")
     @Column(nullable = false)
     private LocalDate date;
@@ -134,6 +142,12 @@ public class MealLog {
     public void setCarbs(BigDecimal carbs) {
         this.carbs = carbs;
     }
+
+    public MealRating getRating() { return rating; }
+    public void setRating(MealRating rating) { this.rating = rating; }
+
+    public String getFeedbackComment() { return feedbackComment; }
+    public void setFeedbackComment(String feedbackComment) { this.feedbackComment = feedbackComment; }
 
     public LocalDate getDate() {
         return date;

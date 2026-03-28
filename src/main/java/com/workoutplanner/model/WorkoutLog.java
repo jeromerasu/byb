@@ -49,6 +49,22 @@ public class WorkoutLog {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private WorkoutRating rating;
+
+    @JsonProperty("feedback_comment")
+    @Column(name = "feedback_comment", columnDefinition = "TEXT")
+    private String feedbackComment;
+
+    @JsonProperty("pain_flag")
+    @Column(name = "pain_flag", nullable = false)
+    private boolean painFlag = false;
+
+    @JsonProperty("substitution_requested")
+    @Column(name = "substitution_requested", nullable = false)
+    private boolean substitutionRequested = false;
+
     @NotNull(message = "Date is required")
     @Column(nullable = false)
     private LocalDate date;
@@ -106,6 +122,18 @@ public class WorkoutLog {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public WorkoutRating getRating() { return rating; }
+    public void setRating(WorkoutRating rating) { this.rating = rating; }
+
+    public String getFeedbackComment() { return feedbackComment; }
+    public void setFeedbackComment(String feedbackComment) { this.feedbackComment = feedbackComment; }
+
+    public boolean isPainFlag() { return painFlag; }
+    public void setPainFlag(boolean painFlag) { this.painFlag = painFlag; }
+
+    public boolean isSubstitutionRequested() { return substitutionRequested; }
+    public void setSubstitutionRequested(boolean substitutionRequested) { this.substitutionRequested = substitutionRequested; }
 
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
