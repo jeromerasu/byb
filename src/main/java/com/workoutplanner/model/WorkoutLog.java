@@ -31,6 +31,24 @@ public class WorkoutLog {
     @Column(precision = 5, scale = 2)
     private BigDecimal weight;
 
+    @Column
+    private Integer sets;
+
+    @Column
+    private Integer reps;
+
+    @JsonProperty("duration_minutes")
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
+    @Enumerated(EnumType.STRING)
+    @JsonProperty("exercise_type")
+    @Column(name = "exercise_type", length = 50)
+    private ExerciseType exerciseType;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     @NotNull(message = "Date is required")
     @Column(nullable = false)
     private LocalDate date;
@@ -62,59 +80,39 @@ public class WorkoutLog {
     }
 
     // Getters and setters
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
-    public String getUserId() {
-        return userId;
-    }
+    public String getExercise() { return exercise; }
+    public void setExercise(String exercise) { this.exercise = exercise; }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+    public BigDecimal getWeight() { return weight; }
+    public void setWeight(BigDecimal weight) { this.weight = weight; }
 
-    public String getExercise() {
-        return exercise;
-    }
+    public Integer getSets() { return sets; }
+    public void setSets(Integer sets) { this.sets = sets; }
 
-    public void setExercise(String exercise) {
-        this.exercise = exercise;
-    }
+    public Integer getReps() { return reps; }
+    public void setReps(Integer reps) { this.reps = reps; }
 
-    public BigDecimal getWeight() {
-        return weight;
-    }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
 
-    public void setWeight(BigDecimal weight) {
-        this.weight = weight;
-    }
+    public ExerciseType getExerciseType() { return exerciseType; }
+    public void setExerciseType(ExerciseType exerciseType) { this.exerciseType = exerciseType; }
 
-    public LocalDate getDate() {
-        return date;
-    }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
+    public LocalDate getDate() { return date; }
+    public void setDate(LocalDate date) { this.date = date; }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
