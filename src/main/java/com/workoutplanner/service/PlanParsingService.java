@@ -359,11 +359,11 @@ public class PlanParsingService {
             if (mealObj instanceof Map<?, ?> mealMap) {
                 CurrentWeekResponseDto.MealDto meal = new CurrentWeekResponseDto.MealDto();
                 meal.setName(getStringValue(mealMap.get("name"), "Unknown Food"));
-                meal.setMealType(getStringValue(mealMap.get("mealType"), "snack"));
+                meal.setMealType(getStringValue(mealMap.get("meal_type"), "snack"));
                 meal.setCalories(getIntegerValue(mealMap.get("calories"), 0));
-                meal.setProteinGrams(getIntegerValue(mealMap.get("proteinGrams"), 0));
-                meal.setCarbsGrams(getIntegerValue(mealMap.get("carbsGrams"), 0));
-                meal.setFatGrams(getIntegerValue(mealMap.get("fatGrams"), 0));
+                meal.setProteinGrams(getIntegerValue(mealMap.get("proteins"), 0));
+                meal.setCarbsGrams(getIntegerValue(mealMap.get("carbs"), 0));
+                meal.setFatGrams(getIntegerValue(mealMap.get("fats"), 0));
 
                 result.add(meal);
             }
@@ -456,7 +456,7 @@ public class PlanParsingService {
                                 for (Object mealObj : meals) {
                                     if (mealObj instanceof Map<?, ?> mealMap) {
                                         String name = getStringValue(mealMap.get("name"), null);
-                                        String mealType = getStringValue(mealMap.get("mealType"), "snack");
+                                        String mealType = getStringValue(mealMap.get("meal_type"), "snack");
                                         if (name != null) {
                                             foodNames.add(name);
                                             foodMealTypes.put(name, mealType);
@@ -516,11 +516,11 @@ public class PlanParsingService {
                                                 DietFoodCatalogResponseDto.FoodDto food = new DietFoodCatalogResponseDto.FoodDto();
                                                 food.setFoodId(foodId);
                                                 food.setName(name);
-                                                food.setMealType(getStringValue(mealMap.get("mealType"), "snack"));
+                                                food.setMealType(getStringValue(mealMap.get("meal_type"), "snack"));
                                                 food.setCalories(getIntegerValue(mealMap.get("calories"), 0));
-                                                food.setProteinGrams(getIntegerValue(mealMap.get("proteinGrams"), 0));
-                                                food.setCarbsGrams(getIntegerValue(mealMap.get("carbsGrams"), 0));
-                                                food.setFatGrams(getIntegerValue(mealMap.get("fatGrams"), 0));
+                                                food.setProteinGrams(getIntegerValue(mealMap.get("proteins"), 0));
+                                                food.setCarbsGrams(getIntegerValue(mealMap.get("carbs"), 0));
+                                                food.setFatGrams(getIntegerValue(mealMap.get("fats"), 0));
                                                 food.setLastSeenWeek(weekKey);
                                                 food.setLastSeenDay(dayKey);
 
