@@ -41,4 +41,7 @@ public interface WorkoutLogRepository extends JpaRepository<WorkoutLog, String> 
            "ORDER BY w.date DESC")
     List<WorkoutLog> findPersonalRecordEntriesByUserIdAndExercise(@Param("userId") String userId,
                                                                    @Param("exercise") String exercise);
+
+    // Feedback queries — entries that have a rating set
+    List<WorkoutLog> findByUserIdAndRatingIsNotNullAndDateBetween(String userId, LocalDate from, LocalDate to);
 }
