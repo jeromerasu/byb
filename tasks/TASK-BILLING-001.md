@@ -54,9 +54,28 @@ Additional webhook requirements:
 - On successful plan generation, increment `plans_generated` count for the current billing period via `PlanUsageTracker`
 - `GET /api/v1/billing/usage` — returns plans generated in the current billing period
 
+### 7. Webhook Event Log table (Flyway migration)
+- Flyway migration: create `webhook_event_log` table:
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGINT PK AUTO_INCREMENT | |
+| user_id | UUID FK → users, nullable | Nullable — user may not be resolvable for every event |
+| provider_customer_id | VARCHAR | RevenueCat customer ID from event payload |
+| event_type | VARCHAR | INITIAL_PURCHASE, RENEWAL, CANCELLATION, EXPIRATION, BILLING_ISSUE, PRODUCT_CHANGE |
+| event_payload | TEXT | Raw JSON from RevenueCat |
+| processed_successfully | BOOLEAN | |
+| error_message | TEXT, nullable | Populated when processing fails |
+| received_at | TIMESTAMP | |
+
+- JPA entity `WebhookEventLog` mapping to above schema
+- Repository `WebhookEventLogRepository` with basic query methods
+- Log every incoming webhook event to this table before processing begins
+- On processing failure, persist the error message; on success, set `processed_successfully=true`
+- Useful for debugging billing issues and customer support
+
 ## Out of Scope
 - Mobile/frontend RevenueCat SDK integration
-- New database migrations (BillingEntitlement, PremiumAccessService, PlanUsageTracker already exist)
 - Subscription plan management or pricing changes
 - RefundEvent handling
 
@@ -116,6 +135,7 @@ None — `BillingEntitlement`, `PremiumAccessService`, and `PlanUsageTracker` al
 9. `billing.enforcement.enabled=false` in test profile; plan generation proceeds without entitlement check in test environment.
 10. Successful plan generation increments `plans_generated` in `PlanUsageTracker`; `GET /api/v1/billing/usage` reflects the updated count.
 11. All new business logic has ≥80% unit test coverage (service layer); DTO/config classes excluded from strict threshold.
+12. Every incoming webhook request is persisted to `webhook_event_log` before processing; `processed_successfully` and `error_message` reflect the outcome.
 
 ## Test Steps
 1. Start app with test profile: `mvn spring-boot:run -Dspring-boot.run.profiles=test -Dmaven.test.skip=true`
@@ -129,6 +149,8 @@ None — `BillingEntitlement`, `PremiumAccessService`, and `PlanUsageTracker` al
 9. Send a webhook with a missing or wrong secret header — expect 401.
 10. After a successful plan generation, call `GET /api/v1/billing/usage` — confirm `plansGeneratedThisPeriod` incremented.
 11. Verify existing plan generation endpoints still return 200 in test profile with `billing.enforcement.enabled=false`.
+12. Send a test webhook payload — query `webhook_event_log` table and confirm a row was inserted with correct `event_type`, `provider_customer_id`, `processed_successfully=true`, and raw `event_payload`.
+13. Send a webhook that triggers a processing error — confirm row is inserted with `processed_successfully=false` and a non-null `error_message`.
 
 ## TDD + Unit Test Coverage (required)
 - Write/commit unit tests first for entitlement enforcement logic (red → green → refactor)
@@ -136,8 +158,9 @@ None — `BillingEntitlement`, `PremiumAccessService`, and `PlanUsageTracker` al
 - Cover all six webhook event types: correct field transitions for each
 - Cover billing status response shape and `canGeneratePlans` computation
 - Cover link-customer: successful update, unauthenticated rejection
+- Cover webhook event log: row inserted before processing, `processed_successfully=true` on success, `processed_successfully=false` and error message populated on failure
 - Target ≥80% unit test coverage for `BillingEntitlementService`, `PremiumAccessService` (new logic), and any new controller/service classes
-- Exclude from strict threshold: DTOs, config/properties binding classes
+- Exclude from strict threshold: DTOs, config/properties binding classes, `WebhookEventLog` entity POJO, `WebhookEventLogRepository` interface
 - Include JaCoCo report summary in deliverables
 
 ## Mandatory Local Testing Verification (required)
@@ -146,6 +169,7 @@ None — `BillingEntitlement`, `PremiumAccessService`, and `PlanUsageTracker` al
 - Verify authenticated flow: register → obtain JWT → call all three billing endpoints
 - Verify enforcement flag: toggle `billing.enforcement.enabled` and confirm Free tier 403 / bypass behavior
 - Verify webhook flow locally: send POST to webhook endpoint with correct and incorrect secret headers
+- Verify webhook event log: confirm rows are inserted into `webhook_event_log` for each test webhook call
 - Document exact curl commands used
 
 ## Files Likely Affected
@@ -161,6 +185,9 @@ None — `BillingEntitlement`, `PremiumAccessService`, and `PlanUsageTracker` al
 - `src/main/resources/application-test.properties`
 - `src/main/resources/application-beta.properties`
 - `src/main/resources/application-prod.properties`
+- `src/main/resources/db/migration/V{next}__create_webhook_event_log.sql` (new)
+- `src/main/java/com/workoutplanner/model/WebhookEventLog.java` (new)
+- `src/main/java/com/workoutplanner/repository/WebhookEventLogRepository.java` (new)
 - `src/test/java/com/workoutplanner/service/BillingEntitlementServiceTest.java`
 - `src/test/java/com/workoutplanner/controller/BillingControllerTest.java`
 
@@ -169,7 +196,7 @@ None — `BillingEntitlement`, `PremiumAccessService`, and `PlanUsageTracker` al
 - Changed files
 - Contract examples (request/response for all three new endpoints and the 403 plan generation response)
 - JaCoCo coverage report summary
-- Runtime proof block: startup log snippet, curl commands with responses for all billing endpoints, webhook event test payloads and resulting DB state, enforcement flag toggle demonstration
+- Runtime proof block: startup log snippet, curl commands with responses for all billing endpoints, webhook event test payloads and resulting DB state (including `webhook_event_log` rows), enforcement flag toggle demonstration
 
 ## Status
 `READY`
