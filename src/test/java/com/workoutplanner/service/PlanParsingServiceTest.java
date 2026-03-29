@@ -195,4 +195,85 @@ class PlanParsingServiceTest {
         assertThat(result.getDietWeek()).isNotNull();
         assertThat(result.getDietWeek().getDays()).isEmpty();
     }
+
+    // ─── 7-day multi-day parsing ───────────────────────────────────────────────
+
+    /**
+     * Builds a full 7-day diet plan using the structured weeks format that OpenAI returns.
+     * Each day has 3 meals (breakfast, lunch, dinner) with non-zero macros.
+     */
+    private Map<String, Object> buildSevenDayDietPlan() {
+        String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+        String[] mealTypes = {"breakfast", "lunch", "dinner"};
+
+        Map<String, Object> week = new LinkedHashMap<>();
+        week.put("done", false);
+
+        for (int d = 0; d < dayKeys.length; d++) {
+            List<Map<String, Object>> meals = new ArrayList<>();
+            for (int m = 0; m < mealTypes.length; m++) {
+                Map<String, Object> meal = new LinkedHashMap<>();
+                meal.put("meal_type", mealTypes[m]);
+                meal.put("name", dayKeys[d] + " " + mealTypes[m]);
+                meal.put("calories", 400 + d * 10 + m * 5);
+                meal.put("proteins", 30 + d + m);
+                meal.put("carbs", 40 + d + m);
+                meal.put("fats", 15 + d + m);
+                meals.add(meal);
+            }
+            Map<String, Object> day = new LinkedHashMap<>();
+            day.put("done", false);
+            day.put("meals", meals);
+            week.put(dayKeys[d], day);
+        }
+
+        Map<String, Object> weeks = new LinkedHashMap<>();
+        weeks.put("week_1", week);
+
+        Map<String, Object> plan = new LinkedHashMap<>();
+        plan.put("weeks", weeks);
+        return plan;
+    }
+
+    @Test
+    void allSevenDays_shouldParseWithCorrectMealTypesAndNonZeroMacros() {
+        Map<String, Object> dietPlan = buildSevenDayDietPlan();
+        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
+
+        Map<String, CurrentWeekResponseDto.DietDayDto> days = result.getDietWeek().getDays();
+        String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+
+        for (String dayKey : dayKeys) {
+            assertThat(days).containsKey(dayKey);
+            List<CurrentWeekResponseDto.MealDto> meals = days.get(dayKey).getMeals();
+            assertThat(meals).as("meals for " + dayKey).hasSize(3);
+
+            for (CurrentWeekResponseDto.MealDto meal : meals) {
+                assertThat(meal.getName()).as(dayKey + " meal name").doesNotContain("Unknown Food");
+                assertThat(meal.getMealType()).as(dayKey + " meal_type").isIn("breakfast", "lunch", "dinner");
+                assertThat(meal.getProteinGrams()).as(dayKey + " protein").isGreaterThan(0);
+                assertThat(meal.getCarbsGrams()).as(dayKey + " carbs").isGreaterThan(0);
+                assertThat(meal.getFatGrams()).as(dayKey + " fat").isGreaterThan(0);
+                assertThat(meal.getCalories()).as(dayKey + " calories").isGreaterThan(0);
+            }
+        }
+    }
+
+    @Test
+    void allSevenDays_firstDayMealsDoNotLeakToOtherDays() {
+        Map<String, Object> dietPlan = buildSevenDayDietPlan();
+        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
+
+        Map<String, CurrentWeekResponseDto.DietDayDto> days = result.getDietWeek().getDays();
+
+        // Each day's meals should be named after that specific day, not monday
+        String[] dayKeys = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+        for (String dayKey : dayKeys) {
+            List<CurrentWeekResponseDto.MealDto> meals = days.get(dayKey).getMeals();
+            for (CurrentWeekResponseDto.MealDto meal : meals) {
+                assertThat(meal.getName()).as("meal for " + dayKey + " should not be from monday")
+                        .startsWith(dayKey);
+            }
+        }
+    }
 }
