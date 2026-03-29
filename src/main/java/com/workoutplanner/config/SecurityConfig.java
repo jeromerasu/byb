@@ -85,7 +85,9 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 // Temporarily allow plan endpoints for testing
                 .requestMatchers("/api/v1/plan/**").permitAll()
-                // Admin endpoints (ops/testing use)
+                // Admin food catalog — requires ADMIN role
+                .requestMatchers("/api/v1/admin/foods/**").hasRole("ADMIN")
+                // Other admin endpoints (ops/testing use)
                 .requestMatchers("/api/v1/admin/**").permitAll()
                 // Queue metrics endpoint (ops)
                 .requestMatchers("/api/v1/queue/metrics").permitAll()

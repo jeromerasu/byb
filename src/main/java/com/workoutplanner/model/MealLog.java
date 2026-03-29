@@ -52,6 +52,10 @@ public class MealLog {
     @Column(name = "feedback_comment", columnDefinition = "TEXT")
     private String feedbackComment;
 
+    @JsonProperty("food_catalog_id")
+    @Column(name = "food_catalog_id")
+    private Long foodCatalogId;
+
     @NotNull(message = "Date is required")
     @Column(nullable = false)
     private LocalDate date;
@@ -148,6 +152,9 @@ public class MealLog {
 
     public String getFeedbackComment() { return feedbackComment; }
     public void setFeedbackComment(String feedbackComment) { this.feedbackComment = feedbackComment; }
+
+    public Long getFoodCatalogId() { return foodCatalogId; }
+    public void setFoodCatalogId(Long foodCatalogId) { this.foodCatalogId = foodCatalogId; }
 
     public LocalDate getDate() {
         return date;
