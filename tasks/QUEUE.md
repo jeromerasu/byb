@@ -29,6 +29,10 @@
 - [ ] TASK-BE-016E — Plan Generation Worker - Operational Controls, Metrics, and Cleanup — **READY**
 - [ ] TASK-BE-003 — Auth/Profile Unification for Mobile — **BACKLOG**
 
+## Data Tasks (parallel, independent of TASK-API-xxx series)
+- [ ] TASK-DATA-001 — Exercise Catalog (system + custom entries, WorkoutLog FK) — **READY**
+- [ ] TASK-DATA-002 — Food Catalog (system + custom entries, MealLog FK) — **READY**
+
 ## Notes
 - Use `tasks/TASK_TEMPLATE.md` for all new backend tasks.
 - Follow `TESTING_REQUIREMENTS.md` for mandatory local verification before marking DONE.
