@@ -377,14 +377,6 @@ public class PlanParsingService {
                                 mealMap.get("fat_grams"), mealMap.get("fatGrams")),
                         0));
 
-                // DIAGNOSTIC: if macros are still 0, embed the actual keys in the name
-                // so we can see what keys are present in the stored JSON
-                if (meal.getProteinGrams() == 0 && meal.getCarbsGrams() == 0 && meal.getFatGrams() == 0) {
-                    String keys = String.join(",", mealMap.keySet().stream()
-                            .map(Object::toString).sorted().toList());
-                    meal.setName(meal.getName() + " [KEYS:" + keys + "]");
-                }
-
                 result.add(meal);
             }
         }
