@@ -2,8 +2,7 @@ services:
   - type: web
     name: workout-ai-service
     env: docker
-    dockerfilePath: ./workout-ai-service/Dockerfile
-    rootDir: ./workout-ai-service
+    dockerfilePath: ./Dockerfile
     plan: starter # or starter plus, professional based on your needs
     envVars:
       - key: OPENAI_API_KEY
