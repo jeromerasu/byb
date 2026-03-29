@@ -418,6 +418,54 @@ public class PlanController {
         }
     }
 
+    /**
+     * Temporary debug endpoint: returns the raw first meal object from the stored diet plan
+     * so we can inspect the actual JSON field names coming out of MinIO.
+     */
+    @GetMapping("/debug-raw-meal")
+    public ResponseEntity<Map<String, Object>> debugRawMeal(HttpServletRequest request) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        try {
+            String userId = getCurrentUserId(request);
+            Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(userId);
+            if (dietProfile.isEmpty() || dietProfile.get().getCurrentPlanStorageKey() == null) {
+                result.put("error", "No diet plan found");
+                return ResponseEntity.ok(result);
+            }
+            String dietBucketName = betaMode ? "dietbeta" : "diet";
+            Map<String, Object> dietPlan = storageService.retrieveDietPlan(dietBucketName, userId, dietProfile.get().getCurrentPlanStorageKey());
+            result.put("top_level_keys", dietPlan.keySet());
+
+            // Drill into weeks → week_1 → monday → meals → first meal
+            Object weeksObj = dietPlan.get("weeks");
+            if (weeksObj instanceof Map<?, ?> weeks) {
+                result.put("week_keys", ((Map<?, ?>) weeks).keySet());
+                Object week1 = ((Map<?, ?>) weeks).get("week_1");
+                if (week1 instanceof Map<?, ?> weekMap) {
+                    result.put("day_keys", ((Map<?, ?>) weekMap).keySet());
+                    Object monday = ((Map<?, ?>) weekMap).get("monday");
+                    if (monday instanceof Map<?, ?> mondayMap) {
+                        result.put("monday_keys", ((Map<?, ?>) mondayMap).keySet());
+                        Object mealsObj = ((Map<?, ?>) mondayMap).get("meals");
+                        result.put("meals_type", mealsObj == null ? "null" : mealsObj.getClass().getSimpleName());
+                        if (mealsObj instanceof java.util.List<?> mealsList && !((java.util.List<?>) mealsList).isEmpty()) {
+                            Object firstMeal = ((java.util.List<?>) mealsList).get(0);
+                            result.put("first_meal_type", firstMeal == null ? "null" : firstMeal.getClass().getSimpleName());
+                            if (firstMeal instanceof Map<?, ?> mealMap) {
+                                result.put("first_meal_keys", ((Map<?, ?>) mealMap).keySet());
+                                result.put("first_meal_raw", firstMeal);
+                            }
+                        }
+                    }
+                }
+            }
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            return ResponseEntity.ok(result);
+        }
+    }
+
     @GetMapping("/diet-foods")
     public Mono<ResponseEntity<DietFoodCatalogResponseDto>> getDietFoods(HttpServletRequest request) {
         String userId = getCurrentUserId(request);
