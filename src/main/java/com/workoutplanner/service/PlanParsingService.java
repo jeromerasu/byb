@@ -346,7 +346,8 @@ public class PlanParsingService {
     }
 
     /**
-     * Parse meals from various formats
+     * Parse meals from various formats.
+     * Tries all known field-name variants that OpenAI may return for macros and meal type.
      */
     @SuppressWarnings("unchecked")
     private List<CurrentWeekResponseDto.MealDto> parseMeals(Object mealsObj) {
@@ -359,11 +360,22 @@ public class PlanParsingService {
             if (mealObj instanceof Map<?, ?> mealMap) {
                 CurrentWeekResponseDto.MealDto meal = new CurrentWeekResponseDto.MealDto();
                 meal.setName(getStringValue(mealMap.get("name"), "Unknown Food"));
-                meal.setMealType(getStringValue(mealMap.get("meal_type"), "snack"));
+                meal.setMealType(getStringValue(
+                        firstNonNull(mealMap.get("meal_type"), mealMap.get("mealType"), mealMap.get("type")),
+                        "snack"));
                 meal.setCalories(getIntegerValue(mealMap.get("calories"), 0));
-                meal.setProteinGrams(getIntegerValue(mealMap.get("proteins"), 0));
-                meal.setCarbsGrams(getIntegerValue(mealMap.get("carbs"), 0));
-                meal.setFatGrams(getIntegerValue(mealMap.get("fats"), 0));
+                meal.setProteinGrams(getIntegerValue(
+                        firstNonNull(mealMap.get("proteins"), mealMap.get("protein"),
+                                mealMap.get("protein_grams"), mealMap.get("proteinGrams")),
+                        0));
+                meal.setCarbsGrams(getIntegerValue(
+                        firstNonNull(mealMap.get("carbs"), mealMap.get("carbohydrates"),
+                                mealMap.get("carbs_grams"), mealMap.get("carbsGrams")),
+                        0));
+                meal.setFatGrams(getIntegerValue(
+                        firstNonNull(mealMap.get("fats"), mealMap.get("fat"),
+                                mealMap.get("fat_grams"), mealMap.get("fatGrams")),
+                        0));
 
                 result.add(meal);
             }
@@ -456,7 +468,9 @@ public class PlanParsingService {
                                 for (Object mealObj : meals) {
                                     if (mealObj instanceof Map<?, ?> mealMap) {
                                         String name = getStringValue(mealMap.get("name"), null);
-                                        String mealType = getStringValue(mealMap.get("meal_type"), "snack");
+                                        String mealType = getStringValue(
+                                                firstNonNull(mealMap.get("meal_type"), mealMap.get("mealType"), mealMap.get("type")),
+                                                "snack");
                                         if (name != null) {
                                             foodNames.add(name);
                                             foodMealTypes.put(name, mealType);
@@ -516,11 +530,22 @@ public class PlanParsingService {
                                                 DietFoodCatalogResponseDto.FoodDto food = new DietFoodCatalogResponseDto.FoodDto();
                                                 food.setFoodId(foodId);
                                                 food.setName(name);
-                                                food.setMealType(getStringValue(mealMap.get("meal_type"), "snack"));
+                                                food.setMealType(getStringValue(
+                                                        firstNonNull(mealMap.get("meal_type"), mealMap.get("mealType"), mealMap.get("type")),
+                                                        "snack"));
                                                 food.setCalories(getIntegerValue(mealMap.get("calories"), 0));
-                                                food.setProteinGrams(getIntegerValue(mealMap.get("proteins"), 0));
-                                                food.setCarbsGrams(getIntegerValue(mealMap.get("carbs"), 0));
-                                                food.setFatGrams(getIntegerValue(mealMap.get("fats"), 0));
+                                                food.setProteinGrams(getIntegerValue(
+                                                        firstNonNull(mealMap.get("proteins"), mealMap.get("protein"),
+                                                                mealMap.get("protein_grams"), mealMap.get("proteinGrams")),
+                                                        0));
+                                                food.setCarbsGrams(getIntegerValue(
+                                                        firstNonNull(mealMap.get("carbs"), mealMap.get("carbohydrates"),
+                                                                mealMap.get("carbs_grams"), mealMap.get("carbsGrams")),
+                                                        0));
+                                                food.setFatGrams(getIntegerValue(
+                                                        firstNonNull(mealMap.get("fats"), mealMap.get("fat"),
+                                                                mealMap.get("fat_grams"), mealMap.get("fatGrams")),
+                                                        0));
                                                 food.setLastSeenWeek(weekKey);
                                                 food.setLastSeenDay(dayKey);
 
@@ -545,6 +570,13 @@ public class PlanParsingService {
     }
 
     // Utility methods
+    private Object firstNonNull(Object... values) {
+        for (Object v : values) {
+            if (v != null) return v;
+        }
+        return null;
+    }
+
     private String getStringValue(Object value, String defaultValue) {
         if (value == null) return defaultValue;
         return String.valueOf(value).trim();

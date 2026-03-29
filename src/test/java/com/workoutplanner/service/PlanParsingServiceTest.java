@@ -18,19 +18,12 @@ class PlanParsingServiceTest {
     }
 
     /**
-     * Build a minimal diet plan in the format the OpenAI service generates
-     * (snake_case field names: meal_type, proteins, carbs, fats).
+     * Build a minimal diet plan with explicit field names for each meal macro.
      */
-    private Map<String, Object> buildStoredDietPlan(String mealType, int proteins, int carbs, int fats) {
-        Map<String, Object> meal = new LinkedHashMap<>();
-        meal.put("meal_type", mealType);
-        meal.put("name", "Test Meal");
-        meal.put("calories", 500);
-        meal.put("proteins", proteins);
-        meal.put("carbs", carbs);
-        meal.put("fats", fats);
-        meal.put("ingredients", List.of("ingredient1"));
-        meal.put("instructions", "Cook it");
+    private Map<String, Object> buildStoredDietPlan(Map<String, Object> mealFields) {
+        Map<String, Object> meal = new LinkedHashMap<>(mealFields);
+        meal.putIfAbsent("name", "Test Meal");
+        meal.putIfAbsent("calories", 500);
 
         Map<String, Object> day = new LinkedHashMap<>();
         day.put("done", false);
@@ -48,20 +41,131 @@ class PlanParsingServiceTest {
         return plan;
     }
 
+    private CurrentWeekResponseDto.MealDto parseSingleMeal(Map<String, Object> mealFields) {
+        Map<String, Object> dietPlan = buildStoredDietPlan(mealFields);
+        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
+        return result.getDietWeek().getDays().get("monday").getMeals().get(0);
+    }
+
+    // ─── meal_type variants ────────────────────────────────────────────────────
+
+    @Test
+    void parseMeals_mealType_fromMeal_type() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "proteins", 20, "carbs", 30, "fats", 10));
+        assertThat(meal.getMealType()).isEqualTo("breakfast");
+    }
+
+    @Test
+    void parseMeals_mealType_fromMealType_camelCase() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "mealType", "lunch", "proteins", 20, "carbs", 30, "fats", 10));
+        assertThat(meal.getMealType()).isEqualTo("lunch");
+    }
+
+    @Test
+    void parseMeals_mealType_fromType() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "type", "dinner", "proteins", 20, "carbs", 30, "fats", 10));
+        assertThat(meal.getMealType()).isEqualTo("dinner");
+    }
+
+    // ─── protein variants ─────────────────────────────────────────────────────
+
+    @Test
+    void parseMeals_protein_fromProteins() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "proteins", 35, "carbs", 50, "fats", 15));
+        assertThat(meal.getProteinGrams()).isEqualTo(35);
+    }
+
+    @Test
+    void parseMeals_protein_fromProtein_singular() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "protein", 40, "carbs", 50, "fats", 15));
+        assertThat(meal.getProteinGrams()).isEqualTo(40);
+    }
+
+    @Test
+    void parseMeals_protein_fromProtein_grams() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "protein_grams", 45, "carbs", 50, "fats", 15));
+        assertThat(meal.getProteinGrams()).isEqualTo(45);
+    }
+
+    @Test
+    void parseMeals_protein_fromProteinGrams_camelCase() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "proteinGrams", 50, "carbs", 50, "fats", 15));
+        assertThat(meal.getProteinGrams()).isEqualTo(50);
+    }
+
+    // ─── carbs variants ───────────────────────────────────────────────────────
+
+    @Test
+    void parseMeals_carbs_fromCarbs() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "lunch", "proteins", 30, "carbs", 60, "fats", 20));
+        assertThat(meal.getCarbsGrams()).isEqualTo(60);
+    }
+
+    @Test
+    void parseMeals_carbs_fromCarbohydrates() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "lunch", "proteins", 30, "carbohydrates", 65, "fats", 20));
+        assertThat(meal.getCarbsGrams()).isEqualTo(65);
+    }
+
+    @Test
+    void parseMeals_carbs_fromCarbs_grams() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "lunch", "proteins", 30, "carbs_grams", 70, "fats", 20));
+        assertThat(meal.getCarbsGrams()).isEqualTo(70);
+    }
+
+    @Test
+    void parseMeals_carbs_fromCarbsGrams_camelCase() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "lunch", "proteins", 30, "carbsGrams", 75, "fats", 20));
+        assertThat(meal.getCarbsGrams()).isEqualTo(75);
+    }
+
+    // ─── fat variants ─────────────────────────────────────────────────────────
+
+    @Test
+    void parseMeals_fat_fromFats() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "dinner", "proteins", 25, "carbs", 45, "fats", 18));
+        assertThat(meal.getFatGrams()).isEqualTo(18);
+    }
+
+    @Test
+    void parseMeals_fat_fromFat_singular() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "dinner", "proteins", 25, "carbs", 45, "fat", 22));
+        assertThat(meal.getFatGrams()).isEqualTo(22);
+    }
+
+    @Test
+    void parseMeals_fat_fromFat_grams() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "dinner", "proteins", 25, "carbs", 45, "fat_grams", 25));
+        assertThat(meal.getFatGrams()).isEqualTo(25);
+    }
+
+    @Test
+    void parseMeals_fat_fromFatGrams_camelCase() {
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "dinner", "proteins", 25, "carbs", 45, "fatGrams", 28));
+        assertThat(meal.getFatGrams()).isEqualTo(28);
+    }
+
+    // ─── original happy-path tests (regression guard) ─────────────────────────
+
     @Test
     void parseMeals_shouldMapProteinCarbsFatCorrectly() {
-        Map<String, Object> dietPlan = buildStoredDietPlan("breakfast", 35, 50, 15);
-
-        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
-
-        CurrentWeekResponseDto.DietWeekDto dietWeek = result.getDietWeek();
-        assertThat(dietWeek).isNotNull();
-
-        CurrentWeekResponseDto.DietDayDto monday = dietWeek.getDays().get("monday");
-        assertThat(monday).isNotNull();
-        assertThat(monday.getMeals()).hasSize(1);
-
-        CurrentWeekResponseDto.MealDto meal = monday.getMeals().get(0);
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "proteins", 35, "carbs", 50, "fats", 15, "calories", 500));
         assertThat(meal.getProteinGrams()).isEqualTo(35);
         assertThat(meal.getCarbsGrams()).isEqualTo(50);
         assertThat(meal.getFatGrams()).isEqualTo(15);
@@ -69,46 +173,17 @@ class PlanParsingServiceTest {
     }
 
     @Test
-    void parseMeals_shouldMapMealTypeCorrectly() {
-        Map<String, Object> dietPlan = buildStoredDietPlan("breakfast", 20, 30, 10);
-
-        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
-
-        CurrentWeekResponseDto.MealDto meal = result.getDietWeek().getDays().get("monday").getMeals().get(0);
-        assertThat(meal.getMealType()).isEqualTo("breakfast");
-    }
-
-    @Test
-    void parseMeals_shouldMapLunchMealType() {
-        Map<String, Object> dietPlan = buildStoredDietPlan("lunch", 40, 60, 20);
-
-        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
-
-        CurrentWeekResponseDto.MealDto meal = result.getDietWeek().getDays().get("monday").getMeals().get(0);
-        assertThat(meal.getMealType()).isEqualTo("lunch");
-        assertThat(meal.getProteinGrams()).isEqualTo(40);
-        assertThat(meal.getCarbsGrams()).isEqualTo(60);
-        assertThat(meal.getFatGrams()).isEqualTo(20);
-    }
-
-    @Test
     void parseMeals_shouldNotDefaultToSnackWhenMealTypePresent() {
-        Map<String, Object> dietPlan = buildStoredDietPlan("dinner", 50, 70, 25);
-
-        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
-
-        CurrentWeekResponseDto.MealDto meal = result.getDietWeek().getDays().get("monday").getMeals().get(0);
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "dinner", "proteins", 50, "carbs", 70, "fats", 25));
         assertThat(meal.getMealType()).isNotEqualTo("snack");
         assertThat(meal.getMealType()).isEqualTo("dinner");
     }
 
     @Test
     void parseMeals_macrosShouldNotBeZeroWhenDataPresent() {
-        Map<String, Object> dietPlan = buildStoredDietPlan("breakfast", 35, 50, 15);
-
-        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, dietPlan, 1);
-
-        CurrentWeekResponseDto.MealDto meal = result.getDietWeek().getDays().get("monday").getMeals().get(0);
+        CurrentWeekResponseDto.MealDto meal = parseSingleMeal(Map.of(
+                "meal_type", "breakfast", "proteins", 35, "carbs", 50, "fats", 15));
         assertThat(meal.getProteinGrams()).isNotEqualTo(0);
         assertThat(meal.getCarbsGrams()).isNotEqualTo(0);
         assertThat(meal.getFatGrams()).isNotEqualTo(0);
@@ -117,7 +192,6 @@ class PlanParsingServiceTest {
     @Test
     void parseMeals_shouldHandleNullDietPlan() {
         CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(null, null, 1);
-
         assertThat(result.getDietWeek()).isNotNull();
         assertThat(result.getDietWeek().getDays()).isEmpty();
     }
