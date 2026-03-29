@@ -69,6 +69,10 @@ public class WorkoutLog {
     @Column(nullable = false)
     private LocalDate date;
 
+    @JsonProperty("exercise_catalog_id")
+    @Column(name = "exercise_catalog_id")
+    private Long exerciseCatalogId;
+
     @JsonProperty("created_at")
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -137,6 +141,9 @@ public class WorkoutLog {
 
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
+
+    public Long getExerciseCatalogId() { return exerciseCatalogId; }
+    public void setExerciseCatalogId(Long exerciseCatalogId) { this.exerciseCatalogId = exerciseCatalogId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
