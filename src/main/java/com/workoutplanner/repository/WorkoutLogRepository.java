@@ -44,4 +44,32 @@ public interface WorkoutLogRepository extends JpaRepository<WorkoutLog, String> 
 
     // Feedback queries — entries that have a rating set
     List<WorkoutLog> findByUserIdAndRatingIsNotNullAndDateBetween(String userId, LocalDate from, LocalDate to);
+
+    // Progress: fetch logs for a specific exercise in a date range
+    List<WorkoutLog> findByUserIdAndExerciseIgnoreCaseAndDateBetweenOrderByDateAsc(
+            String userId, String exercise, LocalDate from, LocalDate to);
+
+    // Progress: max weight per (exercise, reps) pair — used for all-time PR detection
+    @Query("SELECT w.exercise, w.reps, MAX(w.weight) FROM WorkoutLog w WHERE w.userId = :userId GROUP BY w.exercise, w.reps")
+    List<Object[]> findMaxWeightPerExerciseReps(@Param("userId") String userId);
+
+    // Progress: all logs in date range ordered by date
+    List<WorkoutLog> findByUserIdAndDateBetweenOrderByDateAsc(String userId, LocalDate from, LocalDate to);
+
+    // Progress: all logs for a user ordered by date asc (used for streak calculation)
+    List<WorkoutLog> findByUserIdOrderByDateAsc(String userId);
+
+    // Progress: distinct workout days in date range (used for heatmap / streak)
+    @Query("SELECT DISTINCT w.date FROM WorkoutLog w WHERE w.userId = :userId AND w.date BETWEEN :from AND :to ORDER BY w.date")
+    List<LocalDate> findDistinctDatesByUserIdAndDateBetween(
+            @Param("userId") String userId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
+
+    // Progress: logs that have an exercise catalog link (for muscle-balance)
+    @Query("SELECT w FROM WorkoutLog w WHERE w.userId = :userId AND w.exerciseCatalogId IS NOT NULL AND w.date BETWEEN :from AND :to ORDER BY w.date ASC")
+    List<WorkoutLog> findByUserIdWithCatalogLinkAndDateBetween(
+            @Param("userId") String userId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
 }

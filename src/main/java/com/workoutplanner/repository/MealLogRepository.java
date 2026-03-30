@@ -20,4 +20,7 @@ public interface MealLogRepository extends JpaRepository<MealLog, String> {
 
     // Feedback queries — entries that have a rating set
     List<MealLog> findByUserIdAndRatingIsNotNullAndDateBetween(String userId, LocalDate from, LocalDate to);
+
+    // Progress: all meal logs in date range ordered by date
+    List<MealLog> findByUserIdAndDateBetweenOrderByDateAsc(String userId, LocalDate from, LocalDate to);
 }
