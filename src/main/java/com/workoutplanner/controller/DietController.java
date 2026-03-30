@@ -1,10 +1,13 @@
 package com.workoutplanner.controller;
 
+import com.workoutplanner.dto.MealFeedbackResponse;
 import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.JwtService;
+import com.workoutplanner.service.OverloadService;
+import org.springframework.format.annotation.DateTimeFormat;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -25,6 +29,7 @@ public class DietController {
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    private final OverloadService overloadService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -32,10 +37,12 @@ public class DietController {
     @Autowired
     public DietController(DietProfileRepository dietProfileRepository,
                          UserRepository userRepository,
-                         JwtService jwtService) {
+                         JwtService jwtService,
+                         OverloadService overloadService) {
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.overloadService = overloadService;
     }
 
     @GetMapping("/profile")
@@ -100,6 +107,15 @@ public class DietController {
         stats.put("hasCurrentPlan", profile.getCurrentPlanStorageKey() != null);
 
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/feedback")
+    public ResponseEntity<List<MealFeedbackResponse>> getDietFeedback(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
+        return ResponseEntity.ok(overloadService.getMealFeedback(userId, from, to));
     }
 
     private String getCurrentUserId(HttpServletRequest request) {

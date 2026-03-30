@@ -2,6 +2,8 @@ package com.workoutplanner.repository;
 
 import com.workoutplanner.model.MealLog;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -20,6 +22,14 @@ public interface MealLogRepository extends JpaRepository<MealLog, String> {
 
     // Feedback queries — entries that have a rating set
     List<MealLog> findByUserIdAndRatingIsNotNullAndDateBetween(String userId, LocalDate from, LocalDate to);
+
+    // Feedback queries — entries with any feedback field non-null (P1-011)
+    @Query("SELECT m FROM MealLog m WHERE m.userId = :userId AND m.date BETWEEN :from AND :to " +
+           "AND (m.rating IS NOT NULL OR m.feedbackComment IS NOT NULL) " +
+           "ORDER BY m.date DESC")
+    List<MealLog> findWithFeedbackByUserIdAndDateBetween(@Param("userId") String userId,
+                                                          @Param("from") LocalDate from,
+                                                          @Param("to") LocalDate to);
 
     // Progress: all meal logs in date range ordered by date
     List<MealLog> findByUserIdAndDateBetweenOrderByDateAsc(String userId, LocalDate from, LocalDate to);

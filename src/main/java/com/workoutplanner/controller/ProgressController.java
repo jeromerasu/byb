@@ -4,6 +4,7 @@ import com.workoutplanner.dto.*;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.service.JwtService;
+import com.workoutplanner.service.OverloadService;
 import com.workoutplanner.service.ProgressService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ public class ProgressController {
     private static final Logger log = LoggerFactory.getLogger(ProgressController.class);
 
     private final ProgressService progressService;
+    private final OverloadService overloadService;
     private final UserRepository userRepository;
     private final JwtService jwtService;
 
@@ -36,9 +38,11 @@ public class ProgressController {
 
     @Autowired
     public ProgressController(ProgressService progressService,
+                               OverloadService overloadService,
                                UserRepository userRepository,
                                JwtService jwtService) {
         this.progressService = progressService;
+        this.overloadService = overloadService;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
     }
@@ -125,6 +129,18 @@ public class ProgressController {
         String userId = getCurrentUserId(request);
         log.info("progress.weekly_overview.request userId={}", userId);
         return ResponseEntity.ok(progressService.getWeeklyOverview(userId));
+    }
+
+    // P1-011: Progressive overload summary
+    @GetMapping("/overload-summary")
+    public ResponseEntity<List<OverloadSummaryResponse>> overloadSummary(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletRequest request) {
+
+        String userId = getCurrentUserId(request);
+        log.info("progress.overload_summary userId={} from={} to={}", userId, from, to);
+        return ResponseEntity.ok(overloadService.getOverloadSummary(userId, from, to));
     }
 
     // -------------------------------------------------------------------------

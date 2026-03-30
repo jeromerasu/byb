@@ -6,6 +6,7 @@ import com.workoutplanner.model.QueueStatus;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
+import com.workoutplanner.service.OverloadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,13 +36,17 @@ class PlanGenerationExecutorServiceTest {
     private DietProfileRepository dietProfileRepository;
     @Mock
     private OpenAIService openAIService;
+    @Mock
+    private OverloadService overloadService;
 
     private PlanGenerationExecutorService executorService;
 
     @BeforeEach
     void setUp() {
         executorService = new PlanGenerationExecutorService(
-                workoutProfileRepository, dietProfileRepository, openAIService);
+                workoutProfileRepository, dietProfileRepository, openAIService, overloadService);
+        // Default: no feedback (lenient to avoid UnnecessaryStubbingException in non-execute tests)
+        lenient().when(overloadService.buildFeedbackBlock(any(), any(), any())).thenReturn("");
     }
 
     private PlanGenerationQueue makeClaimedEntry(String userId) {
@@ -68,7 +73,7 @@ class PlanGenerationExecutorServiceTest {
         when(dietProfileRepository.findByUserId(userId)).thenReturn(Optional.of(dp));
         OpenAIService.CombinedPlanResult combined =
                 new OpenAIService.CombinedPlanResult(workoutPlan, dietPlan);
-        when(openAIService.generateCombinedPlans(wp, dp)).thenReturn(combined);
+        when(openAIService.generateCombinedPlans(any(), any(), any())).thenReturn(combined);
 
         PlanGenerationExecutorService.GenerationResult result = executorService.execute(entry);
 
@@ -120,7 +125,7 @@ class PlanGenerationExecutorServiceTest {
         DietProfile dp = new DietProfile();
         when(workoutProfileRepository.findByUserId(userId)).thenReturn(Optional.of(wp));
         when(dietProfileRepository.findByUserId(userId)).thenReturn(Optional.of(dp));
-        when(openAIService.generateCombinedPlans(any(), any()))
+        when(openAIService.generateCombinedPlans(any(), any(), any()))
                 .thenThrow(new RuntimeException("Connection timeout"));
 
         PlanGenerationExecutorService.PlanGenerationException ex = assertThrows(

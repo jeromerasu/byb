@@ -42,6 +42,11 @@ public class OpenAIService {
     }
 
     public CombinedPlanResult generateCombinedPlans(WorkoutProfile workoutProfile, DietProfile dietProfile) {
+        return generateCombinedPlans(workoutProfile, dietProfile, "");
+    }
+
+    public CombinedPlanResult generateCombinedPlans(WorkoutProfile workoutProfile, DietProfile dietProfile,
+                                                     String feedbackBlock) {
         if (openaiApiKey == null || openaiApiKey.trim().isEmpty()) {
             throw new RuntimeException("OpenAI API key not configured");
         }
@@ -50,13 +55,20 @@ public class OpenAIService {
             // Create the prompt for combined plan generation
             String prompt = buildCombinedPrompt(workoutProfile, dietProfile);
 
+            // Build system prompt, optionally appending feedback block
+            String systemPrompt = getSystemPrompt();
+            if (feedbackBlock != null && !feedbackBlock.isBlank()) {
+                systemPrompt += "\n\n" + feedbackBlock;
+                logger.info("openai.feedback_block_injected length={}", feedbackBlock.length());
+            }
+
             // Build OpenAI request
             OpenAIRequest request = new OpenAIRequest();
             request.setModel(openaiModel);
             request.setTemperature(0.7);
             request.setMaxTokens(6500); // Temporary fix for 8K context limit until deployment issues resolved
             request.setMessages(Arrays.asList(
-                new OpenAIRequest.OpenAIMessage("system", getSystemPrompt()),
+                new OpenAIRequest.OpenAIMessage("system", systemPrompt),
                 new OpenAIRequest.OpenAIMessage("user", prompt)
             ));
 
