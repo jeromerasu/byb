@@ -1,14 +1,17 @@
 package com.workoutplanner.controller;
 
+import com.workoutplanner.dto.WorkoutFeedbackResponse;
 import com.workoutplanner.dto.WorkoutPlanResponseDto;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.UserRepository;
+import com.workoutplanner.service.OverloadService;
 import com.workoutplanner.service.StorageService;
 import com.workoutplanner.service.WorkoutPlanGeneratorService;
 import com.workoutplanner.service.PlanValidationService;
 import com.workoutplanner.service.JwtService;
+import org.springframework.format.annotation.DateTimeFormat;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -33,6 +37,7 @@ public class WorkoutController {
     private final WorkoutPlanGeneratorService workoutPlanGeneratorService;
     private final PlanValidationService planValidationService;
     private final JwtService jwtService;
+    private final OverloadService overloadService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -43,13 +48,15 @@ public class WorkoutController {
                            StorageService storageService,
                            WorkoutPlanGeneratorService workoutPlanGeneratorService,
                            PlanValidationService planValidationService,
-                           JwtService jwtService) {
+                           JwtService jwtService,
+                           OverloadService overloadService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.userRepository = userRepository;
         this.storageService = storageService;
         this.workoutPlanGeneratorService = workoutPlanGeneratorService;
         this.planValidationService = planValidationService;
         this.jwtService = jwtService;
+        this.overloadService = overloadService;
     }
 
     @GetMapping("/profile")
@@ -113,6 +120,15 @@ public class WorkoutController {
         stats.put("hasCurrentPlan", profile.getCurrentPlanStorageKey() != null);
 
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/feedback")
+    public ResponseEntity<List<WorkoutFeedbackResponse>> getWorkoutFeedback(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletRequest request) {
+        String userId = getCurrentUserId(request);
+        return ResponseEntity.ok(overloadService.getWorkoutFeedback(userId, from, to));
     }
 
     private String getCurrentUserId(HttpServletRequest request) {

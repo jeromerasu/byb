@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,13 +30,16 @@ public class PlanGenerationExecutorService {
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
     private final OpenAIService openAIService;
+    private final OverloadService overloadService;
 
     public PlanGenerationExecutorService(WorkoutProfileRepository workoutProfileRepository,
                                          DietProfileRepository dietProfileRepository,
-                                         OpenAIService openAIService) {
+                                         OpenAIService openAIService,
+                                         OverloadService overloadService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.openAIService = openAIService;
+        this.overloadService = overloadService;
     }
 
     /**
@@ -52,9 +56,12 @@ public class PlanGenerationExecutorService {
         WorkoutProfile workoutProfile = loadWorkoutProfile(userId, entry.getId());
         DietProfile dietProfile = loadDietProfile(userId, entry.getId());
 
+        // Build feedback block from previous 7 days
+        String feedbackBlock = buildFeedbackBlock(userId);
+
         log.info("queue.execute.generating id={} userId={}", entry.getId(), userId);
         try {
-            OpenAIService.CombinedPlanResult result = openAIService.generateCombinedPlans(workoutProfile, dietProfile);
+            OpenAIService.CombinedPlanResult result = openAIService.generateCombinedPlans(workoutProfile, dietProfile, feedbackBlock);
 
             log.info("queue.execute.done id={} userId={}", entry.getId(), userId);
             return new GenerationResult(result.getWorkoutPlan(), result.getDietPlan());
@@ -81,6 +88,23 @@ public class PlanGenerationExecutorService {
             throw new PlanGenerationException("Diet profile not found for userId=" + userId, true);
         }
         return opt.get();
+    }
+
+    private String buildFeedbackBlock(String userId) {
+        try {
+            LocalDate to = LocalDate.now();
+            LocalDate from = to.minusDays(7);
+            String block = overloadService.buildFeedbackBlock(userId, from, to);
+            if (!block.isBlank()) {
+                log.info("queue.execute.feedback_block_built userId={} chars={}", userId, block.length());
+            } else {
+                log.debug("queue.execute.no_feedback userId={}", userId);
+            }
+            return block;
+        } catch (Exception e) {
+            log.warn("queue.execute.feedback_build_failed userId={} error={}", userId, e.getMessage());
+            return "";
+        }
     }
 
     // -------------------------------------------------------------------------

@@ -44,4 +44,13 @@ public interface WorkoutLogRepository extends JpaRepository<WorkoutLog, String> 
 
     // Feedback queries — entries that have a rating set
     List<WorkoutLog> findByUserIdAndRatingIsNotNullAndDateBetween(String userId, LocalDate from, LocalDate to);
+
+    // Feedback queries — entries with any feedback field non-null/true
+    @Query("SELECT w FROM WorkoutLog w WHERE w.userId = :userId AND w.date BETWEEN :from AND :to " +
+           "AND (w.rating IS NOT NULL OR w.feedbackComment IS NOT NULL OR w.painFlag = true OR w.substitutionRequested = true) " +
+           "ORDER BY w.date DESC")
+    List<WorkoutLog> findWithFeedbackByUserIdAndDateBetween(@Param("userId") String userId,
+                                                             @Param("from") LocalDate from,
+                                                             @Param("to") LocalDate to);
+
 }
