@@ -1,6 +1,8 @@
 package com.workoutplanner.job;
 
 import com.workoutplanner.model.PlanGenerationQueue;
+import com.workoutplanner.model.QueueStatus;
+import com.workoutplanner.service.BillingEntitlementService;
 import com.workoutplanner.service.PlanGenerationExecutorService;
 import com.workoutplanner.service.PlanPersistenceService;
 import com.workoutplanner.service.QueueClaimService;
@@ -35,6 +37,7 @@ public class QueueOrchestrator {
     private final PlanGenerationExecutorService executorService;
     private final PlanPersistenceService persistenceService;
     private final QueueRetryService retryService;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Value("${queue.scanner.batch-size:5}")
     private int batchSize;
@@ -42,16 +45,21 @@ public class QueueOrchestrator {
     @Value("${queue.scanner.enabled:true}")
     private boolean enabled;
 
+    @Value("${billing.enforcement.enabled:false}")
+    private boolean billingEnforcementEnabled;
+
     public QueueOrchestrator(QueueScannerJob scannerJob,
                              QueueClaimService claimService,
                              PlanGenerationExecutorService executorService,
                              PlanPersistenceService persistenceService,
-                             QueueRetryService retryService) {
+                             QueueRetryService retryService,
+                             BillingEntitlementService billingEntitlementService) {
         this.scannerJob = scannerJob;
         this.claimService = claimService;
         this.executorService = executorService;
         this.persistenceService = persistenceService;
         this.retryService = retryService;
+        this.billingEntitlementService = billingEntitlementService;
     }
 
     /**
@@ -93,8 +101,19 @@ public class QueueOrchestrator {
 
     /**
      * Dispatch: execute generation. Failure handling wired in 016D.
+     * Re-validates entitlement before execution — if entitlement expired between enqueue and now, mark FAILED.
      */
     protected void dispatchForExecution(PlanGenerationQueue entry) {
+        // Re-validate entitlement at execution time when enforcement is enabled
+        if (billingEnforcementEnabled && !billingEntitlementService.hasActivePremiumEntitlement(entry.getUserId())) {
+            log.warn("queue.orchestrate.entitlement_expired id={} userId={} — marking FAILED",
+                    entry.getId(), entry.getUserId());
+            onExecutionFailure(entry, new PlanGenerationExecutorService.PlanGenerationException(
+                    "Entitlement expired or revoked between enqueue and execution — Premium subscription required",
+                    true));
+            return;
+        }
+
         try {
             PlanGenerationExecutorService.GenerationResult result = executorService.execute(entry);
             onExecutionSuccess(entry, result);
