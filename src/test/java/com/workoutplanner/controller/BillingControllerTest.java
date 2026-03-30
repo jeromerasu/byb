@@ -186,17 +186,18 @@ class BillingControllerTest {
     }
 
     // -------------------------------------------------------------------------
-    // POST /api/v1/billing/webhooks/revenuecat — secret validation
+    // POST /api/v1/billing/webhook — secret validation
     // -------------------------------------------------------------------------
 
     @Test
     void handleWebhook_WhenSecretConfiguredAndMissingHeader_Returns401() {
         ReflectionTestUtils.setField(controller, "webhookSecret", "my-secret");
+        ReflectionTestUtils.setField(controller, "skipWebhookValidation", false);
 
         ResponseEntity<?> response = controller.handleRevenueCatWebhook(
                 "{\"event\":{\"type\":\"INITIAL_PURCHASE\",\"app_user_id\":\"user1\"}}",
                 null,
-                null  // missing signature
+                null  // missing X-RevenueCat-Webhook-Secret header
         );
 
         log.info("test.webhook.missingSecret status={}", response.getStatusCode());
@@ -204,13 +205,14 @@ class BillingControllerTest {
     }
 
     @Test
-    void handleWebhook_WhenSecretConfiguredAndWrongSignature_Returns401() {
+    void handleWebhook_WhenSecretConfiguredAndWrongSecret_Returns401() {
         ReflectionTestUtils.setField(controller, "webhookSecret", "my-secret");
+        ReflectionTestUtils.setField(controller, "skipWebhookValidation", false);
 
         ResponseEntity<?> response = controller.handleRevenueCatWebhook(
                 "{\"event\":{\"type\":\"INITIAL_PURCHASE\"}}",
                 null,
-                "wrong-signature"
+                "wrong-secret"
         );
 
         log.info("test.webhook.wrongSecret status={}", response.getStatusCode());
@@ -218,8 +220,49 @@ class BillingControllerTest {
     }
 
     @Test
+    void handleWebhook_ValidWebhookSecretHeader_Returns200() throws Exception {
+        ReflectionTestUtils.setField(controller, "webhookSecret", "my-secret");
+        ReflectionTestUtils.setField(controller, "skipWebhookValidation", false);
+
+        com.workoutplanner.dto.RevenueCatWebhookDto dto = new com.workoutplanner.dto.RevenueCatWebhookDto();
+        when(objectMapper.readValue(anyString(), eq(com.workoutplanner.dto.RevenueCatWebhookDto.class)))
+                .thenReturn(dto);
+        doNothing().when(billingEntitlementService).processWebhookEvent(any(), anyString());
+
+        ResponseEntity<java.util.Map<String, String>> response = controller.handleRevenueCatWebhook(
+                "{\"event\":{\"type\":\"INITIAL_PURCHASE\"}}",
+                null,
+                "my-secret"  // correct X-RevenueCat-Webhook-Secret
+        );
+
+        log.info("test.webhook.validSecret status={}", response.getStatusCode());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
+    void handleWebhook_ValidAuthorizationBearerHeader_Returns200() throws Exception {
+        ReflectionTestUtils.setField(controller, "webhookSecret", "my-secret");
+        ReflectionTestUtils.setField(controller, "skipWebhookValidation", false);
+
+        com.workoutplanner.dto.RevenueCatWebhookDto dto = new com.workoutplanner.dto.RevenueCatWebhookDto();
+        when(objectMapper.readValue(anyString(), eq(com.workoutplanner.dto.RevenueCatWebhookDto.class)))
+                .thenReturn(dto);
+        doNothing().when(billingEntitlementService).processWebhookEvent(any(), anyString());
+
+        ResponseEntity<java.util.Map<String, String>> response = controller.handleRevenueCatWebhook(
+                "{\"event\":{\"type\":\"INITIAL_PURCHASE\"}}",
+                "Bearer my-secret",  // Authorization: Bearer <secret>
+                null
+        );
+
+        log.info("test.webhook.validAuthBearer status={}", response.getStatusCode());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
     void handleWebhook_WhenNoSecretConfigured_ParsesPayload() throws Exception {
         ReflectionTestUtils.setField(controller, "webhookSecret", "");
+        ReflectionTestUtils.setField(controller, "skipWebhookValidation", false);
 
         // Simulate parse error returning null
         when(objectMapper.readValue(anyString(), eq(com.workoutplanner.dto.RevenueCatWebhookDto.class)))

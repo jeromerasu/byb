@@ -15,11 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +30,9 @@ public class BillingController {
 
     @Value("${revenuecat.webhook.secret:}")
     private String webhookSecret;
+
+    @Value("${revenuecat.webhook.validation.skip:false}")
+    private boolean skipWebhookValidation;
 
     public BillingController(BillingEntitlementService billingEntitlementService, ObjectMapper objectMapper) {
         this.billingEntitlementService = billingEntitlementService;
@@ -123,19 +121,20 @@ public class BillingController {
     // Webhook endpoint
     // -------------------------------------------------------------------------
 
-    @PostMapping("/webhooks/revenuecat")
+    @PostMapping("/webhook")
     public ResponseEntity<Map<String, String>> handleRevenueCatWebhook(
             @RequestBody String payload,
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @RequestHeader(value = "X-RevenueCat-Signature", required = false) String signature) {
+            @RequestHeader(value = "X-RevenueCat-Webhook-Secret", required = false) String webhookSecretHeader) {
 
         Map<String, String> response = new HashMap<>();
 
-        // Validate webhook secret header — reject with 401 if missing or invalid
-        if (webhookSecret != null && !webhookSecret.isEmpty()) {
-            if (!verifyWebhookSignature(payload, signature)) {
-                logger.warn("billing.webhook.unauthorized — invalid or missing signature");
-                response.put("error", "Invalid or missing webhook signature");
+        // Validate webhook secret — reject with 401 if missing or invalid
+        if (!skipWebhookValidation && webhookSecret != null && !webhookSecret.isEmpty()) {
+            String providedSecret = resolveWebhookSecret(authorizationHeader, webhookSecretHeader);
+            if (!webhookSecret.equals(providedSecret)) {
+                logger.warn("billing.webhook.unauthorized — invalid or missing secret");
+                response.put("error", "Unauthorized: invalid or missing webhook secret");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
             }
         }
@@ -250,30 +249,21 @@ public class BillingController {
     // Private helpers
     // -------------------------------------------------------------------------
 
-    private boolean verifyWebhookSignature(String payload, String signature) {
-        if (signature == null || webhookSecret == null || webhookSecret.isEmpty()) {
-            return false;
+    /**
+     * Resolves the webhook secret from incoming headers.
+     * Accepts either X-RevenueCat-Webhook-Secret or Authorization (Bearer token).
+     */
+    private String resolveWebhookSecret(String authorizationHeader, String webhookSecretHeader) {
+        if (webhookSecretHeader != null && !webhookSecretHeader.isBlank()) {
+            return webhookSecretHeader;
         }
-
-        try {
-            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256Hmac.init(secretKey);
-
-            byte[] hash = sha256Hmac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
+        if (authorizationHeader != null) {
+            if (authorizationHeader.startsWith("Bearer ")) {
+                return authorizationHeader.substring(7);
             }
-
-            return hexString.toString().equals(signature);
-
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            logger.error("billing.webhook.signature_verify_error error={}", e.getMessage(), e);
-            return false;
+            return authorizationHeader;
         }
+        return null;
     }
 
     private RevenueCatWebhookDto parseWebhookPayload(String payload) {
