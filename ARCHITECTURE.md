@@ -736,7 +736,9 @@ If a worker crashes mid-processing, its row stays `CLAIMED` with a stale `locked
 ### 10.3 RevenueCat
 
 - Webhook ingestion at `POST /api/v1/billing/webhook`
-- Config: `revenuecat.api-key`, `revenuecat.webhook-secret`
+- Secret validation: incoming request must carry the configured secret in either the `X-RevenueCat-Webhook-Secret` header or as a Bearer token in the `Authorization` header; returns 401 otherwise
+- Validation can be skipped in test/CI environments via `revenuecat.webhook.validation.skip=true`
+- Config: `revenuecat.webhook.secret` (env: `REVENUECAT_WEBHOOK_SECRET`), `revenuecat.api.key`
 - Environments: `sandbox` (beta), `production` (prod)
 - Events update `BillingEntitlement` rows and sync `entitlementActive` flag
 
