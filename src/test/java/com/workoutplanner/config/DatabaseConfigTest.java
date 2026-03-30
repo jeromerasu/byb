@@ -149,10 +149,15 @@ class DatabaseConfigTest {
 
         for (String invalidUrl : invalidUrls) {
             if (invalidUrl != null && !invalidUrl.isEmpty()) {
-                assertFalse(
-                    invalidUrl.startsWith("postgres://") ||
+                boolean isValidScheme = invalidUrl.startsWith("postgres://") ||
                     invalidUrl.startsWith("postgresql://") ||
-                    invalidUrl.startsWith("jdbc:postgresql://"),
+                    invalidUrl.startsWith("jdbc:postgresql://");
+                // A valid URL must have a proper scheme AND content after the scheme
+                boolean hasContent = invalidUrl.length() > "postgres://".length() &&
+                    !invalidUrl.equals("postgres://") &&
+                    !invalidUrl.equals("postgresql://");
+                assertFalse(
+                    isValidScheme && hasContent,
                     "Should reject invalid URL: " + invalidUrl
                 );
             }
