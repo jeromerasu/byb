@@ -122,34 +122,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <testExcludes>
-                        <testExclude>**/model/ExerciseTest.java</testExclude>
-                        <testExclude>**/model/WorkoutPlanTest.java</testExclude>
-                        <testExclude>**/model/UserProfileTest.java</testExclude>
-                        <testExclude>**/model/DietPlanTest.java</testExclude>
-                        <testExclude>**/controller/WorkoutPlanControllerTest.java</testExclude>
-                        <testExclude>**/service/OpenAIServiceTest.java</testExclude>
-                        <testExclude>**/model/DietProfileTest.java</testExclude>
-                        <testExclude>**/config/DatabaseConfigTest.java</testExclude>
-                    </testExcludes>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED -Dnet.bytebuddy.experimental=true</argLine>
-                    <excludes>
-                        <exclude>**/model/ExerciseTest.java</exclude>
-                        <exclude>**/model/WorkoutPlanTest.java</exclude>
-                        <exclude>**/model/UserProfileTest.java</exclude>
-                        <exclude>**/model/DietPlanTest.java</exclude>
-                        <exclude>**/controller/WorkoutPlanControllerTest.java</exclude>
-                        <exclude>**/service/OpenAIServiceTest.java</exclude>
-                        <exclude>**/model/DietProfileTest.java</exclude>
-                        <exclude>**/config/DatabaseConfigTest.java</exclude>
-                    </excludes>
                 </configuration>
             </plugin>
         </plugins>
