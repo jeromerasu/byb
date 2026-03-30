@@ -41,14 +41,18 @@ class QueueOrchestratorTest {
     private PlanPersistenceService persistenceService;
     @Mock
     private QueueRetryService retryService;
+    @Mock
+    private com.workoutplanner.service.BillingEntitlementService billingEntitlementService;
 
     private QueueOrchestrator orchestrator;
 
     @BeforeEach
     void setUp() {
-        orchestrator = new QueueOrchestrator(scannerJob, claimService, executorService, persistenceService, retryService);
+        orchestrator = new QueueOrchestrator(scannerJob, claimService, executorService, persistenceService,
+                retryService, billingEntitlementService);
         ReflectionTestUtils.setField(orchestrator, "batchSize", 5);
         ReflectionTestUtils.setField(orchestrator, "enabled", true);
+        ReflectionTestUtils.setField(orchestrator, "billingEnforcementEnabled", false);
     }
 
     private PlanGenerationQueue makeEntry(String id, String userId) {

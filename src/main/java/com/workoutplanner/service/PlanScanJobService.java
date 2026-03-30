@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import com.workoutplanner.service.BillingEntitlementService;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -27,6 +28,7 @@ public class PlanScanJobService {
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
     private final PlanGenerationQueueRepository planGenerationQueueRepository;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Value("${plan.scan.max-age-days:7}")
     private int maxAgeDays;
@@ -34,15 +36,20 @@ public class PlanScanJobService {
     @Value("${plan.scan.enabled:true}")
     private boolean scanEnabled;
 
+    @Value("${billing.enforcement.enabled:false}")
+    private boolean billingEnforcementEnabled;
+
     @Autowired
     public PlanScanJobService(UserRepository userRepository,
                                WorkoutProfileRepository workoutProfileRepository,
                                DietProfileRepository dietProfileRepository,
-                               PlanGenerationQueueRepository planGenerationQueueRepository) {
+                               PlanGenerationQueueRepository planGenerationQueueRepository,
+                               BillingEntitlementService billingEntitlementService) {
         this.userRepository = userRepository;
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.planGenerationQueueRepository = planGenerationQueueRepository;
+        this.billingEntitlementService = billingEntitlementService;
     }
 
     @Scheduled(fixedDelayString = "${plan.scan.interval-ms:300000}")
@@ -71,6 +78,7 @@ public class PlanScanJobService {
 
         int found = users.size();
         int skippedNoProfiles = 0;
+        int skippedNoEntitlement = 0;
         int skippedAlreadyQueued = 0;
         int enqueued = 0;
 
@@ -82,6 +90,13 @@ public class PlanScanJobService {
 
             if (workoutProfileOpt.isEmpty() || dietProfileOpt.isEmpty()) {
                 skippedNoProfiles++;
+                continue;
+            }
+
+            // Skip users without active Premium entitlement when enforcement is enabled
+            if (billingEnforcementEnabled && !billingEntitlementService.hasActivePremiumEntitlement(userId)) {
+                logger.debug("plan.scan.skip_no_entitlement user_id={}", userId);
+                skippedNoEntitlement++;
                 continue;
             }
 
@@ -117,12 +132,13 @@ public class PlanScanJobService {
             enqueued++;
         }
 
-        logger.info("Plan scan job complete: found={}, skipped_no_profiles={}, skipped_already_queued={}, enqueued={}",
-                found, skippedNoProfiles, skippedAlreadyQueued, enqueued);
+        logger.info("plan.scan.complete found={} skipped_no_profiles={} skipped_no_entitlement={} skipped_already_queued={} enqueued={}",
+                found, skippedNoProfiles, skippedNoEntitlement, skippedAlreadyQueued, enqueued);
 
         Map<String, Object> result = new HashMap<>();
         result.put("users_scanned", found);
         result.put("skipped_no_profiles", skippedNoProfiles);
+        result.put("skipped_no_entitlement", skippedNoEntitlement);
         result.put("skipped_already_queued", skippedAlreadyQueued);
         result.put("enqueued", enqueued);
         return result;

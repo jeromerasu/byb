@@ -40,15 +40,19 @@ class PlanScanJobServiceTest {
     private DietProfileRepository dietProfileRepository;
     @Mock
     private PlanGenerationQueueRepository planGenerationQueueRepository;
+    @Mock
+    private BillingEntitlementService billingEntitlementService;
 
     private PlanScanJobService scanJobService;
 
     @BeforeEach
     void setUp() {
         scanJobService = new PlanScanJobService(
-                userRepository, workoutProfileRepository, dietProfileRepository, planGenerationQueueRepository);
+                userRepository, workoutProfileRepository, dietProfileRepository,
+                planGenerationQueueRepository, billingEntitlementService);
         ReflectionTestUtils.setField(scanJobService, "maxAgeDays", 7);
         ReflectionTestUtils.setField(scanJobService, "scanEnabled", true);
+        ReflectionTestUtils.setField(scanJobService, "billingEnforcementEnabled", false);
     }
 
     private User makeUser(String id) {

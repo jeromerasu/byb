@@ -9,6 +9,7 @@ import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.UserRepository;
+import com.workoutplanner.service.BillingEntitlementService;
 import com.workoutplanner.service.CombinedPlanService;
 import com.workoutplanner.service.PlanParsingService;
 import com.workoutplanner.service.StorageService;
@@ -17,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -44,9 +46,13 @@ public class PlanController {
     private final DietProfileRepository dietProfileRepository;
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    private final BillingEntitlementService billingEntitlementService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
+
+    @Value("${billing.enforcement.enabled:false}")
+    private boolean billingEnforcementEnabled;
 
     @Autowired
     public PlanController(CombinedPlanService combinedPlanService,
@@ -55,7 +61,8 @@ public class PlanController {
                          WorkoutProfileRepository workoutProfileRepository,
                          DietProfileRepository dietProfileRepository,
                          UserRepository userRepository,
-                         JwtService jwtService) {
+                         JwtService jwtService,
+                         BillingEntitlementService billingEntitlementService) {
         this.combinedPlanService = combinedPlanService;
         this.planParsingService = planParsingService;
         this.storageService = storageService;
@@ -63,16 +70,30 @@ public class PlanController {
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.billingEntitlementService = billingEntitlementService;
     }
 
     @PostMapping("/generate")
-    public Mono<ResponseEntity<CombinedPlanResponseDto>> generateCombinedPlan(HttpServletRequest request) {
+    public Mono<ResponseEntity<?>> generateCombinedPlan(HttpServletRequest request) {
         String userId = getCurrentUserId(request);
-        logger.info("Plan generation requested for user ID: {}", userId);
+        logger.info("plan.generate.requested user_id={}", userId);
 
-        return Mono.fromCallable(() -> {
+        // Enforce billing entitlement check when enforcement is enabled
+        if (billingEnforcementEnabled && !billingEntitlementService.hasActivePremiumEntitlement(userId)) {
+            logger.info("plan.generate.blocked user_id={} reason=no_active_premium_entitlement", userId);
+            return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Upgrade to Premium to unlock AI plan generation"));
+        }
+
+        Mono<ResponseEntity<?>> resultMono = Mono.<ResponseEntity<?>>fromCallable(() -> {
             try {
                 CombinedPlanResponseDto response = combinedPlanService.generateCombinedPlan(userId);
+                // Track usage on successful generation
+                try {
+                    billingEntitlementService.incrementPlanUsage(userId);
+                } catch (Exception usageEx) {
+                    logger.warn("plan.generate.usage_track_error user_id={} error={}", userId, usageEx.getMessage());
+                }
                 return ResponseEntity.ok(response);
             } catch (RuntimeException e) {
                 // Handle specific error scenarios with appropriate HTTP status codes
@@ -86,7 +107,8 @@ public class PlanController {
                     throw new RuntimeException("Failed to generate combined plan: " + errorMessage);
                 }
             }
-        }).onErrorMap(throwable -> {
+        });
+        return resultMono.onErrorMap(throwable -> {
             if (throwable instanceof RuntimeException) {
                 return throwable;
             }

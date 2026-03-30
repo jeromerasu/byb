@@ -1,5 +1,9 @@
 package com.workoutplanner.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.workoutplanner.dto.BillingStatusDto;
+import com.workoutplanner.dto.BillingUsageDto;
+import com.workoutplanner.dto.LinkCustomerRequestDto;
 import com.workoutplanner.dto.RevenueCatWebhookDto;
 import com.workoutplanner.model.BillingEntitlement;
 import com.workoutplanner.service.BillingEntitlementService;
@@ -27,13 +31,97 @@ public class BillingController {
     private static final Logger logger = LoggerFactory.getLogger(BillingController.class);
 
     private final BillingEntitlementService billingEntitlementService;
+    private final ObjectMapper objectMapper;
 
     @Value("${revenuecat.webhook.secret:}")
     private String webhookSecret;
 
-    public BillingController(BillingEntitlementService billingEntitlementService) {
+    public BillingController(BillingEntitlementService billingEntitlementService, ObjectMapper objectMapper) {
         this.billingEntitlementService = billingEntitlementService;
+        this.objectMapper = objectMapper;
     }
+
+    // -------------------------------------------------------------------------
+    // New endpoints — TASK-BILLING-001
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /api/v1/billing/status — returns subscription info for the authenticated user.
+     */
+    @GetMapping("/status")
+    public ResponseEntity<?> getBillingStatus(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String userId = authentication.getName();
+        logger.info("billing.status.requested user_id={}", userId);
+
+        try {
+            BillingStatusDto status = billingEntitlementService.getBillingStatus(userId);
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            logger.error("billing.status.error user_id={} error={}", userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to retrieve billing status"));
+        }
+    }
+
+    /**
+     * POST /api/v1/billing/link-customer — associates a RevenueCat customer ID with the authenticated user.
+     */
+    @PostMapping("/link-customer")
+    public ResponseEntity<?> linkCustomer(@RequestBody LinkCustomerRequestDto request,
+                                          Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String userId = authentication.getName();
+
+        if (request.getRevenueCatCustomerId() == null || request.getRevenueCatCustomerId().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "revenueCatCustomerId is required"));
+        }
+
+        logger.info("billing.link_customer.requested user_id={} provider_customer_id={}",
+                userId, request.getRevenueCatCustomerId());
+
+        try {
+            billingEntitlementService.linkProviderCustomerId(userId, request.getRevenueCatCustomerId());
+            return ResponseEntity.ok(Map.of("status", "success",
+                    "message", "Customer ID linked successfully"));
+        } catch (Exception e) {
+            logger.error("billing.link_customer.error user_id={} error={}", userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to link customer ID"));
+        }
+    }
+
+    /**
+     * GET /api/v1/billing/usage — returns plan generation usage for the current billing period.
+     */
+    @GetMapping("/usage")
+    public ResponseEntity<?> getBillingUsage(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String userId = authentication.getName();
+        logger.info("billing.usage.requested user_id={}", userId);
+
+        try {
+            BillingUsageDto usage = billingEntitlementService.getUsageForCurrentPeriod(userId);
+            return ResponseEntity.ok(usage);
+        } catch (Exception e) {
+            logger.error("billing.usage.error user_id={} error={}", userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to retrieve billing usage"));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Webhook endpoint
+    // -------------------------------------------------------------------------
 
     @PostMapping("/webhooks/revenuecat")
     public ResponseEntity<Map<String, String>> handleRevenueCatWebhook(
@@ -43,37 +131,39 @@ public class BillingController {
 
         Map<String, String> response = new HashMap<>();
 
-        try {
-            // Verify webhook signature if secret is configured
-            if (webhookSecret != null && !webhookSecret.isEmpty()) {
-                if (!verifyWebhookSignature(payload, signature)) {
-                    logger.warn("Invalid webhook signature received");
-                    response.put("error", "Invalid signature");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-                }
+        // Validate webhook secret header — reject with 401 if missing or invalid
+        if (webhookSecret != null && !webhookSecret.isEmpty()) {
+            if (!verifyWebhookSignature(payload, signature)) {
+                logger.warn("billing.webhook.unauthorized — invalid or missing signature");
+                response.put("error", "Invalid or missing webhook signature");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
             }
+        }
 
-            // Parse webhook payload
+        try {
             RevenueCatWebhookDto webhookDto = parseWebhookPayload(payload);
             if (webhookDto == null) {
-                logger.error("Failed to parse webhook payload");
+                logger.error("billing.webhook.parse_error payload_length={}", payload.length());
                 response.put("error", "Invalid payload");
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Process the webhook event
-            billingEntitlementService.processWebhookEvent(webhookDto);
+            billingEntitlementService.processWebhookEvent(webhookDto, payload);
 
             response.put("status", "success");
             response.put("message", "Webhook processed successfully");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            logger.error("Error processing RevenueCat webhook", e);
+            logger.error("billing.webhook.error error={}", e.getMessage(), e);
             response.put("error", "Internal server error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Existing endpoints (unchanged)
+    // -------------------------------------------------------------------------
 
     @PostMapping("/entitlements/sync")
     public ResponseEntity<Map<String, Object>> syncEntitlements(Authentication authentication) {
@@ -92,7 +182,7 @@ public class BillingController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            logger.error("Error syncing entitlements for user: " + userId, e);
+            logger.error("billing.sync.error user_id={} error={}", userId, e.getMessage(), e);
             response.put("error", "Failed to sync entitlements");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
@@ -111,11 +201,9 @@ public class BillingController {
             Optional<BillingEntitlement> entitlementOpt = billingEntitlementService.getActiveEntitlementForUser(userId);
 
             if (entitlementOpt.isPresent()) {
-                BillingEntitlement entitlement = entitlementOpt.get();
                 response.put("status", "success");
-                response.put("entitlement", createEntitlementResponse(entitlement));
+                response.put("entitlement", createEntitlementResponse(entitlementOpt.get()));
             } else {
-                // Return free tier entitlement for users without subscriptions
                 response.put("status", "success");
                 response.put("entitlement", createFreeEntitlementResponse(userId));
             }
@@ -123,7 +211,7 @@ public class BillingController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            logger.error("Error fetching entitlements for user: " + userId, e);
+            logger.error("billing.entitlements.me.error user_id={} error={}", userId, e.getMessage(), e);
             response.put("error", "Failed to fetch entitlements");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
@@ -142,7 +230,7 @@ public class BillingController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            boolean hasAccess = checkFeatureAccess(userId, feature);
+            boolean hasAccess = checkFeatureAccessByName(userId, feature);
 
             response.put("status", "success");
             response.put("feature", feature);
@@ -152,11 +240,15 @@ public class BillingController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            logger.error("Error checking feature access for user: " + userId + ", feature: " + feature, e);
+            logger.error("billing.feature_check.error user_id={} feature={} error={}", userId, feature, e.getMessage(), e);
             response.put("error", "Failed to check feature access");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
 
     private boolean verifyWebhookSignature(String payload, String signature) {
         if (signature == null || webhookSecret == null || webhookSecret.isEmpty()) {
@@ -172,30 +264,23 @@ public class BillingController {
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
+                if (hex.length() == 1) hexString.append('0');
                 hexString.append(hex);
             }
 
-            String expectedSignature = hexString.toString();
-            return signature.equals(expectedSignature);
+            return hexString.toString().equals(signature);
 
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            logger.error("Error verifying webhook signature", e);
+            logger.error("billing.webhook.signature_verify_error error={}", e.getMessage(), e);
             return false;
         }
     }
 
     private RevenueCatWebhookDto parseWebhookPayload(String payload) {
         try {
-            // Use a JSON parser to convert payload to RevenueCatWebhookDto
-            // For now, returning null as a placeholder
-            // In real implementation, use ObjectMapper or similar
-            logger.info("Parsing webhook payload: {}", payload);
-            return null; // TODO: Implement JSON parsing
+            return objectMapper.readValue(payload, RevenueCatWebhookDto.class);
         } catch (Exception e) {
-            logger.error("Error parsing webhook payload", e);
+            logger.error("billing.webhook.json_parse_error error={}", e.getMessage(), e);
             return null;
         }
     }
@@ -225,21 +310,20 @@ public class BillingController {
         return response;
     }
 
-    private boolean checkFeatureAccess(String userId, String feature) {
-        // Define feature access rules based on plan tier
-        boolean hasPremiumEntitlement = billingEntitlementService.hasActivePremiumEntitlement(userId);
+    private boolean checkFeatureAccessByName(String userId, String feature) {
+        boolean hasPremium = billingEntitlementService.hasActivePremiumEntitlement(userId);
 
         switch (feature.toLowerCase()) {
             case "unlimited_plans":
             case "custom_workouts":
             case "nutrition_tracking":
             case "progress_analytics":
-                return hasPremiumEntitlement;
+                return hasPremium;
             case "basic_workouts":
             case "basic_nutrition":
-                return true; // Available to all users
+                return true;
             default:
-                return false; // Unknown features default to no access
+                return false;
         }
     }
 }
