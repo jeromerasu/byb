@@ -13,26 +13,26 @@ import java.util.Optional;
 public interface FoodCatalogRepository extends JpaRepository<FoodCatalog, Long> {
 
     /** All system entries + the given user's custom entries, optionally filtered by name and/or category. */
-    @Query("""
-        SELECT f FROM FoodCatalog f
-        WHERE (f.isSystem = true OR f.createdByUserId = :userId)
-          AND (:name IS NULL OR LOWER(f.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:category IS NULL OR f.category = :category)
-        ORDER BY f.isSystem DESC, f.name ASC
-        """)
+    @Query(value = """
+        SELECT * FROM food_catalog
+        WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId)
+          AND (CAST(:name AS TEXT) IS NULL OR LOWER(name) LIKE LOWER(('%' || :name || '%')))
+          AND (CAST(:category AS TEXT) IS NULL OR category = :category)
+        ORDER BY is_system DESC, name ASC
+        """, nativeQuery = true)
     List<FoodCatalog> findVisibleToUser(
             @Param("userId") String userId,
             @Param("name") String name,
             @Param("category") String category);
 
     /** All system entries only, optionally filtered. */
-    @Query("""
-        SELECT f FROM FoodCatalog f
-        WHERE f.isSystem = true
-          AND (:name IS NULL OR LOWER(f.name) LIKE LOWER(CONCAT('%', :name, '%')))
-          AND (:category IS NULL OR f.category = :category)
-        ORDER BY f.name ASC
-        """)
+    @Query(value = """
+        SELECT * FROM food_catalog
+        WHERE is_system = true
+          AND (CAST(:name AS TEXT) IS NULL OR LOWER(name) LIKE LOWER(('%' || :name || '%')))
+          AND (CAST(:category AS TEXT) IS NULL OR category = :category)
+        ORDER BY name ASC
+        """, nativeQuery = true)
     List<FoodCatalog> findSystemEntries(
             @Param("name") String name,
             @Param("category") String category);

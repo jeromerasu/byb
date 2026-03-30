@@ -24,15 +24,17 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
     /**
      * Returns all system entries plus entries owned by the given user.
      */
-    @Query("SELECT e FROM ExerciseCatalog e WHERE e.isSystem = true OR e.createdByUserId = :userId")
+    @Query(value = "SELECT * FROM exercise_catalog WHERE is_system = true OR CAST(created_by_user_id AS TEXT) = :userId",
+           nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUser(@Param("userId") String userId);
 
     /**
      * Returns visible entries filtered by exercise type.
      */
-    @Query("SELECT e FROM ExerciseCatalog e " +
-           "WHERE (e.isSystem = true OR e.createdByUserId = :userId) " +
-           "AND LOWER(e.exerciseType) = LOWER(:exerciseType)")
+    @Query(value = "SELECT * FROM exercise_catalog " +
+           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "AND LOWER(exercise_type) = LOWER(:exerciseType)",
+           nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByType(
             @Param("userId") String userId,
             @Param("exerciseType") String exerciseType);
@@ -40,9 +42,10 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
     /**
      * Returns visible entries whose name contains the given substring (case-insensitive).
      */
-    @Query("SELECT e FROM ExerciseCatalog e " +
-           "WHERE (e.isSystem = true OR e.createdByUserId = :userId) " +
-           "AND LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    @Query(value = "SELECT * FROM exercise_catalog " +
+           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "AND LOWER(name) LIKE LOWER(('%' || :name || '%'))",
+           nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByNameContaining(
             @Param("userId") String userId,
             @Param("name") String name);
@@ -50,9 +53,10 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
     /**
      * Returns visible entries that list a given muscle group (substring match on stored text).
      */
-    @Query("SELECT e FROM ExerciseCatalog e " +
-           "WHERE (e.isSystem = true OR e.createdByUserId = :userId) " +
-           "AND LOWER(e.muscleGroups) LIKE LOWER(CONCAT('%', :muscleGroup, '%'))")
+    @Query(value = "SELECT * FROM exercise_catalog " +
+           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "AND LOWER(CAST(muscle_groups AS TEXT)) LIKE LOWER(('%' || :muscleGroup || '%'))",
+           nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByMuscleGroup(
             @Param("userId") String userId,
             @Param("muscleGroup") String muscleGroup);
@@ -60,9 +64,10 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
     /**
      * Returns visible entries that list a given equipment type (substring match on stored text).
      */
-    @Query("SELECT e FROM ExerciseCatalog e " +
-           "WHERE (e.isSystem = true OR e.createdByUserId = :userId) " +
-           "AND LOWER(e.equipmentRequired) LIKE LOWER(CONCAT('%', :equipment, '%'))")
+    @Query(value = "SELECT * FROM exercise_catalog " +
+           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "AND LOWER(CAST(equipment_required AS TEXT)) LIKE LOWER(('%' || :equipment || '%'))",
+           nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByEquipment(
             @Param("userId") String userId,
             @Param("equipment") String equipment);
