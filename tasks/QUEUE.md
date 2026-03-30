@@ -33,6 +33,29 @@
 - [ ] TASK-DATA-001 — Exercise Catalog (system + custom entries, WorkoutLog FK) — **READY**
 - [ ] TASK-DATA-002 — Food Catalog (system + custom entries, MealLog FK) — **READY**
 
+## P1 Tasks — Core Feature Gaps (priority implementation wave)
+
+### Backend P1 (parallel group 1 — no interdependencies)
+- [ ] TASK-P1-001 — WorkoutLog REST Layer (CRUD endpoints) — **READY**
+- [ ] TASK-P1-002 — MealLog REST Layer (CRUD endpoints) — **READY**
+- [ ] TASK-P1-003 — BodyMetrics REST Layer — **READY**
+- [ ] TASK-P1-009 — Fix/Delete 8 Excluded Broken Test Files — **READY**
+- [ ] TASK-P1-010 — Fix Webhook URL Mismatch + Add Secret Validation — **READY**
+
+### Backend P1 (depends on P1-001, P1-002, P1-003)
+- [ ] TASK-P1-004 — Progress Aggregation Endpoints — **BACKLOG**
+
+### Backend P1 (depends on P1-001, P1-002)
+- [ ] TASK-P1-011 — Feedback REST Endpoints + AI Prompt Integration — **BACKLOG**
+
+### Frontend P1 (parallel, independent)
+- [ ] TASK-P1-005 — Frontend Mock vs Live Environment Setup — **READY**
+- [ ] TASK-P1-006 — Frontend Auth Token Secure Storage — **READY**
+- [ ] TASK-P1-007 — Fix Frontend API Path Mismatches — **READY**
+
+### Frontend P1 (depends on P1-005, P1-006, P1-007, and backend P1-001–P1-004)
+- [ ] TASK-P1-008 — Wire Frontend to Real Backend APIs — **BACKLOG**
+
 ## Notes
 - Use `tasks/TASK_TEMPLATE.md` for all new backend tasks.
 - Follow `TESTING_REQUIREMENTS.md` for mandatory local verification before marking DONE.
