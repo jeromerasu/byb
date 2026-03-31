@@ -2,8 +2,10 @@ package com.workoutplanner.service;
 
 import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.model.PlanGenerationQueue;
+import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.DietProfileRepository;
+import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,15 +31,18 @@ public class PlanGenerationExecutorService {
 
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
+    private final UserRepository userRepository;
     private final OpenAIService openAIService;
     private final OverloadService overloadService;
 
     public PlanGenerationExecutorService(WorkoutProfileRepository workoutProfileRepository,
                                          DietProfileRepository dietProfileRepository,
+                                         UserRepository userRepository,
                                          OpenAIService openAIService,
                                          OverloadService overloadService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
+        this.userRepository = userRepository;
         this.openAIService = openAIService;
         this.overloadService = overloadService;
     }
@@ -53,6 +58,7 @@ public class PlanGenerationExecutorService {
         String userId = entry.getUserId();
         log.info("queue.execute.start id={} userId={} attempt={}", entry.getId(), userId, entry.getAttemptCount());
 
+        User user = loadUser(userId, entry.getId());
         WorkoutProfile workoutProfile = loadWorkoutProfile(userId, entry.getId());
         DietProfile dietProfile = loadDietProfile(userId, entry.getId());
 
@@ -61,7 +67,7 @@ public class PlanGenerationExecutorService {
 
         log.info("queue.execute.generating id={} userId={}", entry.getId(), userId);
         try {
-            OpenAIService.CombinedPlanResult result = openAIService.generateCombinedPlans(workoutProfile, dietProfile, feedbackBlock);
+            OpenAIService.CombinedPlanResult result = openAIService.generateCombinedPlans(user, workoutProfile, dietProfile, feedbackBlock);
 
             log.info("queue.execute.done id={} userId={}", entry.getId(), userId);
             return new GenerationResult(result.getWorkoutPlan(), result.getDietPlan());
@@ -70,6 +76,15 @@ public class PlanGenerationExecutorService {
             log.error("queue.execute.openai_error id={} userId={} error={}", entry.getId(), userId, ex.getMessage());
             throw new PlanGenerationException("OpenAI generation failed: " + ex.getMessage(), ex);
         }
+    }
+
+    private User loadUser(String userId, String entryId) {
+        Optional<User> opt = userRepository.findById(userId);
+        if (opt.isEmpty()) {
+            log.error("queue.execute.no_user id={} userId={}", entryId, userId);
+            throw new PlanGenerationException("User not found for userId=" + userId, true);
+        }
+        return opt.get();
     }
 
     private WorkoutProfile loadWorkoutProfile(String userId, String entryId) {

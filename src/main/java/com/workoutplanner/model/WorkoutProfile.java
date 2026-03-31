@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -45,27 +44,6 @@ public class WorkoutProfile {
     @Column(name = "target_goals")
     @JsonProperty("target_goals")
     private String[] targetGoals;
-
-    // Physical information
-    @Column(name = "height_cm")
-    @JsonProperty("height_cm")
-    private Integer heightCm;
-
-    @Column(name = "weight_kg", precision = 5, scale = 2)
-    @JsonProperty("weight_kg")
-    private BigDecimal weightKg;
-
-    @Column(name = "age")
-    private Integer age;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "gender")
-    private Gender gender;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "activity_level")
-    @JsonProperty("activity_level")
-    private ActivityLevel activityLevel;
 
     // Current plan object storage
     @Column(name = "current_plan_storage_key")
@@ -205,46 +183,6 @@ public class WorkoutProfile {
         this.targetGoals = targetGoals;
     }
 
-    public Integer getHeightCm() {
-        return heightCm;
-    }
-
-    public void setHeightCm(Integer heightCm) {
-        this.heightCm = heightCm;
-    }
-
-    public BigDecimal getWeightKg() {
-        return weightKg;
-    }
-
-    public void setWeightKg(BigDecimal weightKg) {
-        this.weightKg = weightKg;
-    }
-
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
-    }
-
-    public Gender getGender() {
-        return gender;
-    }
-
-    public void setGender(Gender gender) {
-        this.gender = gender;
-    }
-
-    public ActivityLevel getActivityLevel() {
-        return activityLevel;
-    }
-
-    public void setActivityLevel(ActivityLevel activityLevel) {
-        this.activityLevel = activityLevel;
-    }
-
     public String getCurrentPlanStorageKey() {
         return currentPlanStorageKey;
     }
@@ -332,13 +270,5 @@ public class WorkoutProfile {
 
     public boolean hasCurrentPlan() {
         return currentPlanStorageKey != null && !currentPlanStorageKey.trim().isEmpty();
-    }
-
-    public double getBMI() {
-        if (heightCm != null && weightKg != null && heightCm > 0) {
-            double heightM = heightCm / 100.0;
-            return weightKg.doubleValue() / (heightM * heightM);
-        }
-        return 0.0;
     }
 }

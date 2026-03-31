@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -62,27 +61,6 @@ public class DietProfile {
     @Column(name = "fiber_goal_grams")
     @JsonProperty("fiber_goal_grams")
     private Integer fiberGoalGrams;
-
-    // Physical information
-    @Column(name = "height_cm")
-    @JsonProperty("height_cm")
-    private Integer heightCm;
-
-    @Column(name = "weight_kg", precision = 5, scale = 2)
-    @JsonProperty("weight_kg")
-    private BigDecimal weightKg;
-
-    @Column(name = "age")
-    private Integer age;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "gender")
-    private WorkoutProfile.Gender gender;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "activity_level")
-    @JsonProperty("activity_level")
-    private WorkoutProfile.ActivityLevel activityLevel;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "weight_goal")
@@ -259,46 +237,6 @@ public class DietProfile {
         this.fiberGoalGrams = fiberGoalGrams;
     }
 
-    public Integer getHeightCm() {
-        return heightCm;
-    }
-
-    public void setHeightCm(Integer heightCm) {
-        this.heightCm = heightCm;
-    }
-
-    public BigDecimal getWeightKg() {
-        return weightKg;
-    }
-
-    public void setWeightKg(BigDecimal weightKg) {
-        this.weightKg = weightKg;
-    }
-
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
-    }
-
-    public WorkoutProfile.Gender getGender() {
-        return gender;
-    }
-
-    public void setGender(WorkoutProfile.Gender gender) {
-        this.gender = gender;
-    }
-
-    public WorkoutProfile.ActivityLevel getActivityLevel() {
-        return activityLevel;
-    }
-
-    public void setActivityLevel(WorkoutProfile.ActivityLevel activityLevel) {
-        this.activityLevel = activityLevel;
-    }
-
     public WeightGoal getWeightGoal() {
         return weightGoal;
     }
@@ -394,43 +332,5 @@ public class DietProfile {
 
     public boolean hasCurrentPlan() {
         return currentPlanStorageKey != null && !currentPlanStorageKey.trim().isEmpty();
-    }
-
-    public double getBMI() {
-        if (heightCm != null && weightKg != null && heightCm > 0) {
-            double heightM = heightCm / 100.0;
-            return weightKg.doubleValue() / (heightM * heightM);
-        }
-        return 0.0;
-    }
-
-    public double calculateBMR() {
-        if (weightKg == null || heightCm == null || age == null || gender == null) {
-            return 0.0;
-        }
-
-        double weight = weightKg.doubleValue();
-
-        // Mifflin-St Jeor Equation
-        if (gender == WorkoutProfile.Gender.MALE) {
-            return (10 * weight) + (6.25 * heightCm) - (5 * age) + 5;
-        } else {
-            return (10 * weight) + (6.25 * heightCm) - (5 * age) - 161;
-        }
-    }
-
-    public double calculateTDEE() {
-        double bmr = calculateBMR();
-        if (bmr == 0.0 || activityLevel == null) {
-            return 0.0;
-        }
-
-        return switch (activityLevel) {
-            case SEDENTARY -> bmr * 1.2;
-            case LIGHTLY_ACTIVE -> bmr * 1.375;
-            case MODERATELY_ACTIVE -> bmr * 1.55;
-            case VERY_ACTIVE -> bmr * 1.725;
-            case EXTREMELY_ACTIVE -> bmr * 1.9;
-        };
     }
 }
