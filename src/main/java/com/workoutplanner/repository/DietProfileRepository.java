@@ -41,10 +41,6 @@ public interface DietProfileRepository extends JpaRepository<DietProfile, String
     @Query("SELECT d FROM DietProfile d WHERE d.lastMealLogged >= :fromDate ORDER BY d.lastMealLogged DESC")
     List<DietProfile> findRecentlyActiveProfiles(@Param("fromDate") LocalDateTime fromDate);
 
-    // Get profiles by age range
-    @Query("SELECT d FROM DietProfile d WHERE d.age BETWEEN :minAge AND :maxAge")
-    List<DietProfile> findByAgeRange(@Param("minAge") Integer minAge, @Param("maxAge") Integer maxAge);
-
     // Temporarily disabled - array queries need different syntax for PostgreSQL
     // @Query("SELECT d FROM DietProfile d WHERE :restriction = ANY(d.dietaryRestrictions)")
     // List<DietProfile> findByDietaryRestriction(@Param("restriction") String restriction);
@@ -67,9 +63,6 @@ public interface DietProfileRepository extends JpaRepository<DietProfile, String
     @Query("SELECT d.weightGoal, COUNT(d) FROM DietProfile d WHERE d.weightGoal IS NOT NULL GROUP BY d.weightGoal")
     List<Object[]> getWeightGoalDistribution();
 
-    @Query("SELECT d.gender, COUNT(d) FROM DietProfile d WHERE d.gender IS NOT NULL GROUP BY d.gender")
-    List<Object[]> getGenderDistribution();
-
     @Query("SELECT AVG(d.dailyCalorieGoal) FROM DietProfile d WHERE d.dailyCalorieGoal IS NOT NULL")
     Double getAverageCalorieGoal();
 
@@ -81,10 +74,6 @@ public interface DietProfileRepository extends JpaRepository<DietProfile, String
 
     @Query("SELECT AVG(d.totalMealsLogged) FROM DietProfile d")
     Double getAverageMealsLogged();
-
-    // BMR/TDEE calculations for users
-    @Query("SELECT d FROM DietProfile d WHERE d.heightCm IS NOT NULL AND d.weightKg IS NOT NULL AND d.age IS NOT NULL AND d.gender IS NOT NULL")
-    List<DietProfile> findProfilesWithCompleteMetrics();
 
     // Find profiles needing updates
     @Query("SELECT d FROM DietProfile d WHERE d.updatedAt < :thresholdDate")
