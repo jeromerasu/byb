@@ -181,6 +181,8 @@ public class CurrentWeekResponseDto {
         private Integer weightLbs;
         private String weightType;
         private Integer restSeconds;
+        private String videoUrl;
+        private String thumbnailUrl;
 
         public ExerciseDto() {}
 
@@ -237,6 +239,22 @@ public class CurrentWeekResponseDto {
 
         public void setRestSeconds(Integer restSeconds) {
             this.restSeconds = restSeconds;
+        }
+
+        public String getVideoUrl() {
+            return videoUrl;
+        }
+
+        public void setVideoUrl(String videoUrl) {
+            this.videoUrl = videoUrl;
+        }
+
+        public String getThumbnailUrl() {
+            return thumbnailUrl;
+        }
+
+        public void setThumbnailUrl(String thumbnailUrl) {
+            this.thumbnailUrl = thumbnailUrl;
         }
     }
 

@@ -2,6 +2,8 @@ package com.workoutplanner.service;
 
 import com.workoutplanner.dto.CurrentWeekResponseDto;
 import com.workoutplanner.dto.DietFoodCatalogResponseDto;
+import com.workoutplanner.model.ExerciseCatalog;
+import com.workoutplanner.repository.ExerciseCatalogRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -11,6 +13,12 @@ import java.time.format.DateTimeFormatter;
 
 @Service
 public class PlanParsingService {
+
+    private final ExerciseCatalogRepository exerciseCatalogRepository;
+
+    public PlanParsingService(ExerciseCatalogRepository exerciseCatalogRepository) {
+        this.exerciseCatalogRepository = exerciseCatalogRepository;
+    }
 
     /**
      * Extract current week data from workout and diet plans
@@ -48,8 +56,29 @@ public class PlanParsingService {
         response.setPlanStartDate(weekStartDate.format(formatter));
         response.setPlanEndDate(weekEndDate.format(formatter));
 
+        // Build exercise media lookup map from catalog
+        Map<String, ExerciseCatalog> catalogMap = exerciseCatalogRepository.findByIsSystemTrue()
+                .stream()
+                .collect(Collectors.toMap(ExerciseCatalog::getName, e -> e, (e1, e2) -> e1));
+
         // Extract workout week with dates
         CurrentWeekResponseDto.WorkoutWeekDto workoutWeek = extractWorkoutWeek(workoutPlan, weekKey, weekStartDate);
+
+        // Enrich exercises with videoUrl/thumbnailUrl from catalog
+        if (workoutWeek != null && workoutWeek.getDays() != null) {
+            for (CurrentWeekResponseDto.WorkoutDayDto day : workoutWeek.getDays().values()) {
+                if (day.getExercises() != null) {
+                    for (CurrentWeekResponseDto.ExerciseDto exercise : day.getExercises()) {
+                        ExerciseCatalog entry = catalogMap.get(exercise.getName());
+                        if (entry != null) {
+                            exercise.setVideoUrl(entry.getVideoUrl());
+                            exercise.setThumbnailUrl(entry.getThumbnailUrl());
+                        }
+                    }
+                }
+            }
+        }
+
         response.setWorkoutWeek(workoutWeek);
 
         // Extract diet week with dates

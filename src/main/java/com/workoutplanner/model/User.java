@@ -2,6 +2,8 @@ package com.workoutplanner.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.workoutplanner.model.enums.ActivityLevel;
+import com.workoutplanner.model.enums.Gender;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -11,7 +13,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -103,17 +107,14 @@ public class User implements UserDetails {
     @JsonProperty("weight_kg")
     private BigDecimal weightKg;
 
-    @Column(name = "age")
-    private Integer age;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
-    private WorkoutProfile.Gender gender;
+    private Gender gender;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "activity_level")
     @JsonProperty("activity_level")
-    private WorkoutProfile.ActivityLevel activityLevel;
+    private ActivityLevel activityLevel;
 
     // Profile references
     @Column(name = "workout_profile_id")
@@ -350,26 +351,29 @@ public class User implements UserDetails {
     }
 
     public Integer getAge() {
-        return age;
+        if (dateOfBirth == null || dateOfBirth.isBlank()) {
+            return null;
+        }
+        try {
+            return Period.between(LocalDate.parse(dateOfBirth), LocalDate.now()).getYears();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
-    public void setAge(Integer age) {
-        this.age = age;
-    }
-
-    public WorkoutProfile.Gender getGender() {
+    public Gender getGender() {
         return gender;
     }
 
-    public void setGender(WorkoutProfile.Gender gender) {
+    public void setGender(Gender gender) {
         this.gender = gender;
     }
 
-    public WorkoutProfile.ActivityLevel getActivityLevel() {
+    public ActivityLevel getActivityLevel() {
         return activityLevel;
     }
 
-    public void setActivityLevel(WorkoutProfile.ActivityLevel activityLevel) {
+    public void setActivityLevel(ActivityLevel activityLevel) {
         this.activityLevel = activityLevel;
     }
 
