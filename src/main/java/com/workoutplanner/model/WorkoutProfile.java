@@ -2,6 +2,8 @@ package com.workoutplanner.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.workoutplanner.model.enums.ActivityLevel;
+import com.workoutplanner.model.enums.Gender;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -93,21 +95,6 @@ public class WorkoutProfile {
         INTERMEDIATE,
         ADVANCED,
         EXPERT
-    }
-
-    public enum Gender {
-        MALE,
-        FEMALE,
-        OTHER,
-        PREFER_NOT_TO_SAY
-    }
-
-    public enum ActivityLevel {
-        SEDENTARY,
-        LIGHTLY_ACTIVE,
-        MODERATELY_ACTIVE,
-        VERY_ACTIVE,
-        EXTREMELY_ACTIVE
     }
 
     // Constructors

@@ -1,7 +1,8 @@
 package com.workoutplanner.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.workoutplanner.model.WorkoutProfile;
+import com.workoutplanner.model.enums.ActivityLevel;
+import com.workoutplanner.model.enums.Gender;
 
 import java.math.BigDecimal;
 
@@ -13,12 +14,13 @@ public class UserPhysicalProfileRequest {
     @JsonProperty("weight_kg")
     private BigDecimal weightKg;
 
-    private Integer age;
+    @JsonProperty("date_of_birth")
+    private String dateOfBirth;
 
-    private WorkoutProfile.Gender gender;
+    private Gender gender;
 
     @JsonProperty("activity_level")
-    private WorkoutProfile.ActivityLevel activityLevel;
+    private ActivityLevel activityLevel;
 
     public Integer getHeightCm() {
         return heightCm;
@@ -36,27 +38,27 @@ public class UserPhysicalProfileRequest {
         this.weightKg = weightKg;
     }
 
-    public Integer getAge() {
-        return age;
+    public String getDateOfBirth() {
+        return dateOfBirth;
     }
 
-    public void setAge(Integer age) {
-        this.age = age;
+    public void setDateOfBirth(String dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
     }
 
-    public WorkoutProfile.Gender getGender() {
+    public Gender getGender() {
         return gender;
     }
 
-    public void setGender(WorkoutProfile.Gender gender) {
+    public void setGender(Gender gender) {
         this.gender = gender;
     }
 
-    public WorkoutProfile.ActivityLevel getActivityLevel() {
+    public ActivityLevel getActivityLevel() {
         return activityLevel;
     }
 
-    public void setActivityLevel(WorkoutProfile.ActivityLevel activityLevel) {
+    public void setActivityLevel(ActivityLevel activityLevel) {
         this.activityLevel = activityLevel;
     }
 }

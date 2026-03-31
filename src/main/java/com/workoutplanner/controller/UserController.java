@@ -65,6 +65,7 @@ public class UserController {
         profile.put("createdAt", user.getCreatedAt());
         profile.put("height_cm", user.getHeightCm());
         profile.put("weight_kg", user.getWeightKg());
+        profile.put("date_of_birth", user.getDateOfBirth());
         profile.put("age", user.getAge());
         profile.put("gender", user.getGender());
         profile.put("activity_level", user.getActivityLevel());
@@ -83,7 +84,7 @@ public class UserController {
 
         if (request.getHeightCm() != null) user.setHeightCm(request.getHeightCm());
         if (request.getWeightKg() != null) user.setWeightKg(request.getWeightKg());
-        if (request.getAge() != null) user.setAge(request.getAge());
+        if (request.getDateOfBirth() != null) user.setDateOfBirth(request.getDateOfBirth());
         if (request.getGender() != null) user.setGender(request.getGender());
         if (request.getActivityLevel() != null) user.setActivityLevel(request.getActivityLevel());
 
@@ -93,6 +94,7 @@ public class UserController {
         response.put("message", "Physical profile updated successfully");
         response.put("height_cm", user.getHeightCm());
         response.put("weight_kg", user.getWeightKg());
+        response.put("date_of_birth", user.getDateOfBirth());
         response.put("age", user.getAge());
         response.put("gender", user.getGender());
         response.put("activity_level", user.getActivityLevel());

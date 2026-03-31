@@ -3,7 +3,9 @@ package com.workoutplanner.service;
 import com.workoutplanner.dto.BodyMetricsRequest;
 import com.workoutplanner.dto.BodyMetricsResponse;
 import com.workoutplanner.model.BodyMetrics;
+import com.workoutplanner.model.User;
 import com.workoutplanner.repository.BodyMetricsRepository;
+import com.workoutplanner.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,10 +24,12 @@ public class BodyMetricsService {
     private static final Logger log = LoggerFactory.getLogger(BodyMetricsService.class);
 
     private final BodyMetricsRepository repository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public BodyMetricsService(BodyMetricsRepository repository) {
+    public BodyMetricsService(BodyMetricsRepository repository, UserRepository userRepository) {
         this.repository = repository;
+        this.userRepository = userRepository;
     }
 
     // -------------------------------------------------------------------------
@@ -42,6 +46,15 @@ public class BodyMetricsService {
 
         BodyMetrics saved = repository.save(entry);
         log.info("body_metrics.created id={} userId={}", saved.getId(), userId);
+
+        if (request.getWeightKg() != null) {
+            userRepository.findById(userId).ifPresent(user -> {
+                user.setWeightKg(request.getWeightKg());
+                userRepository.save(user);
+                log.info("body_metrics.synced_weight userId={} weightKg={}", userId, request.getWeightKg());
+            });
+        }
+
         return BodyMetricsResponse.from(saved);
     }
 

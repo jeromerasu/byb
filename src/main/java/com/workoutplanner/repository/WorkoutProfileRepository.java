@@ -1,6 +1,7 @@
 package com.workoutplanner.repository;
 
 import com.workoutplanner.model.WorkoutProfile;
+import com.workoutplanner.model.enums.ActivityLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,7 +24,7 @@ public interface WorkoutProfileRepository extends JpaRepository<WorkoutProfile, 
     List<WorkoutProfile> findByWorkoutFrequencyGreaterThanEqual(Integer minFrequency);
 
     // Find by activity level
-    List<WorkoutProfile> findByActivityLevel(WorkoutProfile.ActivityLevel activityLevel);
+    List<WorkoutProfile> findByActivityLevel(ActivityLevel activityLevel);
 
     // Find profiles with current plans
     @Query("SELECT w FROM WorkoutProfile w WHERE w.currentPlanStorageKey IS NOT NULL")
@@ -81,7 +82,7 @@ public interface WorkoutProfileRepository extends JpaRepository<WorkoutProfile, 
 
     // Count profiles by criteria
     long countByFitnessLevel(WorkoutProfile.FitnessLevel fitnessLevel);
-    long countByActivityLevel(WorkoutProfile.ActivityLevel activityLevel);
+    long countByActivityLevel(ActivityLevel activityLevel);
 
     @Query("SELECT COUNT(w) FROM WorkoutProfile w WHERE w.currentPlanStorageKey IS NOT NULL")
     long countProfilesWithPlans();
