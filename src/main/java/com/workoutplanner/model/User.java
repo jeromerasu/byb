@@ -103,7 +103,7 @@ public class User implements UserDetails {
     @JsonProperty("weight_kg")
     private BigDecimal weightKg;
 
-    @Column(name = "age")
+    @Transient
     private Integer age;
 
     @Enumerated(EnumType.STRING)
