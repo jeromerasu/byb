@@ -76,7 +76,8 @@ public class CombinedPlanService {
             String dietBucketName = betaMode ? "dietbeta" : "diet";
 
             // Use OpenAI to generate both plans in a single API call
-            OpenAIService.CombinedPlanResult openAIResult = openAIService.generateCombinedPlans(workoutProfile, dietProfile);
+            User user = userOpt.get();
+            OpenAIService.CombinedPlanResult openAIResult = openAIService.generateCombinedPlans(user, workoutProfile, dietProfile);
 
             // Store both plans using dynamic bucket names
             WorkoutPlanResult workoutResult = storeWorkoutPlan(workoutBucketName, userId, workoutProfile, openAIResult.getWorkoutPlan(), now);

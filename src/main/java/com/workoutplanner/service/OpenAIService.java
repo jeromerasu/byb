@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.workoutplanner.dto.OpenAIRequest;
 import com.workoutplanner.dto.OpenAIResponse;
 import com.workoutplanner.model.DietProfile;
+import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -41,11 +42,11 @@ public class OpenAIService {
         this.openaiApiUrl = openaiApiUrl;
     }
 
-    public CombinedPlanResult generateCombinedPlans(WorkoutProfile workoutProfile, DietProfile dietProfile) {
-        return generateCombinedPlans(workoutProfile, dietProfile, "");
+    public CombinedPlanResult generateCombinedPlans(User user, WorkoutProfile workoutProfile, DietProfile dietProfile) {
+        return generateCombinedPlans(user, workoutProfile, dietProfile, "");
     }
 
-    public CombinedPlanResult generateCombinedPlans(WorkoutProfile workoutProfile, DietProfile dietProfile,
+    public CombinedPlanResult generateCombinedPlans(User user, WorkoutProfile workoutProfile, DietProfile dietProfile,
                                                      String feedbackBlock) {
         if (openaiApiKey == null || openaiApiKey.trim().isEmpty()) {
             throw new RuntimeException("OpenAI API key not configured");
@@ -53,7 +54,7 @@ public class OpenAIService {
 
         try {
             // Create the prompt for combined plan generation
-            String prompt = buildCombinedPrompt(workoutProfile, dietProfile);
+            String prompt = buildCombinedPrompt(user, workoutProfile, dietProfile);
 
             // Build system prompt, optionally appending feedback block
             String systemPrompt = getSystemPrompt();
@@ -113,7 +114,7 @@ public class OpenAIService {
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
-    private String buildCombinedPrompt(WorkoutProfile workoutProfile, DietProfile dietProfile) {
+    private String buildCombinedPrompt(User user, WorkoutProfile workoutProfile, DietProfile dietProfile) {
         return String.format(
             "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
             "**User Profile:**\n" +
@@ -294,10 +295,10 @@ public class OpenAIService {
             "}\n" +
             "IMPORTANT: Expand this structure completely for all 7 days (monday through sunday) with actual meal details and daily totals for each day. Replace all /* comments */ with real meal data.",
 
-            workoutProfile.getAge() != null ? workoutProfile.getAge() : 25,
-            workoutProfile.getGender() != null ? workoutProfile.getGender().name() : "MALE",
-            workoutProfile.getWeightKg() != null ? workoutProfile.getWeightKg().doubleValue() : 70.0,
-            workoutProfile.getHeightCm() != null ? workoutProfile.getHeightCm() : 175,
+            user.getAge() != null ? user.getAge() : 25,
+            user.getGender() != null ? user.getGender().name() : "MALE",
+            user.getWeightKg() != null ? user.getWeightKg().doubleValue() : 70.0,
+            user.getHeightCm() != null ? user.getHeightCm() : 175,
             workoutProfile.getFitnessLevel() != null ? workoutProfile.getFitnessLevel().name() : "BEGINNER",
             workoutProfile.getTargetGoals() != null ? String.join(", ", workoutProfile.getTargetGoals()) : "WEIGHT_LOSS",
             workoutProfile.getWorkoutFrequency() != null ? workoutProfile.getWorkoutFrequency() : 3,

@@ -10,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
@@ -92,6 +93,27 @@ public class User implements UserDetails {
     @Column(name = "verification_token")
     @JsonIgnore
     private String verificationToken;
+
+    // Physical profile (shared between workout and diet)
+    @Column(name = "height_cm")
+    @JsonProperty("height_cm")
+    private Integer heightCm;
+
+    @Column(name = "weight_kg", precision = 5, scale = 2)
+    @JsonProperty("weight_kg")
+    private BigDecimal weightKg;
+
+    @Column(name = "age")
+    private Integer age;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    private WorkoutProfile.Gender gender;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "activity_level")
+    @JsonProperty("activity_level")
+    private WorkoutProfile.ActivityLevel activityLevel;
 
     // Profile references
     @Column(name = "workout_profile_id")
@@ -308,6 +330,47 @@ public class User implements UserDetails {
 
     public void setVerificationToken(String verificationToken) {
         this.verificationToken = verificationToken;
+    }
+
+    // Getters and setters for physical profile
+    public Integer getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Integer heightCm) {
+        this.heightCm = heightCm;
+    }
+
+    public BigDecimal getWeightKg() {
+        return weightKg;
+    }
+
+    public void setWeightKg(BigDecimal weightKg) {
+        this.weightKg = weightKg;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public WorkoutProfile.Gender getGender() {
+        return gender;
+    }
+
+    public void setGender(WorkoutProfile.Gender gender) {
+        this.gender = gender;
+    }
+
+    public WorkoutProfile.ActivityLevel getActivityLevel() {
+        return activityLevel;
+    }
+
+    public void setActivityLevel(WorkoutProfile.ActivityLevel activityLevel) {
+        this.activityLevel = activityLevel;
     }
 
     // Getters and setters for profile references

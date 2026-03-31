@@ -1,5 +1,6 @@
 package com.workoutplanner.controller;
 
+import com.workoutplanner.dto.UserPhysicalProfileRequest;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
@@ -62,8 +63,41 @@ public class UserController {
         profile.put("role", user.getRole());
         profile.put("isActive", user.isActive());
         profile.put("createdAt", user.getCreatedAt());
+        profile.put("height_cm", user.getHeightCm());
+        profile.put("weight_kg", user.getWeightKg());
+        profile.put("age", user.getAge());
+        profile.put("gender", user.getGender());
+        profile.put("activity_level", user.getActivityLevel());
 
         return ResponseEntity.ok(profile);
+    }
+
+    @PostMapping("/physical-profile")
+    public ResponseEntity<Map<String, Object>> savePhysicalProfile(
+            @RequestBody UserPhysicalProfileRequest request,
+            HttpServletRequest httpRequest) {
+        String userId = getCurrentUserId(httpRequest);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (request.getHeightCm() != null) user.setHeightCm(request.getHeightCm());
+        if (request.getWeightKg() != null) user.setWeightKg(request.getWeightKg());
+        if (request.getAge() != null) user.setAge(request.getAge());
+        if (request.getGender() != null) user.setGender(request.getGender());
+        if (request.getActivityLevel() != null) user.setActivityLevel(request.getActivityLevel());
+
+        userRepository.save(user);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Physical profile updated successfully");
+        response.put("height_cm", user.getHeightCm());
+        response.put("weight_kg", user.getWeightKg());
+        response.put("age", user.getAge());
+        response.put("gender", user.getGender());
+        response.put("activity_level", user.getActivityLevel());
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/register")
