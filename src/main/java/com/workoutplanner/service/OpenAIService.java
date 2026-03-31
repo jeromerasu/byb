@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.workoutplanner.dto.OpenAIRequest;
 import com.workoutplanner.dto.OpenAIResponse;
 import com.workoutplanner.model.DietProfile;
+import com.workoutplanner.model.ExerciseCatalog;
 import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
+import com.workoutplanner.repository.ExerciseCatalogRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -14,7 +16,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,18 +32,21 @@ public class OpenAIService {
     private final String openaiApiKey;
     private final String openaiModel;
     private final String openaiApiUrl;
+    private final ExerciseCatalogRepository exerciseCatalogRepository;
 
     public OpenAIService(
             RestTemplate restTemplate,
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openaiApiKey,
             @Value("${openai.model:gpt-3.5-turbo}") String openaiModel,
-            @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}") String openaiApiUrl) {
+            @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}") String openaiApiUrl,
+            ExerciseCatalogRepository exerciseCatalogRepository) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.openaiApiKey = openaiApiKey;
         this.openaiModel = openaiModel;
         this.openaiApiUrl = openaiApiUrl;
+        this.exerciseCatalogRepository = exerciseCatalogRepository;
     }
 
     public CombinedPlanResult generateCombinedPlans(User user, WorkoutProfile workoutProfile, DietProfile dietProfile) {
@@ -53,8 +60,15 @@ public class OpenAIService {
         }
 
         try {
+            // Load system exercise names to constrain OpenAI responses
+            List<String> catalogExerciseNames = exerciseCatalogRepository.findByIsSystemTrue()
+                    .stream()
+                    .map(ExerciseCatalog::getName)
+                    .sorted()
+                    .collect(Collectors.toList());
+
             // Create the prompt for combined plan generation
-            String prompt = buildCombinedPrompt(user, workoutProfile, dietProfile);
+            String prompt = buildCombinedPrompt(user, workoutProfile, dietProfile, catalogExerciseNames);
 
             // Build system prompt, optionally appending feedback block
             String systemPrompt = getSystemPrompt();
@@ -105,7 +119,7 @@ public class OpenAIService {
                "- Generate CONCISE but complete data for 1 week and 7 days\n" +
                "- Keep descriptions and instructions VERY brief (5-10 words max)\n" +
                "- Use SHORT ingredient lists (2-3 items max per meal)\n" +
-               "- Use SIMPLE exercise names (e.g., 'Push-ups', 'Squats', 'Plank')\n" +
+               "- Use ONLY the EXACT exercise names provided in the user prompt's exercise catalog. Do not abbreviate, rename, or create variations.\n" +
                "- NEVER use empty arrays [] for exercises or meals - always provide at least one item\n" +
                "- Ensure all JSON is properly formatted without any markdown code blocks\n" +
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
@@ -114,7 +128,13 @@ public class OpenAIService {
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
-    private String buildCombinedPrompt(User user, WorkoutProfile workoutProfile, DietProfile dietProfile) {
+    private String buildCombinedPrompt(User user, WorkoutProfile workoutProfile, DietProfile dietProfile,
+                                        List<String> catalogExerciseNames) {
+        String exerciseListBlock = catalogExerciseNames.isEmpty()
+                ? ""
+                : "\n**Exercise Catalog (you MUST use ONLY these exact exercise names — no variations, abbreviations, or new names):**\n" +
+                  String.join(", ", catalogExerciseNames) + "\n";
+
         return String.format(
             "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
             "**User Profile:**\n" +
@@ -129,8 +149,8 @@ public class OpenAIService {
             "- Daily Calorie Goal: %d calories\n" +
             "- Meals Per Day: %d\n" +
             "- Allergies: %s\n" +
-            "- Dietary Restrictions: %s\n\n" +
-
+            "- Dietary Restrictions: %s\n" +
+            exerciseListBlock + "\n" +
             "Return TWO separate JSON objects:\n\n" +
 
             "Generate a complete 1-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
