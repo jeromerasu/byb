@@ -2,11 +2,16 @@ package com.workoutplanner.service;
 
 import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.model.PlanGenerationQueue;
+import com.workoutplanner.model.SubscriptionTier;
 import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
+import com.workoutplanner.strategy.CoachingPromptStrategy;
+import com.workoutplanner.strategy.PromptStrategy;
+import com.workoutplanner.strategy.ResolvedPromptContext;
+import com.workoutplanner.strategy.StandardPromptStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,17 +39,23 @@ public class PlanGenerationExecutorService {
     private final UserRepository userRepository;
     private final OpenAIService openAIService;
     private final OverloadService overloadService;
+    private final StandardPromptStrategy standardPromptStrategy;
+    private final CoachingPromptStrategy coachingPromptStrategy;
 
     public PlanGenerationExecutorService(WorkoutProfileRepository workoutProfileRepository,
                                          DietProfileRepository dietProfileRepository,
                                          UserRepository userRepository,
                                          OpenAIService openAIService,
-                                         OverloadService overloadService) {
+                                         OverloadService overloadService,
+                                         StandardPromptStrategy standardPromptStrategy,
+                                         CoachingPromptStrategy coachingPromptStrategy) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
         this.openAIService = openAIService;
         this.overloadService = overloadService;
+        this.standardPromptStrategy = standardPromptStrategy;
+        this.coachingPromptStrategy = coachingPromptStrategy;
     }
 
     /**
@@ -65,9 +76,16 @@ public class PlanGenerationExecutorService {
         // Build feedback block from previous 7 days
         String feedbackBlock = buildFeedbackBlock(userId);
 
+        // Resolve prompt strategy based on subscription tier — no if-tier branching in generation code
+        PromptStrategy strategy = resolveStrategy(user);
+        ResolvedPromptContext promptContext = strategy.resolve(userId);
+        log.info("queue.execute.strategy_resolved id={} userId={} model={} tier={}",
+                entry.getId(), userId, promptContext.model(), user.getSubscriptionTier());
+
         log.info("queue.execute.generating id={} userId={}", entry.getId(), userId);
         try {
-            OpenAIService.CombinedPlanResult result = openAIService.generateCombinedPlans(user, workoutProfile, dietProfile, feedbackBlock);
+            OpenAIService.CombinedPlanResult result = openAIService.generateCombinedPlans(
+                    user, workoutProfile, dietProfile, feedbackBlock, promptContext);
 
             log.info("queue.execute.done id={} userId={}", entry.getId(), userId);
             return new GenerationResult(result.getWorkoutPlan(), result.getDietPlan());
@@ -103,6 +121,17 @@ public class PlanGenerationExecutorService {
             throw new PlanGenerationException("Diet profile not found for userId=" + userId, true);
         }
         return opt.get();
+    }
+
+    /**
+     * Resolves the correct PromptStrategy based on subscription tier.
+     * This is the sole branching point — no if-tier checks anywhere else in generation code.
+     */
+    private PromptStrategy resolveStrategy(User user) {
+        if (user.getSubscriptionTier() == SubscriptionTier.COACHING) {
+            return coachingPromptStrategy;
+        }
+        return standardPromptStrategy;
     }
 
     private String buildFeedbackBlock(String userId) {

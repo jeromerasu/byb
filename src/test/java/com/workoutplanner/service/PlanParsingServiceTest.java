@@ -1,20 +1,28 @@
 package com.workoutplanner.service;
 
 import com.workoutplanner.dto.CurrentWeekResponseDto;
+import com.workoutplanner.repository.ExerciseCatalogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(MockitoExtension.class)
 class PlanParsingServiceTest {
+
+    @Mock
+    private ExerciseCatalogRepository exerciseCatalogRepository;
 
     private PlanParsingService planParsingService;
 
     @BeforeEach
     void setUp() {
-        planParsingService = new PlanParsingService();
+        planParsingService = new PlanParsingService(exerciseCatalogRepository);
     }
 
     /**

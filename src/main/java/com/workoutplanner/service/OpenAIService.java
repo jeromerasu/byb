@@ -9,6 +9,7 @@ import com.workoutplanner.model.ExerciseCatalog;
 import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.ExerciseCatalogRepository;
+import com.workoutplanner.strategy.ResolvedPromptContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -55,6 +56,16 @@ public class OpenAIService {
 
     public CombinedPlanResult generateCombinedPlans(User user, WorkoutProfile workoutProfile, DietProfile dietProfile,
                                                      String feedbackBlock) {
+        return generateCombinedPlans(user, workoutProfile, dietProfile, feedbackBlock, null);
+    }
+
+    /**
+     * Primary generation method accepting a {@link ResolvedPromptContext}.
+     * When context is non-null it overrides the configured model and base system prompt,
+     * and injects any coaching directives. When null falls back to existing behaviour.
+     */
+    public CombinedPlanResult generateCombinedPlans(User user, WorkoutProfile workoutProfile, DietProfile dietProfile,
+                                                     String feedbackBlock, ResolvedPromptContext promptContext) {
         if (openaiApiKey == null || openaiApiKey.trim().isEmpty()) {
             throw new RuntimeException("OpenAI API key not configured");
         }
@@ -70,16 +81,32 @@ public class OpenAIService {
             // Create the prompt for combined plan generation
             String prompt = buildCombinedPrompt(user, workoutProfile, dietProfile, catalogExerciseNames);
 
-            // Build system prompt, optionally appending feedback block
-            String systemPrompt = getSystemPrompt();
+            // Resolve model and system prompt from strategy context or use defaults
+            String resolvedModel = (promptContext != null) ? promptContext.model() : openaiModel;
+            String systemPrompt = (promptContext != null) ? promptContext.systemPrompt() : getSystemPrompt();
+
+            // Inject coaching directives into system prompt
+            if (promptContext != null && promptContext.hasDirectives()) {
+                StringBuilder sb = new StringBuilder(systemPrompt);
+                sb.append("\n\nCOACH DIRECTIVES (must be followed):");
+                for (String directive : promptContext.directives()) {
+                    sb.append("\n- ").append(directive);
+                }
+                systemPrompt = sb.toString();
+                logger.info("openai.directives_injected count={}", promptContext.directives().size());
+            }
+
+            // Append feedback block
             if (feedbackBlock != null && !feedbackBlock.isBlank()) {
                 systemPrompt += "\n\n" + feedbackBlock;
                 logger.info("openai.feedback_block_injected length={}", feedbackBlock.length());
             }
 
+            logger.info("openai.model_used model={}", resolvedModel);
+
             // Build OpenAI request
             OpenAIRequest request = new OpenAIRequest();
-            request.setModel(openaiModel);
+            request.setModel(resolvedModel);
             request.setTemperature(0.7);
             request.setMaxTokens(6500); // Temporary fix for 8K context limit until deployment issues resolved
             request.setMessages(Arrays.asList(

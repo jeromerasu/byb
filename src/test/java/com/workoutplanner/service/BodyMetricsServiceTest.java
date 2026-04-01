@@ -4,6 +4,7 @@ import com.workoutplanner.dto.BodyMetricsRequest;
 import com.workoutplanner.dto.BodyMetricsResponse;
 import com.workoutplanner.model.BodyMetrics;
 import com.workoutplanner.repository.BodyMetricsRepository;
+import com.workoutplanner.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,8 @@ class BodyMetricsServiceTest {
 
     @Mock
     private BodyMetricsRepository repository;
+    @Mock
+    private UserRepository userRepository;
 
     private BodyMetricsService service;
 
@@ -41,7 +44,7 @@ class BodyMetricsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new BodyMetricsService(repository);
+        service = new BodyMetricsService(repository, userRepository);
     }
 
     // -------------------------------------------------------------------------
