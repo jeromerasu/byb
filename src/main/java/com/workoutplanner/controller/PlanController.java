@@ -122,34 +122,8 @@ public class PlanController {
 
         return Mono.fromCallable(() -> {
             try {
-                Optional<WorkoutProfile> workoutProfile = workoutProfileRepository.findByUserId(userId);
-                Optional<DietProfile> dietProfile = dietProfileRepository.findByUserId(userId);
-
-                if (workoutProfile.isEmpty() || dietProfile.isEmpty()) {
-                    throw new RuntimeException("User profiles not complete. Please set up workout and diet profiles first.");
-                }
-
-                String workoutStorageKey = workoutProfile.get().getCurrentPlanStorageKey();
-                String dietStorageKey = dietProfile.get().getCurrentPlanStorageKey();
-
-                if (workoutStorageKey == null || dietStorageKey == null) {
-                    throw new RuntimeException("No current plans found. Please generate plans first.");
-                }
-
-                String workoutBucketName = betaMode ? "workoutbeta" : "workout";
-                String dietBucketName = betaMode ? "dietbeta" : "diet";
-
-                Map<String, Object> workoutPlan = storageService.retrieveWorkoutPlan(workoutBucketName, userId, workoutStorageKey);
-                Map<String, Object> dietPlan = storageService.retrieveDietPlan(dietBucketName, userId, dietStorageKey);
-
-                if (workoutPlan == null || dietPlan == null) {
-                    throw new RuntimeException("Failed to retrieve current plans from storage.");
-                }
-
-                int weekIndex = 1;
-                CurrentWeekResponseDto response = planParsingService.extractCurrentWeek(workoutPlan, dietPlan, weekIndex);
+                CurrentWeekResponseDto response = combinedPlanService.getCurrentWeekPlan(userId);
                 return ResponseEntity.ok(response);
-
             } catch (RuntimeException e) {
                 String errorMessage = e.getMessage();
 

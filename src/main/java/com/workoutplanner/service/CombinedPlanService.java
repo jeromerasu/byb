@@ -1,6 +1,7 @@
 package com.workoutplanner.service;
 
 import com.workoutplanner.dto.CombinedPlanResponseDto;
+import com.workoutplanner.dto.CurrentWeekResponseDto;
 import com.workoutplanner.dto.DietPlanResponseDto;
 import com.workoutplanner.dto.WorkoutPlanResponseDto;
 import com.workoutplanner.model.DietProfile;
@@ -13,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,6 +31,7 @@ public class CombinedPlanService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final OpenAIService openAIService;
+    private final PlanParsingService planParsingService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -37,14 +41,44 @@ public class CombinedPlanService {
                               DietProfileRepository dietProfileRepository,
                               UserRepository userRepository,
                               StorageService storageService,
-                              OpenAIService openAIService) {
+                              OpenAIService openAIService,
+                              PlanParsingService planParsingService) {
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
         this.userRepository = userRepository;
         this.storageService = storageService;
         this.openAIService = openAIService;
+        this.planParsingService = planParsingService;
     }
 
+    @Cacheable(value = "currentWeekPlan", key = "#userId")
+    public CurrentWeekResponseDto getCurrentWeekPlan(String userId) {
+        WorkoutProfile workoutProfile = workoutProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("User profiles not complete. Please set up workout and diet profiles first."));
+        DietProfile dietProfile = dietProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("User profiles not complete. Please set up workout and diet profiles first."));
+
+        String workoutStorageKey = workoutProfile.getCurrentPlanStorageKey();
+        String dietStorageKey = dietProfile.getCurrentPlanStorageKey();
+
+        if (workoutStorageKey == null || dietStorageKey == null) {
+            throw new RuntimeException("No current plans found. Please generate plans first.");
+        }
+
+        String workoutBucketName = betaMode ? "workoutbeta" : "workout";
+        String dietBucketName = betaMode ? "dietbeta" : "diet";
+
+        Map<String, Object> workoutPlan = storageService.retrieveWorkoutPlan(workoutBucketName, userId, workoutStorageKey);
+        Map<String, Object> dietPlan = storageService.retrieveDietPlan(dietBucketName, userId, dietStorageKey);
+
+        if (workoutPlan == null || dietPlan == null) {
+            throw new RuntimeException("Failed to retrieve current plans from storage.");
+        }
+
+        return planParsingService.extractCurrentWeek(workoutPlan, dietPlan, 1);
+    }
+
+    @CacheEvict(value = "currentWeekPlan", key = "#userId")
     public CombinedPlanResponseDto generateCombinedPlan(String userId) {
         try {
             logger.debug("generateCombinedPlan called with userId: {}", userId);
