@@ -109,7 +109,7 @@ public class DietController {
         return ResponseEntity.ok(stats);
     }
 
-    @GetMapping("/feedback")
+    @GetMapping(value = "/feedback", params = {"from", "to"})
     public ResponseEntity<List<MealFeedbackResponse>> getDietFeedback(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
