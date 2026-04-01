@@ -86,7 +86,7 @@ public class User implements UserDetails {
 
     @JsonProperty("email_verified")
     @Column(name = "email_verified")
-    private boolean emailVerified = false;
+    private boolean emailVerified = true;
 
     @JsonProperty("created_at")
     @Column(name = "created_at")
