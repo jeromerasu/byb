@@ -1,8 +1,10 @@
 package com.workoutplanner.service;
 
 import com.workoutplanner.model.DietProfile;
+import com.workoutplanner.model.GeneratedBy;
 import com.workoutplanner.model.PlanGenerationQueue;
 import com.workoutplanner.model.QueueStatus;
+import com.workoutplanner.model.UserWeekPlan;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
@@ -21,6 +23,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 /**
@@ -37,14 +40,18 @@ class PlanPersistenceServiceTest {
     private WorkoutProfileRepository workoutProfileRepository;
     @Mock
     private DietProfileRepository dietProfileRepository;
+    @Mock
+    private UserWeekPlanService userWeekPlanService;
 
     private PlanPersistenceService persistenceService;
 
     @BeforeEach
     void setUp() {
         persistenceService = new PlanPersistenceService(
-                storageService, workoutProfileRepository, dietProfileRepository);
+                storageService, workoutProfileRepository, dietProfileRepository, userWeekPlanService);
         ReflectionTestUtils.setField(persistenceService, "betaMode", false);
+        lenient().when(userWeekPlanService.upsert(any(), any(), any(), any(), any()))
+                .thenReturn(new UserWeekPlan());
     }
 
     private PlanGenerationQueue makeClaimedEntry(String userId) {

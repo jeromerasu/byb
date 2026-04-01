@@ -28,13 +28,18 @@ class OverloadServiceTest {
     private com.workoutplanner.repository.WorkoutProfileRepository workoutProfileRepository;
     @Mock
     private StorageService storageService;
+    @Mock
+    private com.workoutplanner.repository.WorkoutFeedbackRepository workoutFeedbackRepository;
+    @Mock
+    private com.workoutplanner.repository.DietFeedbackRepository dietFeedbackRepository;
 
     private OverloadService service;
 
     @BeforeEach
     void setUp() {
         service = new OverloadService(
-                workoutLogRepository, mealLogRepository, workoutProfileRepository, storageService);
+                workoutLogRepository, mealLogRepository, workoutProfileRepository, storageService,
+                workoutFeedbackRepository, dietFeedbackRepository);
     }
 
     // -------------------------------------------------------------------------

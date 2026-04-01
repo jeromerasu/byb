@@ -85,6 +85,12 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 // Temporarily allow plan endpoints for testing
                 .requestMatchers("/api/v1/plan/**").permitAll()
+                // Coach endpoints (Phase 1: open; TODO(PROD-HARDEN): add coach JWT auth)
+                .requestMatchers("/api/v1/coach/**").permitAll()
+                // Worker trigger endpoint (open for testing phase)
+                .requestMatchers("/api/v1/plans/generate").permitAll()
+                // RevenueCat webhook (public — validated by webhook secret header)
+                .requestMatchers("/api/webhooks/revenuecat").permitAll()
                 // Admin food catalog — requires ADMIN role
                 .requestMatchers("/api/v1/admin/foods/**").hasRole("ADMIN")
                 // Other admin endpoints (ops/testing use)

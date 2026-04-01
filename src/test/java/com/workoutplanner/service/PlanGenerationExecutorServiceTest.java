@@ -3,10 +3,15 @@ package com.workoutplanner.service;
 import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.model.PlanGenerationQueue;
 import com.workoutplanner.model.QueueStatus;
+import com.workoutplanner.model.SubscriptionTier;
+import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.DietProfileRepository;
+import com.workoutplanner.repository.UserRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
-import com.workoutplanner.service.OverloadService;
+import com.workoutplanner.strategy.CoachingPromptStrategy;
+import com.workoutplanner.strategy.ResolvedPromptContext;
+import com.workoutplanner.strategy.StandardPromptStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,18 +41,28 @@ class PlanGenerationExecutorServiceTest {
     @Mock
     private DietProfileRepository dietProfileRepository;
     @Mock
+    private UserRepository userRepository;
+    @Mock
     private OpenAIService openAIService;
     @Mock
     private OverloadService overloadService;
+    @Mock
+    private StandardPromptStrategy standardPromptStrategy;
+    @Mock
+    private CoachingPromptStrategy coachingPromptStrategy;
 
     private PlanGenerationExecutorService executorService;
 
     @BeforeEach
     void setUp() {
         executorService = new PlanGenerationExecutorService(
-                workoutProfileRepository, dietProfileRepository, openAIService, overloadService);
+                workoutProfileRepository, dietProfileRepository, userRepository,
+                openAIService, overloadService, standardPromptStrategy, coachingPromptStrategy);
         // Default: no feedback (lenient to avoid UnnecessaryStubbingException in non-execute tests)
         lenient().when(overloadService.buildFeedbackBlock(any(), any(), any())).thenReturn("");
+        // Default strategy resolves a standard context
+        lenient().when(standardPromptStrategy.resolve(any()))
+                .thenReturn(new ResolvedPromptContext("gpt-4o-mini", "sys", List.of()));
     }
 
     private PlanGenerationQueue makeClaimedEntry(String userId) {
@@ -56,6 +72,12 @@ class PlanGenerationExecutorServiceTest {
         q.setStatus(QueueStatus.CLAIMED);
         q.setAttemptCount(1);
         return q;
+    }
+
+    private User makeUser(String id, SubscriptionTier tier) {
+        User u = new User();
+        u.setSubscriptionTier(tier);
+        return u;
     }
 
     // -- execute() -------------------------------------------------------
@@ -69,11 +91,11 @@ class PlanGenerationExecutorServiceTest {
         Map<String, Object> workoutPlan = Map.of("day1", "pushups");
         Map<String, Object> dietPlan = Map.of("calories", 2000);
 
+        when(userRepository.findById(userId)).thenReturn(Optional.of(makeUser(userId, SubscriptionTier.STANDARD)));
         when(workoutProfileRepository.findByUserId(userId)).thenReturn(Optional.of(wp));
         when(dietProfileRepository.findByUserId(userId)).thenReturn(Optional.of(dp));
-        OpenAIService.CombinedPlanResult combined =
-                new OpenAIService.CombinedPlanResult(workoutPlan, dietPlan);
-        when(openAIService.generateCombinedPlans(any(), any(), any())).thenReturn(combined);
+        OpenAIService.CombinedPlanResult combined = new OpenAIService.CombinedPlanResult(workoutPlan, dietPlan);
+        when(openAIService.generateCombinedPlans(any(), any(), any(), any(), any())).thenReturn(combined);
 
         PlanGenerationExecutorService.GenerationResult result = executorService.execute(entry);
 
@@ -87,6 +109,7 @@ class PlanGenerationExecutorServiceTest {
     void execute_MissingWorkoutProfile_ShouldThrowFatalException() {
         String userId = "user-no-workout";
         PlanGenerationQueue entry = makeClaimedEntry(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(makeUser(userId, SubscriptionTier.STANDARD)));
         when(workoutProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
         PlanGenerationExecutorService.PlanGenerationException ex = assertThrows(
@@ -104,6 +127,7 @@ class PlanGenerationExecutorServiceTest {
         String userId = "user-no-diet";
         PlanGenerationQueue entry = makeClaimedEntry(userId);
         WorkoutProfile wp = new WorkoutProfile();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(makeUser(userId, SubscriptionTier.STANDARD)));
         when(workoutProfileRepository.findByUserId(userId)).thenReturn(Optional.of(wp));
         when(dietProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
@@ -123,9 +147,10 @@ class PlanGenerationExecutorServiceTest {
         PlanGenerationQueue entry = makeClaimedEntry(userId);
         WorkoutProfile wp = new WorkoutProfile();
         DietProfile dp = new DietProfile();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(makeUser(userId, SubscriptionTier.STANDARD)));
         when(workoutProfileRepository.findByUserId(userId)).thenReturn(Optional.of(wp));
         when(dietProfileRepository.findByUserId(userId)).thenReturn(Optional.of(dp));
-        when(openAIService.generateCombinedPlans(any(), any(), any()))
+        when(openAIService.generateCombinedPlans(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("Connection timeout"));
 
         PlanGenerationExecutorService.PlanGenerationException ex = assertThrows(

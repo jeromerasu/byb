@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.workoutplanner.model.enums.ActivityLevel;
 import com.workoutplanner.model.enums.Gender;
+import com.workoutplanner.model.SubscriptionTier;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -61,6 +62,23 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;
+
+    /**
+     * Billing subscription tier. Separate from Role — Role governs auth/authorization;
+     * subscriptionTier governs billing-gated feature access.
+     * The RevenueCat webhook is the ONLY writer of this field in production.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subscription_tier", nullable = false, length = 50)
+    @JsonProperty("subscription_tier")
+    private SubscriptionTier subscriptionTier = SubscriptionTier.FREE;
+
+    /**
+     * Nullable FK to coaches.id. Set only when subscriptionTier = COACHING.
+     */
+    @Column(name = "coach_id", length = 36)
+    @JsonProperty("coach_id")
+    private String coachId;
 
     @JsonProperty("is_active")
     @Column(name = "is_active")
@@ -422,4 +440,10 @@ public class User implements UserDetails {
     public boolean hasCompleteProfile() {
         return hasWorkoutProfile() && hasDietProfile();
     }
+
+    public SubscriptionTier getSubscriptionTier() { return subscriptionTier; }
+    public void setSubscriptionTier(SubscriptionTier subscriptionTier) { this.subscriptionTier = subscriptionTier; }
+
+    public String getCoachId() { return coachId; }
+    public void setCoachId(String coachId) { this.coachId = coachId; }
 }

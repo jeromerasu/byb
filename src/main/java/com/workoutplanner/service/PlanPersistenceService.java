@@ -1,6 +1,7 @@
 package com.workoutplanner.service;
 
 import com.workoutplanner.model.DietProfile;
+import com.workoutplanner.model.GeneratedBy;
 import com.workoutplanner.model.PlanGenerationQueue;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.repository.DietProfileRepository;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
@@ -32,16 +34,19 @@ public class PlanPersistenceService {
     private final StorageService storageService;
     private final WorkoutProfileRepository workoutProfileRepository;
     private final DietProfileRepository dietProfileRepository;
+    private final UserWeekPlanService userWeekPlanService;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
 
     public PlanPersistenceService(StorageService storageService,
                                   WorkoutProfileRepository workoutProfileRepository,
-                                  DietProfileRepository dietProfileRepository) {
+                                  DietProfileRepository dietProfileRepository,
+                                  UserWeekPlanService userWeekPlanService) {
         this.storageService = storageService;
         this.workoutProfileRepository = workoutProfileRepository;
         this.dietProfileRepository = dietProfileRepository;
+        this.userWeekPlanService = userWeekPlanService;
     }
 
     /**
@@ -70,6 +75,10 @@ public class PlanPersistenceService {
 
         updateWorkoutProfile(userId, workoutKey, planTitle, now, entry.getId());
         updateDietProfile(userId, dietKey, planTitle, now, entry.getId());
+
+        // Write/upsert user_week_plan registry row (TASK-COACHING-001 / closes 016C gap)
+        GeneratedBy generatedBy = entry.getGeneratedBy() != null ? entry.getGeneratedBy() : GeneratedBy.MANUAL;
+        userWeekPlanService.upsert(userId, now.toLocalDate(), workoutKey, dietKey, generatedBy);
 
         log.info("queue.persist.done id={} userId={} workoutKey={} dietKey={}",
                 entry.getId(), userId, workoutKey, dietKey);

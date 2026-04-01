@@ -3,6 +3,7 @@ package com.workoutplanner.model;
 import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDateTime;
+import com.workoutplanner.model.GeneratedBy;
 
 @Entity
 @Table(name = "plan_generation_queue")
@@ -49,6 +50,14 @@ public class PlanGenerationQueue {
 
     @Column(name = "diet_storage_key", length = 1000)
     private String dietStorageKey;
+
+    /**
+     * Who triggered this queue entry.
+     * Nullable in DB (existing rows have no value); service layer defaults to MANUAL.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "generated_by", length = 50)
+    private GeneratedBy generatedBy = GeneratedBy.MANUAL;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -100,4 +109,6 @@ public class PlanGenerationQueue {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public GeneratedBy getGeneratedBy() { return generatedBy; }
+    public void setGeneratedBy(GeneratedBy generatedBy) { this.generatedBy = generatedBy; }
 }

@@ -1,8 +1,10 @@
 package com.workoutplanner.service;
 
 import com.workoutplanner.model.DietProfile;
+import com.workoutplanner.model.User;
 import com.workoutplanner.model.WorkoutProfile;
 import com.workoutplanner.dto.OpenAIRequest;
+import com.workoutplanner.repository.ExerciseCatalogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +37,8 @@ class OpenAIPromptBuilderTest {
 
     @Mock
     private RestTemplate restTemplate;
+    @Mock
+    private ExerciseCatalogRepository exerciseCatalogRepository;
 
     private OpenAIService openAIService;
 
@@ -45,7 +49,7 @@ class OpenAIPromptBuilderTest {
     @BeforeEach
     void setUp() {
         openAIService = new OpenAIService(
-                restTemplate, new ObjectMapper(), FAKE_API_KEY, FAKE_MODEL, FAKE_URL);
+                restTemplate, new ObjectMapper(), FAKE_API_KEY, FAKE_MODEL, FAKE_URL, exerciseCatalogRepository);
     }
 
     // Builds a minimal OpenAI response
@@ -69,7 +73,7 @@ class OpenAIPromptBuilderTest {
         when(restTemplate.postForEntity(anyString(), any(), eq(OpenAIResponse.class)))
                 .thenReturn(fakeResponse(minimalCombinedJson()));
 
-        openAIService.generateCombinedPlans(new WorkoutProfile(), new DietProfile(), "");
+        openAIService.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), "");
 
         ArgumentCaptor<HttpEntity<OpenAIRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(OpenAIResponse.class));
@@ -88,7 +92,7 @@ class OpenAIPromptBuilderTest {
 
         String feedbackBlock = "Previous Week Feedback:\n- Bench Press: completed 3x10@135lbs. Rated JUST_RIGHT. Suggest: increase to 140lbs.";
 
-        openAIService.generateCombinedPlans(new WorkoutProfile(), new DietProfile(), feedbackBlock);
+        openAIService.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), feedbackBlock);
 
         ArgumentCaptor<HttpEntity<OpenAIRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(OpenAIResponse.class));
@@ -109,7 +113,7 @@ class OpenAIPromptBuilderTest {
 
         String feedbackBlock = "Previous Week Feedback:\n- Squat: PAIN FLAG. Comment: lower back tightness. Suggest: substitute with alternative exercise.";
 
-        openAIService.generateCombinedPlans(new WorkoutProfile(), new DietProfile(), feedbackBlock);
+        openAIService.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), feedbackBlock);
 
         ArgumentCaptor<HttpEntity<OpenAIRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(OpenAIResponse.class));
@@ -128,7 +132,7 @@ class OpenAIPromptBuilderTest {
 
         String feedbackBlock = "Previous Week Feedback:\n- Grilled Salmon: DISLIKED. Suggest: replace with different option in the same meal slot.";
 
-        openAIService.generateCombinedPlans(new WorkoutProfile(), new DietProfile(), feedbackBlock);
+        openAIService.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), feedbackBlock);
 
         ArgumentCaptor<HttpEntity<OpenAIRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(OpenAIResponse.class));
@@ -145,7 +149,7 @@ class OpenAIPromptBuilderTest {
         when(restTemplate.postForEntity(anyString(), any(), eq(OpenAIResponse.class)))
                 .thenReturn(fakeResponse(minimalCombinedJson()));
 
-        openAIService.generateCombinedPlans(new WorkoutProfile(), new DietProfile(), null);
+        openAIService.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), null);
 
         ArgumentCaptor<HttpEntity<OpenAIRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(OpenAIResponse.class));
@@ -166,7 +170,7 @@ class OpenAIPromptBuilderTest {
                 "- Deadlift: PAIN FLAG. Comment: lower back tightness. Suggest: substitute with alternative exercise.\n" +
                 "- Grilled Salmon: DISLIKED. Suggest: replace with different option in the same meal slot.";
 
-        openAIService.generateCombinedPlans(new WorkoutProfile(), new DietProfile(), feedbackBlock);
+        openAIService.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), feedbackBlock);
 
         ArgumentCaptor<HttpEntity<OpenAIRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(OpenAIResponse.class));
@@ -181,9 +185,9 @@ class OpenAIPromptBuilderTest {
     @Test
     void generateCombinedPlans_NoApiKey_ThrowsException() {
         OpenAIService serviceNoKey = new OpenAIService(
-                restTemplate, new ObjectMapper(), "", FAKE_MODEL, FAKE_URL);
+                restTemplate, new ObjectMapper(), "", FAKE_MODEL, FAKE_URL, exerciseCatalogRepository);
 
         assertThrows(RuntimeException.class,
-                () -> serviceNoKey.generateCombinedPlans(new WorkoutProfile(), new DietProfile()));
+                () -> serviceNoKey.generateCombinedPlans(new User(), new WorkoutProfile(), new DietProfile(), ""));
     }
 }
