@@ -122,7 +122,7 @@ public class WorkoutController {
         return ResponseEntity.ok(stats);
     }
 
-    @GetMapping("/feedback")
+    @GetMapping(value = "/feedback", params = {"from", "to"})
     public ResponseEntity<List<WorkoutFeedbackResponse>> getWorkoutFeedback(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

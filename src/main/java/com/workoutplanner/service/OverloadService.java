@@ -3,10 +3,14 @@ package com.workoutplanner.service;
 import com.workoutplanner.dto.MealFeedbackResponse;
 import com.workoutplanner.dto.OverloadSummaryResponse;
 import com.workoutplanner.dto.WorkoutFeedbackResponse;
+import com.workoutplanner.model.DietFeedback;
 import com.workoutplanner.model.MealLog;
+import com.workoutplanner.model.WorkoutFeedback;
 import com.workoutplanner.model.WorkoutLog;
 import com.workoutplanner.model.WorkoutRating;
+import com.workoutplanner.repository.DietFeedbackRepository;
 import com.workoutplanner.repository.MealLogRepository;
+import com.workoutplanner.repository.WorkoutFeedbackRepository;
 import com.workoutplanner.repository.WorkoutLogRepository;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import org.slf4j.Logger;
@@ -33,6 +37,8 @@ public class OverloadService {
     private final MealLogRepository mealLogRepository;
     private final WorkoutProfileRepository workoutProfileRepository;
     private final StorageService storageService;
+    private final WorkoutFeedbackRepository workoutFeedbackRepository;
+    private final DietFeedbackRepository dietFeedbackRepository;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -40,11 +46,15 @@ public class OverloadService {
     public OverloadService(WorkoutLogRepository workoutLogRepository,
                            MealLogRepository mealLogRepository,
                            WorkoutProfileRepository workoutProfileRepository,
-                           StorageService storageService) {
+                           StorageService storageService,
+                           WorkoutFeedbackRepository workoutFeedbackRepository,
+                           DietFeedbackRepository dietFeedbackRepository) {
         this.workoutLogRepository = workoutLogRepository;
         this.mealLogRepository = mealLogRepository;
         this.workoutProfileRepository = workoutProfileRepository;
         this.storageService = storageService;
+        this.workoutFeedbackRepository = workoutFeedbackRepository;
+        this.dietFeedbackRepository = dietFeedbackRepository;
     }
 
     // -------------------------------------------------------------------------
@@ -220,12 +230,49 @@ public class OverloadService {
     public String buildFeedbackBlock(String userId, LocalDate from, LocalDate to) {
         List<OverloadSummaryResponse> overload = getOverloadSummary(userId, from, to);
         List<MealFeedbackResponse> mealFeedback = getMealFeedback(userId, from, to);
+        List<WorkoutFeedback> sessionWorkoutFeedback = workoutFeedbackRepository.findByUserIdAndWorkoutDateAfter(userId, from);
+        List<DietFeedback> sessionDietFeedback = dietFeedbackRepository.findByUserIdAndFeedbackDateAfter(userId, from);
 
-        if (overload.isEmpty() && mealFeedback.isEmpty()) {
+        if (overload.isEmpty() && mealFeedback.isEmpty()
+                && sessionWorkoutFeedback.isEmpty() && sessionDietFeedback.isEmpty()) {
             return "";
         }
 
         StringBuilder sb = new StringBuilder("Previous Week Feedback:\n");
+
+        for (WorkoutFeedback wf : sessionWorkoutFeedback) {
+            sb.append("- Workout session (").append(wf.getWorkoutDate()).append("):");
+            if (wf.getRating() != null) {
+                sb.append(" rating=").append(wf.getRating()).append("/10.");
+            }
+            if (wf.getSessionComments() != null && !wf.getSessionComments().isEmpty()) {
+                sb.append(" Comments: ").append(String.join("; ", wf.getSessionComments())).append(".");
+            }
+            if (wf.getFlaggedExercises() != null && !wf.getFlaggedExercises().isBlank()) {
+                sb.append(" Flagged exercises: ").append(wf.getFlaggedExercises()).append(".");
+            }
+            if (wf.getFreeFormNote() != null && !wf.getFreeFormNote().isBlank()) {
+                sb.append(" Note: ").append(wf.getFreeFormNote()).append(".");
+            }
+            sb.append("\n");
+        }
+
+        for (DietFeedback df : sessionDietFeedback) {
+            sb.append("- Diet session (").append(df.getFeedbackDate()).append("):");
+            if (df.getRating() != null) {
+                sb.append(" rating=").append(df.getRating()).append("/10.");
+            }
+            if (df.getSessionComments() != null && !df.getSessionComments().isEmpty()) {
+                sb.append(" Comments: ").append(String.join("; ", df.getSessionComments())).append(".");
+            }
+            if (df.getFlaggedMeals() != null && !df.getFlaggedMeals().isBlank()) {
+                sb.append(" Flagged meals: ").append(df.getFlaggedMeals()).append(".");
+            }
+            if (df.getFreeFormNote() != null && !df.getFreeFormNote().isBlank()) {
+                sb.append(" Note: ").append(df.getFreeFormNote()).append(".");
+            }
+            sb.append("\n");
+        }
 
         for (OverloadSummaryResponse o : overload) {
             sb.append("- ").append(o.getExerciseName()).append(": ");
