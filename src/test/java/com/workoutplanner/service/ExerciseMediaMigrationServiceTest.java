@@ -501,6 +501,220 @@ class ExerciseMediaMigrationServiceTest {
     }
 
     // -----------------------------------------------------------------------
+    // Task 1: Alias fallback tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    void migrateAll_ConventionalDeadlift_ShouldFallbackToAliasWhenExactNameFails() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Conventional Deadlift", null);
+        exercise.setInstructions(null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+
+        // Exact name search returns empty envelope (URLEncoder preserves the exercise name's casing)
+        when(gifDownloader.download(contains("Conventional+Deadlift"))).thenReturn(emptyApiEnvelopeJson().getBytes());
+        // Alias search returns a valid envelope (alias is lowercase: "barbell deadlift")
+        String aliasJson = "{\"success\":true,\"data\":[{\"name\":\"barbell deadlift\"," +
+            "\"gifUrl\":\"https://static.exercisedb.dev/media/ila4NZS.gif\"," +
+            "\"instructions\":[\"Set up\",\"Lift\"],\"bodyParts\":[\"back\"],\"secondaryMuscles\":[\"hamstrings\"]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("barbell+deadlift"))).thenReturn(aliasJson.getBytes());
+        when(gifDownloader.download("https://static.exercisedb.dev/media/ila4NZS.gif")).thenReturn(new byte[]{1, 2, 3});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.alias.conventionalDeadlift succeeded={} skipped={}", result.getSucceeded(), result.getSkipped());
+        assertEquals(1, result.getSucceeded());
+        assertEquals(0, result.getSkipped());
+        verify(repository).save(argThat(e -> e.getVideoUrl().contains("conventional-deadlift")));
+    }
+
+    @Test
+    void migrateAll_TreadmillRun_ShouldFallbackToAliasWhenExactNameFails() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Treadmill Run", null);
+        exercise.setInstructions(null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+
+        when(gifDownloader.download(contains("Treadmill+Run"))).thenReturn(emptyApiEnvelopeJson().getBytes());
+        String aliasJson = "{\"success\":true,\"data\":[{\"name\":\"walking on incline treadmill\"," +
+            "\"gifUrl\":\"https://static.exercisedb.dev/media/rjiM4L3.gif\"," +
+            "\"instructions\":[\"Step 1\"],\"bodyParts\":[\"cardio\"],\"secondaryMuscles\":[]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("walking+on+incline+treadmill"))).thenReturn(aliasJson.getBytes());
+        when(gifDownloader.download("https://static.exercisedb.dev/media/rjiM4L3.gif")).thenReturn(new byte[]{4, 5, 6});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.alias.treadmillRun succeeded={} skipped={}", result.getSucceeded(), result.getSkipped());
+        assertEquals(1, result.getSucceeded());
+        assertEquals(0, result.getSkipped());
+        verify(repository).save(argThat(e -> e.getVideoUrl().contains("treadmill-run")));
+    }
+
+    @Test
+    void migrateAll_ExerciseWithNoAlias_WhenExactNameFails_ShouldCountAsUnresolved() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Mystery Exercise", null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+        when(gifDownloader.download(anyString())).thenReturn(emptyApiEnvelopeJson().getBytes());
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        assertEquals(0, result.getSucceeded());
+        assertEquals(1, result.getSkipped());
+    }
+
+    // -----------------------------------------------------------------------
+    // Task 2: API enrichment tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    void migrateAll_NullVideoUrl_WhenApiReturnsInstructions_ShouldSaveInstructions() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Push Up", null);
+        exercise.setInstructions(null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+
+        String apiJson = "{\"success\":true,\"data\":[{\"name\":\"push up\"," +
+            "\"gifUrl\":\"https://exercisedb.dev/push-up.gif\"," +
+            "\"instructions\":[\"Get into position\",\"Lower your body\",\"Push back up\"]," +
+            "\"bodyParts\":[\"chest\"],\"secondaryMuscles\":[\"triceps\",\"shoulders\"]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("Push+Up"))).thenReturn(apiJson.getBytes());
+        when(gifDownloader.download("https://exercisedb.dev/push-up.gif")).thenReturn(new byte[]{1, 2, 3});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.migrateAll();
+
+        verify(repository).save(argThat(e ->
+            e.getInstructions() != null &&
+            e.getInstructions().contains("Get into position") &&
+            e.getInstructions().contains("Lower your body")));
+    }
+
+    @Test
+    void migrateAll_NullVideoUrl_WhenApiReturnsBodyPart_ShouldSaveBodyPart() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Pull Up", null);
+        exercise.setInstructions(null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+
+        String apiJson = "{\"success\":true,\"data\":[{\"name\":\"pull up\"," +
+            "\"gifUrl\":\"https://exercisedb.dev/pull-up.gif\"," +
+            "\"instructions\":[\"Hang\",\"Pull\"],\"bodyParts\":[\"back\"],\"secondaryMuscles\":[\"biceps\"]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("Pull+Up"))).thenReturn(apiJson.getBytes());
+        when(gifDownloader.download("https://exercisedb.dev/pull-up.gif")).thenReturn(new byte[]{1, 2, 3});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.migrateAll();
+
+        // bodyParts[0] from community API is "back" → stored in bodyPart field
+        verify(repository).save(argThat(e -> "back".equals(e.getBodyPart())));
+    }
+
+    @Test
+    void migrateAll_NullVideoUrl_WhenApiReturnsSecondaryMuscles_ShouldSaveThem() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Bench Press", null);
+        exercise.setInstructions(null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+
+        String apiJson = "{\"success\":true,\"data\":[{\"name\":\"bench press\"," +
+            "\"gifUrl\":\"https://exercisedb.dev/bench.gif\"," +
+            "\"instructions\":[\"Lie down\",\"Press\"],\"bodyParts\":[\"chest\"]," +
+            "\"secondaryMuscles\":[\"triceps\",\"front deltoid\"]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("Bench+Press"))).thenReturn(apiJson.getBytes());
+        when(gifDownloader.download("https://exercisedb.dev/bench.gif")).thenReturn(new byte[]{1, 2, 3});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.migrateAll();
+
+        verify(repository).save(argThat(e ->
+            e.getSecondaryMuscles() != null &&
+            e.getSecondaryMuscles().contains("triceps") &&
+            e.getSecondaryMuscles().contains("front deltoid")));
+    }
+
+    @Test
+    void migrateAll_NullVideoUrl_WhenInstructionsAlreadySet_ShouldNotOverwrite() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Squat", null);
+        exercise.setInstructions("Existing instructions");
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of());
+
+        String apiJson = "{\"success\":true,\"data\":[{\"name\":\"squat\"," +
+            "\"gifUrl\":\"https://exercisedb.dev/squat.gif\"," +
+            "\"instructions\":[\"API instructions\"],\"bodyParts\":[\"legs\"],\"secondaryMuscles\":[]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("Squat"))).thenReturn(apiJson.getBytes());
+        when(gifDownloader.download("https://exercisedb.dev/squat.gif")).thenReturn(new byte[]{1, 2, 3});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.migrateAll();
+
+        verify(repository).save(argThat(e ->
+            "Existing instructions".equals(e.getInstructions())));
+    }
+
+    @Test
+    void migrateAll_Phase3_ShouldEnrichExercisesWithNullInstructions() throws IOException {
+        // Exercise already migrated to MinIO but has no instructions yet
+        ExerciseCatalog exercise = makeExercise(1L, "Deadlift",
+                MINIO_ENDPOINT + "/exercise-media/exercises/deadlift/animation.gif");
+        exercise.setInstructions(null);
+
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of(exercise));
+
+        String apiJson = "{\"success\":true,\"data\":[{\"name\":\"deadlift\"," +
+            "\"gifUrl\":\"https://exercisedb.dev/deadlift.gif\"," +
+            "\"instructions\":[\"Step 1\",\"Step 2\"],\"bodyParts\":[\"back\"],\"secondaryMuscles\":[\"hamstrings\"]}]," +
+            "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
+        when(gifDownloader.download(contains("Deadlift"))).thenReturn(apiJson.getBytes());
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.phase3.enrich succeeded={}", result.getSucceeded());
+        assertEquals(1, result.getSucceeded());
+        verify(repository).save(argThat(e ->
+            e.getInstructions() != null && e.getInstructions().contains("Step 1")));
+        // Phase 3 enrichment does NOT upload GIFs
+        verify(storageService, never()).putBytes(any(), any(), any(), any());
+    }
+
+    @Test
+    void migrateAll_Phase3_WhenApiReturnsEmpty_ShouldCountAsSkipped() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Unknown Exercise",
+                MINIO_ENDPOINT + "/exercise-media/exercises/unknown/animation.gif");
+        exercise.setInstructions(null);
+
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+        when(repository.findByIsSystemTrueAndInstructionsIsNull()).thenReturn(List.of(exercise));
+        when(gifDownloader.download(anyString())).thenReturn(emptyApiEnvelopeJson().getBytes());
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        assertEquals(0, result.getSucceeded());
+        assertEquals(1, result.getSkipped());
+        verify(repository, never()).save(any());
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 

@@ -62,6 +62,15 @@ public class ExerciseCatalog {
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
+    @Convert(converter = StringListConverter.class)
+    @Column(name = "secondary_muscles", columnDefinition = "TEXT")
+    @JsonProperty("secondaryMuscles")
+    private List<String> secondaryMuscles;
+
+    @Column(name = "body_part", length = 100)
+    @JsonProperty("bodyPart")
+    private String bodyPart;
+
     @Column(name = "is_system", nullable = false)
     @JsonProperty("isSystem")
     private boolean isSystem = true;
@@ -115,6 +124,12 @@ public class ExerciseCatalog {
 
     public String getInstructions() { return instructions; }
     public void setInstructions(String instructions) { this.instructions = instructions; }
+
+    public List<String> getSecondaryMuscles() { return secondaryMuscles; }
+    public void setSecondaryMuscles(List<String> secondaryMuscles) { this.secondaryMuscles = secondaryMuscles; }
+
+    public String getBodyPart() { return bodyPart; }
+    public void setBodyPart(String bodyPart) { this.bodyPart = bodyPart; }
 
     public boolean isSystem() { return isSystem; }
     public void setSystem(boolean system) { isSystem = system; }

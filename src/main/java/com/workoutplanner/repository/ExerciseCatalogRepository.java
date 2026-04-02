@@ -90,4 +90,9 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
      * Returns system exercises that have no video_url — candidates for sourcing from ExerciseDB API.
      */
     List<ExerciseCatalog> findByVideoUrlIsNullAndIsSystemTrue();
+
+    /**
+     * Returns system exercises that have no instructions — candidates for API enrichment.
+     */
+    List<ExerciseCatalog> findByIsSystemTrueAndInstructionsIsNull();
 }

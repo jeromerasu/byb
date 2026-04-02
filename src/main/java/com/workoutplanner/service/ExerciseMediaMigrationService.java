@@ -19,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,11 @@ import java.util.Map;
  *       fall back to the ExerciseDB community API to find a working GIF URL by name.
  *       On success: upload to MinIO and update the DB row.</li>
  *   <li>Find system exercises with a {@code NULL} {@code video_url}.  Attempt to resolve a GIF URL
- *       via the ExerciseDB community API, then follow the same download-upload-update path.</li>
+ *       via the ExerciseDB community API (with alias fallback for known name mismatches), then follow
+ *       the same download-upload-update path.  Also enriches instructions, secondaryMuscles, and
+ *       bodyPart from the API response.</li>
+ *   <li>Find system exercises with {@code NULL} instructions (already migrated or not).  Call the
+ *       ExerciseDB community API by name to backfill instructions, secondaryMuscles, and bodyPart.</li>
  * </ol>
  *
  * <p>The service is idempotent: exercises whose {@code video_url} already points to the MinIO
@@ -58,6 +63,15 @@ public class ExerciseMediaMigrationService {
      */
     private static final String EXERCISEDB_SEARCH_API =
             "https://exercisedb-api.vercel.app/api/v1/exercises?search=";
+
+    /**
+     * Known name mismatches between our catalog and ExerciseDB.
+     * Key: lowercase catalog name.  Value: search term that returns results from the API.
+     */
+    private static final Map<String, String> EXERCISE_NAME_ALIASES = Map.of(
+        "conventional deadlift", "barbell deadlift",
+        "treadmill run",         "walking on incline treadmill"
+    );
 
     // -----------------------------------------------------------------------
     // Dependencies
@@ -159,16 +173,14 @@ public class ExerciseMediaMigrationService {
         log.info("media.migration.phase1.start count={}", withExerciseDbUrls.size());
 
         for (ExerciseCatalog exercise : withExerciseDbUrls) {
-            boolean resolved = false;
             try {
                 migrateExercise(exercise);
                 succeeded++;
-                resolved = true;
             } catch (Exception e) {
                 log.warn("media.migration.exercise.phase1.failed name='{}' url='{}' error={} — trying API fallback",
                         exercise.getName(), exercise.getVideoUrl(), e.getMessage());
                 try {
-                    resolved = resolveViaApi(exercise);
+                    boolean resolved = resolveViaApi(exercise);
                     if (resolved) {
                         succeeded++;
                     } else {
@@ -203,6 +215,27 @@ public class ExerciseMediaMigrationService {
                 skipped++; // can't resolve → treat as skipped, not failed
             }
             delay();
+        }
+
+        // ---- Phase 3: enrich exercises that have NULL instructions ----
+        List<ExerciseCatalog> nullInstructionExercises = repository.findByIsSystemTrueAndInstructionsIsNull();
+        log.info("media.migration.phase3.start count={}", nullInstructionExercises.size());
+
+        for (ExerciseCatalog exercise : nullInstructionExercises) {
+            try {
+                boolean enriched = enrichExerciseInstructions(exercise);
+                if (enriched) {
+                    succeeded++;
+                } else {
+                    log.info("media.migration.exercise.enrich.unresolved name='{}'", exercise.getName());
+                    skipped++;
+                }
+                delay();
+            } catch (Exception e) {
+                log.warn("media.migration.exercise.enrich.failed name='{}' error={}",
+                        exercise.getName(), e.getMessage());
+                skipped++;
+            }
         }
 
         log.info("media.migration.complete succeeded={} failed={} skipped={}",
@@ -268,7 +301,9 @@ public class ExerciseMediaMigrationService {
 
     /**
      * Attempts to find a working GIF URL for the given exercise by searching the ExerciseDB
-     * community API (v1) by name. If a match is found, delegates to
+     * community API (v1) by name. When exact-name search returns no results, falls back to a
+     * known alias from {@link #EXERCISE_NAME_ALIASES}.  When a match is found, enriches the
+     * exercise with instructions, secondaryMuscles, and bodyPart before delegating to
      * {@link #migrateExercise(ExerciseCatalog)} to download, upload, and update the DB.
      *
      * <p>Used in two scenarios:
@@ -280,14 +315,19 @@ public class ExerciseMediaMigrationService {
      * @return {@code true} if the exercise was successfully migrated, {@code false} if no match found.
      */
     private boolean resolveViaApi(ExerciseCatalog exercise) throws IOException {
-        String encodedName = URLEncoder.encode(exercise.getName(), StandardCharsets.UTF_8);
-        String apiUrl = EXERCISEDB_SEARCH_API + encodedName + "&limit=5&offset=0";
+        // Try exact name first
+        JsonNode data = searchApi(exercise.getName());
 
-        byte[] responseBytes = gifDownloader.download(apiUrl);
-        JsonNode root = objectMapper.readTree(responseBytes);
+        // If no match, try known alias
+        if (!data.isArray() || data.isEmpty()) {
+            String alias = EXERCISE_NAME_ALIASES.get(exercise.getName().toLowerCase());
+            if (alias != null) {
+                log.info("media.migration.exercise.usingAlias name='{}' alias='{}'",
+                        exercise.getName(), alias);
+                data = searchApi(alias);
+            }
+        }
 
-        // Response envelope: { "success": true, "data": [ {...}, ... ], "metadata": {...} }
-        JsonNode data = root.path("data");
         if (!data.isArray() || data.isEmpty()) {
             return false;
         }
@@ -297,10 +337,53 @@ public class ExerciseMediaMigrationService {
             return false;
         }
 
+        // Enrich with API data (instructions, secondaryMuscles, bodyPart)
+        enrichExerciseFromApiNode(exercise, data.get(0));
+
         // Set the resolved URL so migrateExercise can download it
         exercise.setVideoUrl(gifUrl);
         migrateExercise(exercise);
         return true;
+    }
+
+    /**
+     * Calls the ExerciseDB community API by name (with alias fallback) and updates the exercise's
+     * instructions, secondaryMuscles, and bodyPart fields without touching the GIF/MinIO path.
+     *
+     * @return {@code true} if enrichment data was found and the exercise was saved, {@code false} otherwise.
+     */
+    private boolean enrichExerciseInstructions(ExerciseCatalog exercise) throws IOException {
+        JsonNode data = searchApi(exercise.getName());
+
+        if (!data.isArray() || data.isEmpty()) {
+            String alias = EXERCISE_NAME_ALIASES.get(exercise.getName().toLowerCase());
+            if (alias != null) {
+                data = searchApi(alias);
+            }
+        }
+
+        if (!data.isArray() || data.isEmpty()) {
+            return false;
+        }
+
+        enrichExerciseFromApiNode(exercise, data.get(0));
+        repository.save(exercise);
+        log.info("media.migration.exercise.enriched name='{}'", exercise.getName());
+        return true;
+    }
+
+    /**
+     * Calls the ExerciseDB community API search endpoint and returns the {@code data} array
+     * from the response envelope.  Returns an empty array node if the call fails or the envelope
+     * is malformed.
+     */
+    private JsonNode searchApi(String name) throws IOException {
+        String encodedName = URLEncoder.encode(name, StandardCharsets.UTF_8);
+        String apiUrl = EXERCISEDB_SEARCH_API + encodedName + "&limit=5&offset=0";
+        byte[] responseBytes = gifDownloader.download(apiUrl);
+        JsonNode root = objectMapper.readTree(responseBytes);
+        // Response envelope: { "success": true, "data": [ {...}, ... ], "metadata": {...} }
+        return root.path("data");
     }
 
     /**
@@ -319,13 +402,58 @@ public class ExerciseMediaMigrationService {
         return (url != null && !url.isEmpty()) ? url : null;
     }
 
+    /**
+     * Copies enrichment fields from an ExerciseDB API result node onto the exercise entity.
+     * Only populates fields that are currently null/blank/empty to avoid overwriting existing data.
+     *
+     * <p>Handles both the community API v1 format ({@code bodyParts} array, {@code secondaryMuscles} array,
+     * {@code instructions} array) and legacy v2 format ({@code bodyPart} string).
+     */
+    private void enrichExerciseFromApiNode(ExerciseCatalog exercise, JsonNode apiNode) {
+        // instructions: join step array with newlines
+        JsonNode instrNode = apiNode.path("instructions");
+        if (instrNode.isArray() && !instrNode.isEmpty()
+                && (exercise.getInstructions() == null || exercise.getInstructions().isBlank())) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < instrNode.size(); i++) {
+                if (i > 0) sb.append("\n");
+                sb.append(instrNode.get(i).asText());
+            }
+            exercise.setInstructions(sb.toString());
+        }
+
+        // secondaryMuscles
+        JsonNode secNode = apiNode.path("secondaryMuscles");
+        if (secNode.isArray() && !secNode.isEmpty()
+                && (exercise.getSecondaryMuscles() == null || exercise.getSecondaryMuscles().isEmpty())) {
+            List<String> secondaryMuscles = new ArrayList<>();
+            secNode.forEach(n -> secondaryMuscles.add(n.asText()));
+            exercise.setSecondaryMuscles(secondaryMuscles);
+        }
+
+        // bodyPart: community API v1 uses bodyParts[] array; fall back to bodyPart string (legacy)
+        if (exercise.getBodyPart() == null) {
+            JsonNode bodyPartsNode = apiNode.path("bodyParts");
+            if (bodyPartsNode.isArray() && !bodyPartsNode.isEmpty()) {
+                exercise.setBodyPart(bodyPartsNode.get(0).asText(null));
+            } else {
+                String bodyPart = apiNode.path("bodyPart").asText(null);
+                if (bodyPart != null && !bodyPart.isEmpty()) {
+                    exercise.setBodyPart(bodyPart);
+                }
+            }
+        }
+    }
+
     private byte[] buildMetadataJson(ExerciseCatalog exercise) throws IOException {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("name", exercise.getName());
         metadata.put("exerciseType", exercise.getExerciseType());
         metadata.put("muscleGroups", exercise.getMuscleGroups());
+        metadata.put("secondaryMuscles", exercise.getSecondaryMuscles());
         metadata.put("equipment", exercise.getEquipmentRequired());
         metadata.put("difficulty", exercise.getDifficultyLevel());
+        metadata.put("bodyPart", exercise.getBodyPart());
         metadata.put("instructions", exercise.getInstructions());
         return objectMapper.writeValueAsBytes(metadata);
     }
