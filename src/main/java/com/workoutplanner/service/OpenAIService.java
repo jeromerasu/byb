@@ -213,12 +213,12 @@ public class OpenAIService {
             "      \"wednesday\": {\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
-            "            \"name\": \"Rest Day Active Recovery\",\n" +
-            "            \"sets\": 1,\n" +
-            "            \"reps\": 1,\n" +
-            "            \"weight_type\": \"rest\",\n" +
-            "            \"muscle_groups\": [],\n" +
-            "            \"instructions\": \"Light stretching or walking\"\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"core\", \"back\"],\n" +
+            "            \"instructions\": \"Detailed instructions\"\n" +
             "          }\n" +
             "        ]\n" +
             "      },\n" +
@@ -273,7 +273,7 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
+            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday through Friday MUST have actual workouts with real exercises (no rest entries), and ONLY Saturday and Sunday should be rest days.\n\n" +
 
             "Generate a complete 1-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
