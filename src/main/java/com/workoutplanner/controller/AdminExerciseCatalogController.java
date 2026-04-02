@@ -2,7 +2,9 @@ package com.workoutplanner.controller;
 
 import com.workoutplanner.dto.ExerciseCatalogRequestDto;
 import com.workoutplanner.dto.ExerciseCatalogResponseDto;
+import com.workoutplanner.dto.ExerciseMediaMigrationResult;
 import com.workoutplanner.service.ExerciseCatalogService;
+import com.workoutplanner.service.ExerciseMediaMigrationService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +31,13 @@ public class AdminExerciseCatalogController {
     private static final Logger log = LoggerFactory.getLogger(AdminExerciseCatalogController.class);
 
     private final ExerciseCatalogService service;
+    private final ExerciseMediaMigrationService migrationService;
 
     @Autowired
-    public AdminExerciseCatalogController(ExerciseCatalogService service) {
+    public AdminExerciseCatalogController(ExerciseCatalogService service,
+                                          ExerciseMediaMigrationService migrationService) {
         this.service = service;
+        this.migrationService = migrationService;
     }
 
     @PostMapping
@@ -50,5 +55,20 @@ public class AdminExerciseCatalogController {
 
         log.info("admin.catalog.update id={}", id);
         return ResponseEntity.ok(service.updateSystemEntry(id, dto));
+    }
+
+    // TODO: Remove this endpoint before production release
+    /**
+     * Triggers a one-time migration of ExerciseDB GIF URLs → MinIO.
+     * The operation is synchronous and may take several minutes for the full catalog (~150 exercises).
+     * On the local/test profile (no MinIO), returns immediately with a descriptive message.
+     */
+    @PostMapping("/migrate-media")
+    public ResponseEntity<ExerciseMediaMigrationResult> migrateMedia() {
+        log.info("admin.catalog.migrate-media triggered");
+        ExerciseMediaMigrationResult result = migrationService.migrateAll();
+        log.info("admin.catalog.migrate-media done succeeded={} failed={} skipped={}",
+                result.getSucceeded(), result.getFailed(), result.getSkipped());
+        return ResponseEntity.ok(result);
     }
 }

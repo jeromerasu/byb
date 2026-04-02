@@ -81,4 +81,17 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
     List<ExerciseCatalog> findByCreatedByUserId(String createdByUserId);
 
     List<ExerciseCatalog> findByIsSystemTrue();
+
+    // --- Media migration helpers ----------------------------------------
+
+    /**
+     * Returns system exercises whose video_url still points to ExerciseDB (not yet migrated to MinIO).
+     */
+    @Query("SELECT e FROM ExerciseCatalog e WHERE e.isSystem = true AND e.videoUrl LIKE '%exercisedb%'")
+    List<ExerciseCatalog> findSystemExercisesWithExerciseDbUrls();
+
+    /**
+     * Returns system exercises that have no video_url — candidates for sourcing from ExerciseDB API.
+     */
+    List<ExerciseCatalog> findByVideoUrlIsNullAndIsSystemTrue();
 }

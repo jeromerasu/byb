@@ -290,6 +290,46 @@ public class ObjectStorageService {
     }
 
     /**
+     * Upload raw bytes with an explicit content-type.
+     * Used by ExerciseMediaMigrationService to store GIFs and JSON metadata.
+     */
+    public String putBytes(String bucketName, String key, byte[] data, String contentType) {
+        ensureBucketExists(bucketName);
+
+        PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType)
+                .contentLength((long) data.length)
+                .build();
+
+        s3Client.putObject(putRequest, RequestBody.fromBytes(data));
+        logger.info("Stored {} bytes at {}/{}", data.length, bucketName, key);
+        return key;
+    }
+
+    /**
+     * Set a public-read bucket policy so GIF URLs stored in the DB are directly loadable
+     * by the frontend without authentication headers.
+     */
+    public void setBucketPublicRead(String bucketName) {
+        ensureBucketExists(bucketName);
+
+        String policy = String.format(
+                "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicRead\"," +
+                "\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"]," +
+                "\"Resource\":[\"arn:aws:s3:::%s/*\"]}]}",
+                bucketName);
+
+        s3Client.putBucketPolicy(PutBucketPolicyRequest.builder()
+                .bucket(bucketName)
+                .policy(policy)
+                .build());
+
+        logger.info("Set public-read policy on bucket: {}", bucketName);
+    }
+
+    /**
      * Delete object from storage
      */
     public void deleteObject(String bucketName, String key) {
