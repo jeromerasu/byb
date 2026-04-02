@@ -16,7 +16,7 @@ public class WorkoutFeedbackRequest {
     private List<String> sessionComments;
 
     @JsonProperty("flagged_exercises")
-    private String flaggedExercises;
+    private List<String> flaggedExercises;
 
     @JsonProperty("free_form_note")
     private String freeFormNote;
@@ -30,8 +30,8 @@ public class WorkoutFeedbackRequest {
     public List<String> getSessionComments() { return sessionComments; }
     public void setSessionComments(List<String> sessionComments) { this.sessionComments = sessionComments; }
 
-    public String getFlaggedExercises() { return flaggedExercises; }
-    public void setFlaggedExercises(String flaggedExercises) { this.flaggedExercises = flaggedExercises; }
+    public List<String> getFlaggedExercises() { return flaggedExercises; }
+    public void setFlaggedExercises(List<String> flaggedExercises) { this.flaggedExercises = flaggedExercises; }
 
     public String getFreeFormNote() { return freeFormNote; }
     public void setFreeFormNote(String freeFormNote) { this.freeFormNote = freeFormNote; }

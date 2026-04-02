@@ -248,8 +248,8 @@ public class OverloadService {
             if (wf.getSessionComments() != null && !wf.getSessionComments().isEmpty()) {
                 sb.append(" Comments: ").append(String.join("; ", wf.getSessionComments())).append(".");
             }
-            if (wf.getFlaggedExercises() != null && !wf.getFlaggedExercises().isBlank()) {
-                sb.append(" Flagged exercises: ").append(wf.getFlaggedExercises()).append(".");
+            if (wf.getFlaggedExercises() != null && !wf.getFlaggedExercises().isEmpty()) {
+                sb.append(" Flagged exercises: ").append(String.join(", ", wf.getFlaggedExercises())).append(".");
             }
             if (wf.getFreeFormNote() != null && !wf.getFreeFormNote().isBlank()) {
                 sb.append(" Note: ").append(wf.getFreeFormNote()).append(".");
@@ -265,8 +265,8 @@ public class OverloadService {
             if (df.getSessionComments() != null && !df.getSessionComments().isEmpty()) {
                 sb.append(" Comments: ").append(String.join("; ", df.getSessionComments())).append(".");
             }
-            if (df.getFlaggedMeals() != null && !df.getFlaggedMeals().isBlank()) {
-                sb.append(" Flagged meals: ").append(df.getFlaggedMeals()).append(".");
+            if (df.getFlaggedMeals() != null && !df.getFlaggedMeals().isEmpty()) {
+                sb.append(" Flagged meals: ").append(String.join(", ", df.getFlaggedMeals())).append(".");
             }
             if (df.getFreeFormNote() != null && !df.getFreeFormNote().isBlank()) {
                 sb.append(" Note: ").append(df.getFreeFormNote()).append(".");

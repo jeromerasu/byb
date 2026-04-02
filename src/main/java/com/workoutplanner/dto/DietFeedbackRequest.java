@@ -16,7 +16,7 @@ public class DietFeedbackRequest {
     private List<String> sessionComments;
 
     @JsonProperty("flagged_meals")
-    private String flaggedMeals;
+    private List<String> flaggedMeals;
 
     @JsonProperty("free_form_note")
     private String freeFormNote;
@@ -30,8 +30,8 @@ public class DietFeedbackRequest {
     public List<String> getSessionComments() { return sessionComments; }
     public void setSessionComments(List<String> sessionComments) { this.sessionComments = sessionComments; }
 
-    public String getFlaggedMeals() { return flaggedMeals; }
-    public void setFlaggedMeals(String flaggedMeals) { this.flaggedMeals = flaggedMeals; }
+    public List<String> getFlaggedMeals() { return flaggedMeals; }
+    public void setFlaggedMeals(List<String> flaggedMeals) { this.flaggedMeals = flaggedMeals; }
 
     public String getFreeFormNote() { return freeFormNote; }
     public void setFreeFormNote(String freeFormNote) { this.freeFormNote = freeFormNote; }

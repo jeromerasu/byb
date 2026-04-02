@@ -28,8 +28,9 @@ public class WorkoutFeedback {
     @Column(name = "session_comments", columnDefinition = "TEXT")
     private List<String> sessionComments;
 
+    @Convert(converter = StringListConverter.class)
     @Column(name = "flagged_exercises", columnDefinition = "TEXT")
-    private String flaggedExercises;
+    private List<String> flaggedExercises;
 
     @Column(name = "free_form_note", columnDefinition = "TEXT")
     private String freeFormNote;
@@ -56,8 +57,8 @@ public class WorkoutFeedback {
     public List<String> getSessionComments() { return sessionComments; }
     public void setSessionComments(List<String> sessionComments) { this.sessionComments = sessionComments; }
 
-    public String getFlaggedExercises() { return flaggedExercises; }
-    public void setFlaggedExercises(String flaggedExercises) { this.flaggedExercises = flaggedExercises; }
+    public List<String> getFlaggedExercises() { return flaggedExercises; }
+    public void setFlaggedExercises(List<String> flaggedExercises) { this.flaggedExercises = flaggedExercises; }
 
     public String getFreeFormNote() { return freeFormNote; }
     public void setFreeFormNote(String freeFormNote) { this.freeFormNote = freeFormNote; }

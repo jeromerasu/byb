@@ -28,8 +28,9 @@ public class DietFeedback {
     @Column(name = "session_comments", columnDefinition = "TEXT")
     private List<String> sessionComments;
 
+    @Convert(converter = StringListConverter.class)
     @Column(name = "flagged_meals", columnDefinition = "TEXT")
-    private String flaggedMeals;
+    private List<String> flaggedMeals;
 
     @Column(name = "free_form_note", columnDefinition = "TEXT")
     private String freeFormNote;
@@ -56,8 +57,8 @@ public class DietFeedback {
     public List<String> getSessionComments() { return sessionComments; }
     public void setSessionComments(List<String> sessionComments) { this.sessionComments = sessionComments; }
 
-    public String getFlaggedMeals() { return flaggedMeals; }
-    public void setFlaggedMeals(String flaggedMeals) { this.flaggedMeals = flaggedMeals; }
+    public List<String> getFlaggedMeals() { return flaggedMeals; }
+    public void setFlaggedMeals(List<String> flaggedMeals) { this.flaggedMeals = flaggedMeals; }
 
     public String getFreeFormNote() { return freeFormNote; }
     public void setFreeFormNote(String freeFormNote) { this.freeFormNote = freeFormNote; }
