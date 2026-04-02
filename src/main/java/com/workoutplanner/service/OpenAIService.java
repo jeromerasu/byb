@@ -155,12 +155,71 @@ public class OpenAIService {
                "- Do NOT truncate or cut off the JSON response - complete all structures fully";
     }
 
+    /**
+     * Returns goal-specific and frequency-specific prompt guidance for workout day categories
+     * and exercise selection.
+     */
+    private String buildCategoryGuidance(int frequency, String goalsStr) {
+        String goalsLower = goalsStr != null ? goalsStr.toLowerCase() : "";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("**Workout Day Category & Split Guidance:**\n");
+        sb.append("Assign a meaningful 'category' label to each workout day based on the user's frequency and goals:\n");
+
+        if (frequency <= 3) {
+            sb.append("- ").append(frequency).append(" days/week → use Full Body splits: \"Full Body A\", \"Full Body B\", \"Full Body C\"\n");
+        } else if (frequency == 4) {
+            sb.append("- 4 days/week → use Upper/Lower split: \"Upper Body\", \"Lower Body\", \"Upper Body\", \"Lower Body\"\n");
+            sb.append("  (or Push/Pull/Legs/Upper as an alternative)\n");
+        } else {
+            sb.append("- ").append(frequency).append(" days/week → use Push/Pull/Legs split: \"Push (Chest/Shoulders/Triceps)\", ")
+              .append("\"Pull (Back/Biceps)\", \"Legs & Glutes\", repeating as needed\n");
+        }
+        sb.append("- Rest days → category: \"Rest Day\" or \"Active Recovery\"\n\n");
+
+        // Athletic performance goal guidance
+        boolean isAthletic = goalsLower.contains("athletic_performance");
+        if (isAthletic) {
+            sb.append("**Athletic Performance Goal — Exercise Selection:**\n");
+            if (goalsLower.contains("vertical") || goalsLower.contains("explosive")) {
+                sb.append("- Goal: Vertical/Explosiveness → prioritize plyometric exercises: Box Jumps, Depth Jumps, Squat Jumps, ")
+                  .append("Broad Jumps, Power Cleans, Hang Cleans. Use day categories like \"Power & Explosiveness\" and \"Strength Foundation\".\n");
+            }
+            if (goalsLower.contains("speed") || goalsLower.contains("agility")) {
+                sb.append("- Goal: Speed/Agility → prioritize: Sprint Intervals, Agility Ladder Drills, Shuttle Runs, Cone Drills, ")
+                  .append("Lateral Bounds. Use day categories like \"Speed & Agility\" and \"Power & Conditioning\".\n");
+            }
+            if (goalsLower.contains("endurance")) {
+                sb.append("- Goal: Endurance → prioritize: HIIT Circuits, Circuit Training, Tempo Runs, Metabolic Conditioning, ")
+                  .append("High-Rep Supersets. Use day categories like \"Endurance & Conditioning\" and \"Metabolic Training\".\n");
+            }
+            if (goalsLower.contains("sport_specific") || goalsLower.contains("sport-specific")) {
+                sb.append("- Goal: Sport-Specific → tailor exercises to the sport context. Basketball: vertical jumps, lateral quickness; ")
+                  .append("Soccer: footwork, endurance, change of direction; Football: explosive power, agility. ")
+                  .append("Use day categories like \"Sport-Specific Power\" and \"Sport-Specific Conditioning\".\n");
+            }
+            if (!goalsLower.contains("vertical") && !goalsLower.contains("speed")
+                    && !goalsLower.contains("endurance") && !goalsLower.contains("sport")) {
+                sb.append("- General Athletic Performance → balance plyometrics, explosive lifts, and conditioning. ")
+                  .append("Use day categories like \"Power & Explosiveness\", \"Speed & Agility\", \"Strength Foundation\".\n");
+            }
+            sb.append("\n");
+        }
+
+        return sb.toString();
+    }
+
     private String buildCombinedPrompt(User user, WorkoutProfile workoutProfile, DietProfile dietProfile,
                                         List<String> catalogExerciseNames) {
         String exerciseListBlock = catalogExerciseNames.isEmpty()
                 ? ""
                 : "\n**Exercise Catalog (you MUST use ONLY these exact exercise names — no variations, abbreviations, or new names):**\n" +
                   String.join(", ", catalogExerciseNames) + "\n";
+
+        int frequency = workoutProfile.getWorkoutFrequency() != null ? workoutProfile.getWorkoutFrequency() : 3;
+        String goalsStr = workoutProfile.getTargetGoals() != null
+                ? String.join(", ", workoutProfile.getTargetGoals()) : "GENERAL_FITNESS";
+        String categoryGuidance = buildCategoryGuidance(frequency, goalsStr);
 
         return String.format(
             "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
@@ -178,6 +237,7 @@ public class OpenAIService {
             "- Allergies: %s\n" +
             "- Dietary Restrictions: %s\n" +
             exerciseListBlock + "\n" +
+            categoryGuidance +
             "Return TWO separate JSON objects:\n\n" +
 
             "Generate a complete 1-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
@@ -187,6 +247,7 @@ public class OpenAIService {
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"monday\": {\n" +
+            "        \"category\": \"Push (Chest/Shoulders/Triceps)\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Exercise Name\",\n" +
@@ -199,6 +260,7 @@ public class OpenAIService {
             "        ]\n" +
             "      },\n" +
             "      \"tuesday\": {\n" +
+            "        \"category\": \"Pull (Back/Biceps)\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Exercise Name\",\n" +
@@ -211,6 +273,7 @@ public class OpenAIService {
             "        ]\n" +
             "      },\n" +
             "      \"wednesday\": {\n" +
+            "        \"category\": \"Active Recovery\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Rest Day Active Recovery\",\n" +
@@ -223,6 +286,7 @@ public class OpenAIService {
             "        ]\n" +
             "      },\n" +
             "      \"thursday\": {\n" +
+            "        \"category\": \"Legs & Glutes\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Exercise Name\",\n" +
@@ -235,6 +299,7 @@ public class OpenAIService {
             "        ]\n" +
             "      },\n" +
             "      \"friday\": {\n" +
+            "        \"category\": \"Full Body\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Exercise Name\",\n" +
@@ -247,6 +312,7 @@ public class OpenAIService {
             "        ]\n" +
             "      },\n" +
             "      \"saturday\": {\n" +
+            "        \"category\": \"Rest Day\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Rest Day\",\n" +
@@ -259,6 +325,7 @@ public class OpenAIService {
             "        ]\n" +
             "      },\n" +
             "      \"sunday\": {\n" +
+            "        \"category\": \"Rest Day\",\n" +
             "        \"exercises\": [\n" +
             "          {\n" +
             "            \"name\": \"Rest Day\",\n" +
@@ -273,7 +340,7 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
+            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Every day MUST include a 'category' field with an appropriate label based on the split guidance above. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
 
             "Generate a complete 1-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
@@ -347,8 +414,8 @@ public class OpenAIService {
             user.getWeightKg() != null ? user.getWeightKg().doubleValue() : 70.0,
             user.getHeightCm() != null ? user.getHeightCm() : 175,
             workoutProfile.getFitnessLevel() != null ? workoutProfile.getFitnessLevel().name() : "BEGINNER",
-            workoutProfile.getTargetGoals() != null ? String.join(", ", workoutProfile.getTargetGoals()) : "WEIGHT_LOSS",
-            workoutProfile.getWorkoutFrequency() != null ? workoutProfile.getWorkoutFrequency() : 3,
+            goalsStr,
+            frequency,
             workoutProfile.getSessionDuration() != null ? workoutProfile.getSessionDuration() : 45,
             workoutProfile.getAvailableEquipment() != null ? String.join(", ", workoutProfile.getAvailableEquipment()) : "BODYWEIGHT",
             dietProfile.getDietType() != null ? dietProfile.getDietType().name() : "BALANCED",
