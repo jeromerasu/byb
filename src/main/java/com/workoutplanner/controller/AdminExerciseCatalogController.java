@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * Admin-only endpoints for the exercise catalog.
  * <ul>
@@ -50,5 +52,29 @@ public class AdminExerciseCatalogController {
 
         log.info("admin.catalog.update id={}", id);
         return ResponseEntity.ok(service.updateSystemEntry(id, dto));
+    }
+
+    /**
+     * One-time migration: backfill media (videoUrl/thumbnailUrl) on existing system entries.
+     * No auth required — this endpoint will be deleted before prod.
+     * Accepts a JSON array: [{"name":"...", "videoUrl":"...", "thumbnailUrl":"..."}, ...]
+     */
+    @PostMapping("/migrate-media")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<Map<String, Object>> migrateMedia(
+            @RequestBody java.util.List<ExerciseCatalogRequestDto> entries) {
+
+        log.info("admin.catalog.migrate-media count={}", entries.size());
+        int updated = 0;
+        for (ExerciseCatalogRequestDto dto : entries) {
+            try {
+                service.updateMediaByName(dto.getName(), dto.getVideoUrl(), dto.getThumbnailUrl());
+                updated++;
+            } catch (Exception e) {
+                log.warn("admin.catalog.migrate-media.skip name={} reason={}", dto.getName(), e.getMessage());
+            }
+        }
+        log.info("admin.catalog.migrate-media.done updated={} of={}", updated, entries.size());
+        return ResponseEntity.ok(Map.of("updated", updated, "total", entries.size()));
     }
 }

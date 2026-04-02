@@ -180,6 +180,21 @@ public class ExerciseCatalogService {
         return ExerciseCatalogResponseDto.from(saved);
     }
 
+    /**
+     * One-time migration helper: updates videoUrl/thumbnailUrl on a system entry by name.
+     * No-ops if the entry is not found.
+     */
+    @Transactional
+    public void updateMediaByName(String name, String videoUrl, String thumbnailUrl) {
+        if (name == null || name.isBlank()) return;
+        repository.findByNameAndIsSystemTrue(name).ifPresent(entry -> {
+            entry.setVideoUrl(videoUrl);
+            entry.setThumbnailUrl(thumbnailUrl);
+            repository.save(entry);
+            log.info("catalog.migrate-media.updated name={}", name);
+        });
+    }
+
     // ---------------------------------------------------------------
     // Private helpers
     // ---------------------------------------------------------------
