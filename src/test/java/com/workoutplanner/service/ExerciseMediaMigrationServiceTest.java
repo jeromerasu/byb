@@ -21,7 +21,8 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for ExerciseMediaMigrationService.
- * Covers: slugify logic, idempotency, successful migration, error handling.
+ * Covers: slugify logic, idempotency, successful migration, error handling,
+ * Phase 1 API fallback for dead static URLs, and Phase 2 null-URL resolution.
  */
 @ExtendWith(MockitoExtension.class)
 class ExerciseMediaMigrationServiceTest {
@@ -29,6 +30,9 @@ class ExerciseMediaMigrationServiceTest {
     private static final Logger log = LoggerFactory.getLogger(ExerciseMediaMigrationServiceTest.class);
 
     private static final String MINIO_ENDPOINT = "https://minio.example.com";
+
+    /** A live GIF URL returned by the ExerciseDB community API. */
+    private static final String LIVE_GIF_URL = "https://static.exercisedb.dev/media/abc123.gif";
 
     @Mock
     private ExerciseCatalogRepository repository;
@@ -116,10 +120,7 @@ class ExerciseMediaMigrationServiceTest {
 
     @Test
     void migrateAll_AlreadyMigratedExercise_ShouldSkipAndNotDownload() throws IOException {
-        ExerciseCatalog alreadyMigrated = makeExercise(1L, "Squat",
-                MINIO_ENDPOINT + "/exercise-media/exercises/squat/animation.gif");
-        // This exercise won't appear in the ExerciseDB query (it's already migrated)
-        // But to simulate re-checking the findByIsSystem list, we return empty from the exercisedb query
+        // Already-migrated exercises don't appear in the exercisedb query
         when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
         when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
 
@@ -144,7 +145,7 @@ class ExerciseMediaMigrationServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // migrateAll — successful migration
+    // migrateAll — successful migration (Phase 1 static URL works)
     // -----------------------------------------------------------------------
 
     @Test
@@ -218,7 +219,131 @@ class ExerciseMediaMigrationServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // migrateAll — error handling
+    // migrateAll — Phase 1 API fallback (dead static URLs → search by name)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void migrateAll_Phase1StaticUrlDead_WhenApiSucceeds_ShouldCountAsSucceeded() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Bench Press",
+                "https://exercisedb.dev/media/bench-press.gif");
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(exercise));
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+
+        // Static URL is dead
+        when(gifDownloader.download("https://exercisedb.dev/media/bench-press.gif"))
+                .thenThrow(new IOException("HTTP 404 downloading: https://exercisedb.dev/media/bench-press.gif"));
+        // API search returns an envelope with the exercise
+        when(gifDownloader.download(contains("exercisedb-api.vercel.app")))
+                .thenReturn(apiEnvelopeJson("Bench Press", LIVE_GIF_URL).getBytes());
+        // Download the GIF from the new API-provided URL
+        when(gifDownloader.download(LIVE_GIF_URL))
+                .thenReturn(new byte[]{1, 2, 3, 4});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.phase1Fallback.success succeeded={} failed={}", result.getSucceeded(), result.getFailed());
+        assertEquals(1, result.getSucceeded());
+        assertEquals(0, result.getFailed());
+        verify(repository).save(argThat(e ->
+                e.getVideoUrl().startsWith(MINIO_ENDPOINT) &&
+                e.getVideoUrl().contains("bench-press")));
+    }
+
+    @Test
+    void migrateAll_Phase1StaticUrlDead_WhenApiAlsoFails_ShouldCountAsFailed() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Squat",
+                "https://exercisedb.dev/squat.gif");
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(exercise));
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+
+        // Both static URL and API fallback fail
+        when(gifDownloader.download("https://exercisedb.dev/squat.gif"))
+                .thenThrow(new IOException("HTTP 404 downloading"));
+        when(gifDownloader.download(contains("exercisedb-api.vercel.app")))
+                .thenThrow(new IOException("API server unavailable"));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.phase1Fallback.apiFails failed={}", result.getFailed());
+        assertEquals(0, result.getSucceeded());
+        assertEquals(1, result.getFailed());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void migrateAll_Phase1StaticUrlDead_WhenApiReturnsEmptyData_ShouldCountAsFailed() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Squat",
+                "https://exercisedb.dev/squat.gif");
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(exercise));
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+
+        when(gifDownloader.download("https://exercisedb.dev/squat.gif"))
+                .thenThrow(new IOException("HTTP 404 downloading"));
+        when(gifDownloader.download(contains("exercisedb-api.vercel.app")))
+                .thenReturn(emptyApiEnvelopeJson().getBytes());
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.phase1Fallback.apiEmpty failed={}", result.getFailed());
+        assertEquals(0, result.getSucceeded());
+        assertEquals(1, result.getFailed());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void migrateAll_Phase1_ThreeExercises_OneSucceedsDirect_OneFallback_OneFails() throws IOException {
+        ExerciseCatalog ex1 = makeExercise(1L, "Deadlift", "https://exercisedb.dev/deadlift.gif");
+        ExerciseCatalog ex2 = makeExercise(2L, "Squat", "https://exercisedb.dev/squat.gif");
+        ExerciseCatalog ex3 = makeExercise(3L, "Lunge", "https://exercisedb.dev/lunge.gif");
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(ex1, ex2, ex3));
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+
+        // ex1 Deadlift: static URL works
+        when(gifDownloader.download("https://exercisedb.dev/deadlift.gif")).thenReturn(new byte[]{1});
+        // ex2 Squat: static dead, API fallback succeeds
+        when(gifDownloader.download("https://exercisedb.dev/squat.gif"))
+                .thenThrow(new IOException("404"));
+        when(gifDownloader.download(contains("search=Squat")))
+                .thenReturn(apiEnvelopeJson("squat", LIVE_GIF_URL).getBytes());
+        when(gifDownloader.download(LIVE_GIF_URL)).thenReturn(new byte[]{2});
+        // ex3 Lunge: static dead, API also fails
+        when(gifDownloader.download("https://exercisedb.dev/lunge.gif"))
+                .thenThrow(new IOException("404"));
+        when(gifDownloader.download(contains("search=Lunge")))
+                .thenThrow(new IOException("API unreachable"));
+
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        assertEquals(2, result.getSucceeded()); // deadlift direct + squat via fallback
+        assertEquals(1, result.getFailed());    // lunge: both paths failed
+        assertEquals(0, result.getSkipped());
+    }
+
+    @Test
+    void migrateAll_Phase1Fallback_UsesSearchEndpointWithExerciseName() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Bench Press",
+                "https://exercisedb.dev/bench-press.gif");
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(exercise));
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
+
+        when(gifDownloader.download("https://exercisedb.dev/bench-press.gif"))
+                .thenThrow(new IOException("404"));
+        // Verify the correct API endpoint is called
+        when(gifDownloader.download(contains("exercisedb-api.vercel.app/api/v1/exercises")))
+                .thenReturn(emptyApiEnvelopeJson().getBytes());
+
+        service.migrateAll();
+
+        // Verify the API was called (even if it returned empty, that's fine for this test)
+        verify(gifDownloader).download(contains("exercisedb-api.vercel.app/api/v1/exercises"));
+    }
+
+    // -----------------------------------------------------------------------
+    // migrateAll — Phase 1 error handling (static URL fails, no fallback
+    //              needed — legacy tests updated for explicit mocking)
     // -----------------------------------------------------------------------
 
     @Test
@@ -227,8 +352,15 @@ class ExerciseMediaMigrationServiceTest {
         ExerciseCatalog ex2 = makeExercise(2L, "Deadlift", "https://exercisedb.dev/deadlift.gif");
         when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(ex1, ex2));
         when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
-        when(gifDownloader.download(contains("squat"))).thenThrow(new IOException("404 Not Found"));
-        when(gifDownloader.download(contains("deadlift"))).thenReturn(new byte[]{1, 2, 3});
+
+        // Squat static URL fails; API fallback also fails → counted as failed
+        when(gifDownloader.download("https://exercisedb.dev/squat.gif"))
+                .thenThrow(new IOException("404 Not Found"));
+        when(gifDownloader.download(contains("search=Squat")))
+                .thenThrow(new IOException("API fallback failed"));
+        // Deadlift succeeds directly
+        when(gifDownloader.download("https://exercisedb.dev/deadlift.gif"))
+                .thenReturn(new byte[]{1, 2, 3});
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ExerciseMediaMigrationResult result = service.migrateAll();
@@ -245,7 +377,11 @@ class ExerciseMediaMigrationServiceTest {
                 "https://exercisedb.dev/bench-press.gif");
         when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(exercise));
         when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
-        when(gifDownloader.download(anyString())).thenReturn(new byte[]{1, 2, 3});
+
+        // Download succeeds but upload fails for BOTH the static-URL attempt
+        // and the API fallback attempt (both try to putBytes)
+        when(gifDownloader.download("https://exercisedb.dev/bench-press.gif"))
+                .thenReturn(new byte[]{1, 2, 3});
         doThrow(new RuntimeException("MinIO unavailable"))
                 .when(storageService).putBytes(any(), any(), any(), any());
 
@@ -258,15 +394,18 @@ class ExerciseMediaMigrationServiceTest {
     }
 
     @Test
-    void migrateAll_ThreeExercises_TwoFail_OnceSucceeds_ShouldCountCorrectly() throws IOException {
+    void migrateAll_ThreeExercises_TwoFail_OneSucceeds_ShouldCountCorrectly() throws IOException {
         ExerciseCatalog ex1 = makeExercise(1L, "A", "https://exercisedb.dev/a.gif");
         ExerciseCatalog ex2 = makeExercise(2L, "B", "https://exercisedb.dev/b.gif");
         ExerciseCatalog ex3 = makeExercise(3L, "C", "https://exercisedb.dev/c.gif");
         when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of(ex1, ex2, ex3));
         when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of());
-        when(gifDownloader.download(contains("/a."))).thenReturn(new byte[]{1});
-        when(gifDownloader.download(contains("/b."))).thenThrow(new IOException("timeout"));
-        when(gifDownloader.download(contains("/c."))).thenThrow(new IOException("403 Forbidden"));
+
+        when(gifDownloader.download("https://exercisedb.dev/a.gif")).thenReturn(new byte[]{1});
+        when(gifDownloader.download("https://exercisedb.dev/b.gif")).thenThrow(new IOException("timeout"));
+        when(gifDownloader.download(contains("search=B"))).thenThrow(new IOException("API timeout"));
+        when(gifDownloader.download("https://exercisedb.dev/c.gif")).thenThrow(new IOException("403 Forbidden"));
+        when(gifDownloader.download(contains("search=C"))).thenThrow(new IOException("API forbidden"));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ExerciseMediaMigrationResult result = service.migrateAll();
@@ -276,8 +415,29 @@ class ExerciseMediaMigrationServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // migrateAll — null videoUrl exercises
+    // migrateAll — Phase 2: null videoUrl → resolve via API
     // -----------------------------------------------------------------------
+
+    @Test
+    void migrateAll_NullVideoUrl_WhenApiReturnsValidResult_ShouldSucceed() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Bench Press", null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+
+        when(gifDownloader.download(contains("exercisedb-api.vercel.app")))
+                .thenReturn(apiEnvelopeJson("Bench Press", LIVE_GIF_URL).getBytes());
+        when(gifDownloader.download(LIVE_GIF_URL)).thenReturn(new byte[]{1, 2, 3, 4});
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ExerciseMediaMigrationResult result = service.migrateAll();
+
+        log.info("test.phase2.success succeeded={}", result.getSucceeded());
+        assertEquals(1, result.getSucceeded());
+        assertEquals(0, result.getSkipped());
+        verify(repository).save(argThat(e ->
+                e.getVideoUrl().startsWith(MINIO_ENDPOINT) &&
+                e.getVideoUrl().contains("bench-press")));
+    }
 
     @Test
     void migrateAll_NullVideoUrl_WhenApiLookupFails_ShouldCountAsSkipped() throws IOException {
@@ -295,16 +455,29 @@ class ExerciseMediaMigrationServiceTest {
     }
 
     @Test
-    void migrateAll_NullVideoUrl_WhenApiReturnsEmptyArray_ShouldCountAsSkipped() throws IOException {
+    void migrateAll_NullVideoUrl_WhenApiReturnsEmptyData_ShouldCountAsSkipped() throws IOException {
         ExerciseCatalog exercise = makeExercise(1L, "Unknown Exercise", null);
         when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
         when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
-        when(gifDownloader.download(anyString())).thenReturn("[]".getBytes());
+        when(gifDownloader.download(anyString())).thenReturn(emptyApiEnvelopeJson().getBytes());
 
         ExerciseMediaMigrationResult result = service.migrateAll();
 
         assertEquals(0, result.getSucceeded());
         assertEquals(1, result.getSkipped());
+    }
+
+    @Test
+    void migrateAll_NullVideoUrl_ApiUsesSearchParamWithExerciseName() throws IOException {
+        ExerciseCatalog exercise = makeExercise(1L, "Lat Pulldown", null);
+        when(repository.findSystemExercisesWithExerciseDbUrls()).thenReturn(List.of());
+        when(repository.findByVideoUrlIsNullAndIsSystemTrue()).thenReturn(List.of(exercise));
+        when(gifDownloader.download(contains("search=Lat+Pulldown")))
+                .thenReturn(emptyApiEnvelopeJson().getBytes());
+
+        service.migrateAll();
+
+        verify(gifDownloader).download(contains("search=Lat+Pulldown"));
     }
 
     // -----------------------------------------------------------------------
@@ -343,5 +516,25 @@ class ExerciseMediaMigrationServiceTest {
         e.setDifficultyLevel("INTERMEDIATE");
         e.setInstructions("Do the exercise correctly.");
         return e;
+    }
+
+    /**
+     * Builds a minimal ExerciseDB API v1 envelope JSON containing one exercise.
+     */
+    private String apiEnvelopeJson(String name, String gifUrl) {
+        return String.format(
+                "{\"success\":true,\"data\":[{\"exerciseId\":\"abc123\",\"name\":\"%s\",\"gifUrl\":\"%s\"," +
+                "\"targetMuscles\":[\"chest\"],\"bodyParts\":[\"upper arms\"],\"equipments\":[\"barbell\"]," +
+                "\"secondaryMuscles\":[],\"instructions\":[\"Step 1\"]}]," +
+                "\"metadata\":{\"totalPages\":1,\"totalExercises\":1,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}",
+                name, gifUrl);
+    }
+
+    /**
+     * Builds an ExerciseDB API v1 envelope JSON with an empty data array.
+     */
+    private String emptyApiEnvelopeJson() {
+        return "{\"success\":true,\"data\":[]," +
+               "\"metadata\":{\"totalPages\":0,\"totalExercises\":0,\"currentPage\":1,\"previousPage\":null,\"nextPage\":null}}";
     }
 }
