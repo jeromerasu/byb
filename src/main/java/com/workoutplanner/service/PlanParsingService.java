@@ -154,13 +154,10 @@ public class PlanParsingService {
 
             Object dayObj = weekMap.get(dayKey);
             if (dayObj == null) {
-                // Try day_1, day_2, etc. format as fallback
-                for (int j = 1; j <= 7; j++) {
-                    if (weekMap.get("day_" + j) != null) {
-                        dayObj = weekMap.get("day_" + j);
-                        break;
-                    }
-                }
+                // Try the positionally matching day_N key (1-based index).
+                // Do NOT fall back to the first available day_X — that causes all
+                // missing days to silently receive the same data (e.g. day_1 for all).
+                dayObj = weekMap.get("day_" + (i + 1));
             }
 
             if (dayObj instanceof Map<?, ?> dayMap) {

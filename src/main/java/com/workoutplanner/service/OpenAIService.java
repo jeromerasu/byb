@@ -493,28 +493,328 @@ public class OpenAIService {
             "        }\n" +
             "      },\n" +
             "      \"tuesday\": {\n" +
-            "        \"meals\": [ /* Add meals for Tuesday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
+            "        \"meals\": [\n" +
+            "          {\n" +
+            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"name\": \"Greek Yogurt Parfait\",\n" +
+            "            \"ingredients\": [\"greek yogurt\", \"granola\", \"blueberries\"],\n" +
+            "            \"calories\": 380,\n" +
+            "            \"proteins\": 22,\n" +
+            "            \"carbs\": 48,\n" +
+            "            \"fats\": 8,\n" +
+            "            \"preparation_time\": 5,\n" +
+            "            \"instructions\": \"Layer yogurt, granola, and berries in a bowl\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"lunch\",\n" +
+            "            \"name\": \"Turkey Wrap\",\n" +
+            "            \"ingredients\": [\"whole wheat wrap\", \"turkey breast\", \"lettuce\", \"tomato\"],\n" +
+            "            \"calories\": 480,\n" +
+            "            \"proteins\": 35,\n" +
+            "            \"carbs\": 45,\n" +
+            "            \"fats\": 12,\n" +
+            "            \"preparation_time\": 10,\n" +
+            "            \"instructions\": \"Fill wrap with turkey and vegetables, roll tightly\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"dinner\",\n" +
+            "            \"name\": \"Baked Salmon with Quinoa\",\n" +
+            "            \"ingredients\": [\"salmon fillet\", \"quinoa\", \"asparagus\", \"lemon\"],\n" +
+            "            \"calories\": 580,\n" +
+            "            \"proteins\": 42,\n" +
+            "            \"carbs\": 38,\n" +
+            "            \"fats\": 18,\n" +
+            "            \"preparation_time\": 25,\n" +
+            "            \"instructions\": \"Bake salmon at 400F for 15 minutes, serve over quinoa with asparagus\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"snack\",\n" +
+            "            \"name\": \"Apple with Almond Butter\",\n" +
+            "            \"ingredients\": [\"apple\", \"almond butter\"],\n" +
+            "            \"calories\": 220,\n" +
+            "            \"proteins\": 5,\n" +
+            "            \"carbs\": 28,\n" +
+            "            \"fats\": 11,\n" +
+            "            \"preparation_time\": 2,\n" +
+            "            \"instructions\": \"Slice apple and serve with almond butter for dipping\"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"daily_totals\": {\n" +
+            "          \"calories\": 1660,\n" +
+            "          \"proteins\": 104,\n" +
+            "          \"carbs\": 159,\n" +
+            "          \"fats\": 49\n" +
+            "        }\n" +
             "      },\n" +
             "      \"wednesday\": {\n" +
-            "        \"meals\": [ /* Add meals for Wednesday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
+            "        \"meals\": [\n" +
+            "          {\n" +
+            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"name\": \"Veggie Omelette\",\n" +
+            "            \"ingredients\": [\"eggs\", \"spinach\", \"bell pepper\", \"mushrooms\"],\n" +
+            "            \"calories\": 320,\n" +
+            "            \"proteins\": 24,\n" +
+            "            \"carbs\": 12,\n" +
+            "            \"fats\": 18,\n" +
+            "            \"preparation_time\": 10,\n" +
+            "            \"instructions\": \"Whisk eggs, cook vegetables first, fold eggs around filling\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"lunch\",\n" +
+            "            \"name\": \"Lentil Soup with Whole Grain Bread\",\n" +
+            "            \"ingredients\": [\"red lentils\", \"carrots\", \"celery\", \"whole grain bread\"],\n" +
+            "            \"calories\": 460,\n" +
+            "            \"proteins\": 22,\n" +
+            "            \"carbs\": 68,\n" +
+            "            \"fats\": 8,\n" +
+            "            \"preparation_time\": 30,\n" +
+            "            \"instructions\": \"Simmer lentils with vegetables until tender, season and serve with bread\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"dinner\",\n" +
+            "            \"name\": \"Grilled Chicken Stir-Fry\",\n" +
+            "            \"ingredients\": [\"chicken breast\", \"broccoli\", \"snap peas\", \"brown rice\", \"soy sauce\"],\n" +
+            "            \"calories\": 520,\n" +
+            "            \"proteins\": 40,\n" +
+            "            \"carbs\": 52,\n" +
+            "            \"fats\": 10,\n" +
+            "            \"preparation_time\": 20,\n" +
+            "            \"instructions\": \"Stir-fry chicken and vegetables in soy sauce, serve over brown rice\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"snack\",\n" +
+            "            \"name\": \"Cottage Cheese with Pineapple\",\n" +
+            "            \"ingredients\": [\"cottage cheese\", \"pineapple chunks\"],\n" +
+            "            \"calories\": 180,\n" +
+            "            \"proteins\": 16,\n" +
+            "            \"carbs\": 22,\n" +
+            "            \"fats\": 3,\n" +
+            "            \"preparation_time\": 2,\n" +
+            "            \"instructions\": \"Mix cottage cheese with pineapple chunks\"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"daily_totals\": {\n" +
+            "          \"calories\": 1480,\n" +
+            "          \"proteins\": 102,\n" +
+            "          \"carbs\": 154,\n" +
+            "          \"fats\": 39\n" +
+            "        }\n" +
             "      },\n" +
             "      \"thursday\": {\n" +
-            "        \"meals\": [ /* Add meals for Thursday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
+            "        \"meals\": [\n" +
+            "          {\n" +
+            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"name\": \"Smoothie Bowl\",\n" +
+            "            \"ingredients\": [\"frozen banana\", \"protein powder\", \"almond milk\", \"chia seeds\", \"strawberries\"],\n" +
+            "            \"calories\": 420,\n" +
+            "            \"proteins\": 28,\n" +
+            "            \"carbs\": 55,\n" +
+            "            \"fats\": 9,\n" +
+            "            \"preparation_time\": 8,\n" +
+            "            \"instructions\": \"Blend banana with protein powder and almond milk, top with chia seeds and berries\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"lunch\",\n" +
+            "            \"name\": \"Tuna Salad Bowl\",\n" +
+            "            \"ingredients\": [\"canned tuna\", \"mixed greens\", \"cucumber\", \"cherry tomatoes\", \"olive oil\"],\n" +
+            "            \"calories\": 390,\n" +
+            "            \"proteins\": 38,\n" +
+            "            \"carbs\": 18,\n" +
+            "            \"fats\": 16,\n" +
+            "            \"preparation_time\": 10,\n" +
+            "            \"instructions\": \"Toss drained tuna with salad greens and vegetables, drizzle with olive oil\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"dinner\",\n" +
+            "            \"name\": \"Beef and Sweet Potato Bowl\",\n" +
+            "            \"ingredients\": [\"lean ground beef\", \"sweet potato\", \"black beans\", \"salsa\"],\n" +
+            "            \"calories\": 620,\n" +
+            "            \"proteins\": 38,\n" +
+            "            \"carbs\": 62,\n" +
+            "            \"fats\": 18,\n" +
+            "            \"preparation_time\": 25,\n" +
+            "            \"instructions\": \"Brown beef, roast sweet potato cubes, combine with beans and top with salsa\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"snack\",\n" +
+            "            \"name\": \"Hummus with Veggie Sticks\",\n" +
+            "            \"ingredients\": [\"hummus\", \"carrot sticks\", \"celery sticks\", \"cucumber slices\"],\n" +
+            "            \"calories\": 160,\n" +
+            "            \"proteins\": 6,\n" +
+            "            \"carbs\": 20,\n" +
+            "            \"fats\": 7,\n" +
+            "            \"preparation_time\": 5,\n" +
+            "            \"instructions\": \"Arrange vegetables around hummus for dipping\"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"daily_totals\": {\n" +
+            "          \"calories\": 1590,\n" +
+            "          \"proteins\": 110,\n" +
+            "          \"carbs\": 155,\n" +
+            "          \"fats\": 50\n" +
+            "        }\n" +
             "      },\n" +
             "      \"friday\": {\n" +
-            "        \"meals\": [ /* Add meals for Friday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
+            "        \"meals\": [\n" +
+            "          {\n" +
+            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"name\": \"Whole Grain Pancakes\",\n" +
+            "            \"ingredients\": [\"whole wheat flour\", \"egg\", \"milk\", \"banana\", \"maple syrup\"],\n" +
+            "            \"calories\": 440,\n" +
+            "            \"proteins\": 18,\n" +
+            "            \"carbs\": 72,\n" +
+            "            \"fats\": 10,\n" +
+            "            \"preparation_time\": 15,\n" +
+            "            \"instructions\": \"Mix batter, cook on griddle until golden, serve with sliced banana\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"lunch\",\n" +
+            "            \"name\": \"Chicken Caesar Salad\",\n" +
+            "            \"ingredients\": [\"romaine lettuce\", \"grilled chicken\", \"parmesan\", \"croutons\", \"caesar dressing\"],\n" +
+            "            \"calories\": 510,\n" +
+            "            \"proteins\": 36,\n" +
+            "            \"carbs\": 32,\n" +
+            "            \"fats\": 22,\n" +
+            "            \"preparation_time\": 15,\n" +
+            "            \"instructions\": \"Toss lettuce with dressing, top with chicken, parmesan, and croutons\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"dinner\",\n" +
+            "            \"name\": \"Shrimp Pasta\",\n" +
+            "            \"ingredients\": [\"shrimp\", \"whole grain pasta\", \"cherry tomatoes\", \"garlic\", \"olive oil\"],\n" +
+            "            \"calories\": 560,\n" +
+            "            \"proteins\": 35,\n" +
+            "            \"carbs\": 65,\n" +
+            "            \"fats\": 14,\n" +
+            "            \"preparation_time\": 20,\n" +
+            "            \"instructions\": \"Saute shrimp and garlic, toss with cooked pasta and tomatoes\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"snack\",\n" +
+            "            \"name\": \"Protein Bar\",\n" +
+            "            \"ingredients\": [\"protein bar\"],\n" +
+            "            \"calories\": 210,\n" +
+            "            \"proteins\": 20,\n" +
+            "            \"carbs\": 25,\n" +
+            "            \"fats\": 7,\n" +
+            "            \"preparation_time\": 0,\n" +
+            "            \"instructions\": \"Ready to eat\"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"daily_totals\": {\n" +
+            "          \"calories\": 1720,\n" +
+            "          \"proteins\": 109,\n" +
+            "          \"carbs\": 194,\n" +
+            "          \"fats\": 53\n" +
+            "        }\n" +
             "      },\n" +
             "      \"saturday\": {\n" +
-            "        \"meals\": [ /* Add meals for Saturday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
+            "        \"meals\": [\n" +
+            "          {\n" +
+            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"name\": \"Avocado Toast with Poached Eggs\",\n" +
+            "            \"ingredients\": [\"sourdough bread\", \"avocado\", \"eggs\", \"cherry tomatoes\", \"red pepper flakes\"],\n" +
+            "            \"calories\": 480,\n" +
+            "            \"proteins\": 22,\n" +
+            "            \"carbs\": 42,\n" +
+            "            \"fats\": 24,\n" +
+            "            \"preparation_time\": 12,\n" +
+            "            \"instructions\": \"Toast bread, mash avocado on top, place poached eggs, garnish with tomatoes\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"lunch\",\n" +
+            "            \"name\": \"Black Bean Burrito\",\n" +
+            "            \"ingredients\": [\"tortilla\", \"black beans\", \"brown rice\", \"salsa\", \"greek yogurt\"],\n" +
+            "            \"calories\": 520,\n" +
+            "            \"proteins\": 24,\n" +
+            "            \"carbs\": 78,\n" +
+            "            \"fats\": 10,\n" +
+            "            \"preparation_time\": 15,\n" +
+            "            \"instructions\": \"Warm tortilla, fill with beans, rice, and salsa, fold and serve\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"dinner\",\n" +
+            "            \"name\": \"Grilled Steak with Roasted Vegetables\",\n" +
+            "            \"ingredients\": [\"lean sirloin\", \"zucchini\", \"bell peppers\", \"onion\", \"olive oil\"],\n" +
+            "            \"calories\": 580,\n" +
+            "            \"proteins\": 46,\n" +
+            "            \"carbs\": 22,\n" +
+            "            \"fats\": 28,\n" +
+            "            \"preparation_time\": 30,\n" +
+            "            \"instructions\": \"Grill steak to desired doneness, roast vegetables with olive oil at 425F\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"snack\",\n" +
+            "            \"name\": \"Mixed Nuts and Dried Fruit\",\n" +
+            "            \"ingredients\": [\"almonds\", \"walnuts\", \"dried cranberries\"],\n" +
+            "            \"calories\": 240,\n" +
+            "            \"proteins\": 7,\n" +
+            "            \"carbs\": 22,\n" +
+            "            \"fats\": 16,\n" +
+            "            \"preparation_time\": 0,\n" +
+            "            \"instructions\": \"Mix together and portion into a bowl\"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"daily_totals\": {\n" +
+            "          \"calories\": 1820,\n" +
+            "          \"proteins\": 99,\n" +
+            "          \"carbs\": 164,\n" +
+            "          \"fats\": 78\n" +
+            "        }\n" +
             "      },\n" +
             "      \"sunday\": {\n" +
-            "        \"meals\": [ /* Add meals for Sunday */ ],\n" +
-            "        \"daily_totals\": { /* Add daily totals */ }\n" +
+            "        \"meals\": [\n" +
+            "          {\n" +
+            "            \"meal_type\": \"breakfast\",\n" +
+            "            \"name\": \"Overnight Oats\",\n" +
+            "            \"ingredients\": [\"rolled oats\", \"almond milk\", \"honey\", \"banana\", \"walnuts\"],\n" +
+            "            \"calories\": 410,\n" +
+            "            \"proteins\": 14,\n" +
+            "            \"carbs\": 62,\n" +
+            "            \"fats\": 14,\n" +
+            "            \"preparation_time\": 5,\n" +
+            "            \"instructions\": \"Combine oats and milk the night before, top with banana and walnuts in the morning\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"lunch\",\n" +
+            "            \"name\": \"Tomato Basil Soup with Grilled Cheese\",\n" +
+            "            \"ingredients\": [\"tomatoes\", \"basil\", \"whole grain bread\", \"cheese\", \"butter\"],\n" +
+            "            \"calories\": 490,\n" +
+            "            \"proteins\": 18,\n" +
+            "            \"carbs\": 52,\n" +
+            "            \"fats\": 22,\n" +
+            "            \"preparation_time\": 20,\n" +
+            "            \"instructions\": \"Simmer tomatoes and basil, blend until smooth; grill cheese sandwich separately\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"dinner\",\n" +
+            "            \"name\": \"Roasted Chicken Thighs with Mashed Sweet Potato\",\n" +
+            "            \"ingredients\": [\"chicken thighs\", \"sweet potato\", \"garlic\", \"rosemary\", \"olive oil\"],\n" +
+            "            \"calories\": 610,\n" +
+            "            \"proteins\": 40,\n" +
+            "            \"carbs\": 48,\n" +
+            "            \"fats\": 24,\n" +
+            "            \"preparation_time\": 40,\n" +
+            "            \"instructions\": \"Roast chicken thighs at 425F for 35 minutes, mash boiled sweet potato with garlic\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"meal_type\": \"snack\",\n" +
+            "            \"name\": \"Dark Chocolate and Berries\",\n" +
+            "            \"ingredients\": [\"dark chocolate\", \"mixed berries\"],\n" +
+            "            \"calories\": 190,\n" +
+            "            \"proteins\": 3,\n" +
+            "            \"carbs\": 26,\n" +
+            "            \"fats\": 10,\n" +
+            "            \"preparation_time\": 0,\n" +
+            "            \"instructions\": \"Serve dark chocolate squares with fresh mixed berries\"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"daily_totals\": {\n" +
+            "          \"calories\": 1700,\n" +
+            "          \"proteins\": 75,\n" +
+            "          \"carbs\": 188,\n" +
+            "          \"fats\": 70\n" +
+            "        }\n" +
             "      }\n" +
             "    }\n" +
             "  }\n" +
@@ -646,7 +946,7 @@ public class OpenAIService {
         }
     }
 
-    private String cleanJsonString(String jsonStr) {
+    String cleanJsonString(String jsonStr) {
         // Remove markdown code blocks and comments
         String cleaned = jsonStr.replaceAll("```json", "")
                                 .replaceAll("```", "")
@@ -663,9 +963,15 @@ public class OpenAIService {
         cleaned = cleaned.replaceAll("\"exercises\":\\s*\\[\\s*\\]",
             "\"exercises\": [{\"name\": \"Rest Day\", \"sets\": 0, \"reps\": 0, \"weight_type\": \"rest\", \"muscle_groups\": [], \"instructions\": \"Rest day - no exercises\"}]");
 
-        // Handle empty meal arrays - fill with rest day data
-        cleaned = cleaned.replaceAll("\"meals\":\\s*\\[\\s*\\]",
-            "\"meals\": [{\"meal_type\": \"rest\", \"name\": \"Rest Day\", \"ingredients\": [], \"calories\": 0, \"proteins\": 0, \"carbs\": 0, \"fats\": 0, \"preparation_time\": 0, \"instructions\": \"Rest day\"}]");
+        // Handle empty meal arrays - log a warning so we can detect generation failures,
+        // then substitute a clearly-labelled placeholder so the app does not crash.
+        java.util.regex.Matcher emptyMealsMatcher =
+            java.util.regex.Pattern.compile("\"meals\":\\s*\\[\\s*\\]").matcher(cleaned);
+        if (emptyMealsMatcher.find()) {
+            logger.warn("Empty meal array detected in JSON response - OpenAI did not generate meals for at least one day. Consider regenerating the plan.");
+            cleaned = emptyMealsMatcher.replaceAll(
+                "\"meals\": [{\"meal_type\": \"none\", \"name\": \"No meals generated - please regenerate plan\", \"ingredients\": [], \"calories\": 0, \"proteins\": 0, \"carbs\": 0, \"fats\": 0, \"preparation_time\": 0, \"instructions\": \"No meals were generated for this day\"}]");
+        }
 
         // Remove any trailing commas before closing brackets/braces
         cleaned = cleaned.replaceAll(",\\s*([\\]}])", "$1");
@@ -676,21 +982,34 @@ public class OpenAIService {
                         .replaceAll("\\s+$", "")
                         .trim();
 
-        // Attempt to handle truncated JSON by validating brace balance and fixing structure
+        // Attempt to handle truncated JSON by validating brace balance and fixing structure.
+        // The counter must skip characters inside quoted strings so that literal braces
+        // in values like "Do 3 sets {rest 60s}" don't corrupt the count.
         if (!cleaned.endsWith("}")) {
             logger.warn("JSON does not end with closing brace - attempting to repair");
 
-            // Count braces to determine if we have balanced structure
             int braceCount = 0;
             int lastValidPosition = -1;
+            boolean inString = false;
 
             for (int i = 0; i < cleaned.length(); i++) {
-                if (cleaned.charAt(i) == '{') {
-                    braceCount++;
-                } else if (cleaned.charAt(i) == '}') {
-                    braceCount--;
-                    if (braceCount == 0) {
-                        lastValidPosition = i + 1;
+                char c = cleaned.charAt(i);
+                if (inString) {
+                    if (c == '\\') {
+                        i++; // skip the escaped character
+                    } else if (c == '"') {
+                        inString = false;
+                    }
+                } else {
+                    if (c == '"') {
+                        inString = true;
+                    } else if (c == '{') {
+                        braceCount++;
+                    } else if (c == '}') {
+                        braceCount--;
+                        if (braceCount == 0) {
+                            lastValidPosition = i + 1;
+                        }
                     }
                 }
             }
@@ -700,13 +1019,14 @@ public class OpenAIService {
                 logger.info("Truncated JSON at position {} to maintain valid structure", lastValidPosition);
             } else if (braceCount > 0) {
                 // Add missing closing braces
+                int missingBraces = braceCount;
                 StringBuilder sb = new StringBuilder(cleaned);
                 while (braceCount > 0) {
                     sb.append("}");
                     braceCount--;
                 }
                 cleaned = sb.toString();
-                logger.info("Added {} missing closing braces to repair truncated JSON", braceCount);
+                logger.info("Added {} missing closing braces to repair truncated JSON", missingBraces);
             }
         }
 
