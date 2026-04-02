@@ -53,7 +53,7 @@ public class UserService implements UserDetailsService {
 
             // Set default values
             user.setActive(true);
-            user.setEmailVerified(false);
+            user.setEmailVerified(true);
             user.setRole(User.Role.USER);
 
             return userRepository.save(user);

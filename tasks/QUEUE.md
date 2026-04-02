@@ -56,6 +56,10 @@
 ### Frontend P1 (depends on P1-005, P1-006, P1-007, and backend P1-001–P1-004)
 - [ ] TASK-P1-008 — Wire Frontend to Real Backend APIs — **BACKLOG**
 
+## Feature Tasks
+
+- [ ] TASK-ATHLETIC-001 — Day Category Labels + Athletic Performance Goals — **READY**
+
 ## Notes
 - Use `tasks/TASK_TEMPLATE.md` for all new backend tasks.
 - Follow `TESTING_REQUIREMENTS.md` for mandatory local verification before marking DONE.
