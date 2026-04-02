@@ -56,11 +56,14 @@ public class PlanParsingService {
         response.setPlanStartDate(weekStartDate.format(formatter));
         response.setPlanEndDate(weekEndDate.format(formatter));
 
-        // Build exercise media lookup map from catalog (case-insensitive keys)
-        Map<String, ExerciseCatalog> catalogMap = exerciseCatalogRepository.findByIsSystemTrue()
-                .stream()
+        // Build exercise media lookup maps from catalog.
+        // Two maps: exact (normalized) for precise matches, plus a
+        // "contains" fallback list for AI-generated name variations
+        // like "Push-Ups" vs catalog "Push Up", "Dips" vs "Dip".
+        List<ExerciseCatalog> allCatalogExercises = exerciseCatalogRepository.findByIsSystemTrue();
+        Map<String, ExerciseCatalog> catalogMap = allCatalogExercises.stream()
                 .collect(Collectors.toMap(
-                        e -> e.getName().toLowerCase().trim(),
+                        e -> normalizeExerciseName(e.getName()),
                         e -> e,
                         (e1, e2) -> e1));
 
@@ -72,10 +75,8 @@ public class PlanParsingService {
             for (CurrentWeekResponseDto.WorkoutDayDto day : workoutWeek.getDays().values()) {
                 if (day.getExercises() != null) {
                     for (CurrentWeekResponseDto.ExerciseDto exercise : day.getExercises()) {
-                        ExerciseCatalog entry = exercise.getName() != null
-                                ? catalogMap.get(exercise.getName().toLowerCase().trim())
-                                : null;
-                        if (entry != null) {
+                        ExerciseCatalog entry = findCatalogEntry(exercise.getName(), catalogMap, allCatalogExercises);
+                        if (entry != null && entry.getVideoUrl() != null) {
                             exercise.setVideoUrl(entry.getVideoUrl());
                             exercise.setThumbnailUrl(entry.getThumbnailUrl());
                         }
@@ -98,6 +99,54 @@ public class PlanParsingService {
         response.setDietFoodCatalog(dietFoodCatalog);
 
         return response;
+    }
+
+    /**
+     * Normalize an exercise name for matching: lowercase, strip hyphens,
+     * collapse whitespace, and remove trailing 's' (simple plural strip).
+     */
+    private static String normalizeExerciseName(String name) {
+        if (name == null) return "";
+        return name.toLowerCase()
+                .replace("-", " ")
+                .replace("_", " ")
+                .replaceAll("\\s+", " ")
+                .trim()
+                .replaceAll("s$", "");
+    }
+
+    /**
+     * Find the best matching catalog entry for an AI-generated exercise name.
+     * 1. Try exact normalized match.
+     * 2. Fall back to the first catalog entry whose normalized name is contained
+     *    in the exercise name, or vice-versa (handles "Barbell Back Squat" vs "Back Squat").
+     */
+    private static ExerciseCatalog findCatalogEntry(
+            String exerciseName,
+            Map<String, ExerciseCatalog> catalogMap,
+            List<ExerciseCatalog> allCatalogExercises) {
+        if (exerciseName == null) return null;
+        String normalized = normalizeExerciseName(exerciseName);
+
+        // 1. Exact normalized match
+        ExerciseCatalog exact = catalogMap.get(normalized);
+        if (exact != null) return exact;
+
+        // 2. Substring / contains fallback (only if video URL exists)
+        ExerciseCatalog best = null;
+        int bestLen = 0;
+        for (ExerciseCatalog entry : allCatalogExercises) {
+            if (entry.getVideoUrl() == null) continue;
+            String catNorm = normalizeExerciseName(entry.getName());
+            if (normalized.contains(catNorm) || catNorm.contains(normalized)) {
+                // Prefer the longest matching catalog name (most specific)
+                if (catNorm.length() > bestLen) {
+                    best = entry;
+                    bestLen = catNorm.length();
+                }
+            }
+        }
+        return best;
     }
 
     /**
