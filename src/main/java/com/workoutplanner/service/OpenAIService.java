@@ -152,7 +152,13 @@ public class OpenAIService {
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
                "- If a day is a rest day, include a proper rest exercise/meal object\n" +
                "- PRIORITIZE COMPLETENESS over detail - ensure the full week is included\n" +
-               "- Do NOT truncate or cut off the JSON response - complete all structures fully";
+               "- Do NOT truncate or cut off the JSON response - complete all structures fully\n" +
+               "- MINIMUM EXERCISES PER WORKOUT DAY based on session duration:\n" +
+               "  * 30-minute sessions: minimum 4 exercises per workout day\n" +
+               "  * 45-minute sessions: minimum 5 exercises per workout day\n" +
+               "  * 60-minute sessions: minimum 6-8 exercises per workout day\n" +
+               "- Each workout day MUST include a VARIETY of exercises targeting the intended muscle groups — never fewer than the minimum for that session duration\n" +
+               "- Do NOT generate only 1-2 exercises for a workout day — this is strictly forbidden";
     }
 
     private String buildCombinedPrompt(User user, WorkoutProfile workoutProfile, DietProfile dietProfile,
@@ -161,6 +167,16 @@ public class OpenAIService {
                 ? ""
                 : "\n**Exercise Catalog (you MUST use ONLY these exact exercise names — no variations, abbreviations, or new names):**\n" +
                   String.join(", ", catalogExerciseNames) + "\n";
+
+        int sessionDuration = workoutProfile.getSessionDuration() != null ? workoutProfile.getSessionDuration() : 45;
+        String minExerciseRule;
+        if (sessionDuration <= 30) {
+            minExerciseRule = "MINIMUM 4 exercises per workout day (30-minute session)";
+        } else if (sessionDuration <= 45) {
+            minExerciseRule = "MINIMUM 5 exercises per workout day (45-minute session)";
+        } else {
+            minExerciseRule = "MINIMUM 6-8 exercises per workout day (60-minute session)";
+        }
 
         return String.format(
             "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
@@ -180,6 +196,7 @@ public class OpenAIService {
             exerciseListBlock + "\n" +
             "Return TWO separate JSON objects:\n\n" +
 
+            "**EXERCISE COUNT REQUIREMENT:** " + minExerciseRule + ". Each workout day MUST have this many distinct exercises with variety targeting the intended muscle groups. Do NOT generate only 1-2 exercises — this is unacceptable.\n\n" +
             "Generate a complete 1-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
@@ -273,7 +290,8 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
+            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days. " +
+            "Each active workout day MUST have " + minExerciseRule + " — include a variety of exercises targeting different muscle groups for that day. Do NOT use the same 1-2 exercises for every day.\n\n" +
 
             "Generate a complete 1-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
