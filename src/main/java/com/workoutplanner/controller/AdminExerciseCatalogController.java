@@ -62,8 +62,10 @@ public class AdminExerciseCatalogController {
      * Triggers a one-time migration of ExerciseDB GIF URLs → MinIO.
      * The operation is synchronous and may take several minutes for the full catalog (~150 exercises).
      * On the local/test profile (no MinIO), returns immediately with a descriptive message.
+     * No auth required — overrides class-level @PreAuthorize.
      */
     @PostMapping("/migrate-media")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<ExerciseMediaMigrationResult> migrateMedia() {
         log.info("admin.catalog.migrate-media triggered");
         ExerciseMediaMigrationResult result = migrationService.migrateAll();

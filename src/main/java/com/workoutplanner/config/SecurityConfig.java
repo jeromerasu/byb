@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -91,6 +92,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/plans/generate").permitAll()
                 // RevenueCat webhook (public — validated by webhook secret header)
                 .requestMatchers("/api/webhooks/revenuecat").permitAll()
+                // One-time media migration — no auth required (will be deleted before prod)
+                .requestMatchers(HttpMethod.POST, "/api/v1/admin/exercises/migrate-media").permitAll()
                 // Admin food catalog — requires ADMIN role
                 .requestMatchers("/api/v1/admin/foods/**").hasRole("ADMIN")
                 // Other admin endpoints (ops/testing use)
