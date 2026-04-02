@@ -152,7 +152,17 @@ public class OpenAIService {
                "- Every day must have complete exercise/meal data, not references or shortcuts\n" +
                "- If a day is a rest day, include a proper rest exercise/meal object\n" +
                "- PRIORITIZE COMPLETENESS over detail - ensure the full week is included\n" +
-               "- Do NOT truncate or cut off the JSON response - complete all structures fully";
+               "- Do NOT truncate or cut off the JSON response - complete all structures fully\n\n" +
+               "WORKOUT FREQUENCY RULE (CRITICAL):\n" +
+               "- workout_frequency = the number of REAL training days with full exercise lists\n" +
+               "- Remaining days (7 - workout_frequency) are rest/recovery days with only a rest entry\n" +
+               "- NEVER count an 'active recovery', 'light yoga', or 'stretching' day as one of the real training days\n\n" +
+               "MINIMUM EXERCISES PER TRAINING DAY (CRITICAL — violating this is a critical error):\n" +
+               "- 30-minute sessions: minimum 4 exercises per training day\n" +
+               "- 45-minute sessions: minimum 5 exercises per training day\n" +
+               "- 60-minute sessions: minimum 6 exercises per training day (NEVER generate fewer than 6)\n" +
+               "- 75+ minute sessions: minimum 8 exercises per training day\n" +
+               "- The JSON template in the user prompt shows the minimum number of exercise slots — you MUST fill all of them";
     }
 
     /**
@@ -217,11 +227,19 @@ public class OpenAIService {
                   String.join(", ", catalogExerciseNames) + "\n";
 
         int frequency = workoutProfile.getWorkoutFrequency() != null ? workoutProfile.getWorkoutFrequency() : 3;
+        int sessionDuration = workoutProfile.getSessionDuration() != null ? workoutProfile.getSessionDuration() : 45;
+        int restDays = 7 - frequency;
+        int minExercises;
+        if (sessionDuration >= 75) minExercises = 8;
+        else if (sessionDuration >= 60) minExercises = 6;
+        else if (sessionDuration >= 45) minExercises = 5;
+        else minExercises = 4;
+
         String goalsStr = workoutProfile.getTargetGoals() != null
                 ? String.join(", ", workoutProfile.getTargetGoals()) : "GENERAL_FITNESS";
         String categoryGuidance = buildCategoryGuidance(frequency, goalsStr);
 
-        return String.format(
+        String userProfile = String.format(
             "Create a personalized 1-week fitness and nutrition plan for:\n\n" +
             "**User Profile:**\n" +
             "- Age: %d, Gender: %s\n" +
@@ -235,15 +253,40 @@ public class OpenAIService {
             "- Daily Calorie Goal: %d calories\n" +
             "- Meals Per Day: %d\n" +
             "- Allergies: %s\n" +
-            "- Dietary Restrictions: %s\n" +
-            exerciseListBlock + "\n" +
+            "- Dietary Restrictions: %s\n",
+            user.getAge() != null ? user.getAge() : 25,
+            user.getGender() != null ? user.getGender().name() : "MALE",
+            user.getWeightKg() != null ? user.getWeightKg().doubleValue() : 70.0,
+            user.getHeightCm() != null ? user.getHeightCm() : 175,
+            workoutProfile.getFitnessLevel() != null ? workoutProfile.getFitnessLevel().name() : "BEGINNER",
+            goalsStr,
+            frequency,
+            sessionDuration,
+            workoutProfile.getAvailableEquipment() != null ? String.join(", ", workoutProfile.getAvailableEquipment()) : "BODYWEIGHT",
+            dietProfile.getDietType() != null ? dietProfile.getDietType().name() : "BALANCED",
+            dietProfile.getDailyCalorieGoal() != null ? dietProfile.getDailyCalorieGoal() : 2000,
+            dietProfile.getMealsPerDay() != null ? dietProfile.getMealsPerDay() : 3,
+            "None",
+            dietProfile.getDietaryRestrictions() != null && dietProfile.getDietaryRestrictions().length > 0 ? String.join(", ", dietProfile.getDietaryRestrictions()) : "None"
+        );
+
+        return userProfile + exerciseListBlock + "\n" +
             categoryGuidance +
             "Return TWO separate JSON objects:\n\n" +
 
-            "Generate a complete 1-week workout plan for 5 WORKOUT DAYS PER WEEK (Monday through Friday) with this exact structure (no placeholders):\n\n" +
+            "=== CRITICAL RULE 1: TRAINING DAYS ===\n" +
+            "workout_frequency=" + frequency + " means EXACTLY " + frequency + " days must have real training exercises.\n" +
+            "The remaining " + restDays + " days (7 - " + frequency + " = " + restDays + ") must be REST DAYS with only a single rest entry.\n" +
+            "NEVER count 'active recovery', 'light yoga', or 'stretching only' as one of the " + frequency + " real training days.\n\n" +
+
+            "=== CRITICAL RULE 2: MINIMUM EXERCISES PER TRAINING DAY ===\n" +
+            "Session duration=" + sessionDuration + " minutes. Every training day MUST have at least " + minExercises + " exercises.\n" +
+            "For " + sessionDuration + "-minute sessions, generating fewer than " + minExercises + " exercises per training day is a CRITICAL ERROR.\n\n" +
+
+            "Generate a complete 1-week workout plan with this exact structure (no placeholders):\n\n" +
             "WORKOUT_PLAN_JSON:\n" +
             "{\n" +
-            "  \"title\": \"1-Week 5-Day Workout Plan\",\n" +
+            "  \"title\": \"1-Week " + frequency + "-Day Workout Plan\",\n" +
             "  \"weeks\": {\n" +
             "    \"week_1\": {\n" +
             "      \"monday\": {\n" +
@@ -255,7 +298,47 @@ public class OpenAIService {
             "            \"reps\": 12,\n" +
             "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
             "            \"muscle_groups\": [\"chest\", \"triceps\"],\n" +
-            "            \"instructions\": \"Detailed instructions\"\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 10,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"back\", \"biceps\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 4,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"legs\", \"glutes\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 15,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"shoulders\", \"arms\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"core\", \"abs\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 10,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"full body\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
             "          }\n" +
             "        ]\n" +
             "      },\n" +
@@ -268,7 +351,15 @@ public class OpenAIService {
             "            \"reps\": 12,\n" +
             "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
             "            \"muscle_groups\": [\"back\", \"biceps\"],\n" +
-            "            \"instructions\": \"Detailed instructions\"\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"legs\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
             "          }\n" +
             "        ]\n" +
             "      },\n" +
@@ -294,7 +385,15 @@ public class OpenAIService {
             "            \"reps\": 12,\n" +
             "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
             "            \"muscle_groups\": [\"legs\", \"glutes\"],\n" +
-            "            \"instructions\": \"Detailed instructions\"\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"core\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
             "          }\n" +
             "        ]\n" +
             "      },\n" +
@@ -307,7 +406,15 @@ public class OpenAIService {
             "            \"reps\": 12,\n" +
             "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
             "            \"muscle_groups\": [\"shoulders\", \"arms\"],\n" +
-            "            \"instructions\": \"Detailed instructions\"\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"Exercise Name\",\n" +
+            "            \"sets\": 3,\n" +
+            "            \"reps\": 12,\n" +
+            "            \"weight_type\": \"bodyweight|dumbbell|time_seconds\",\n" +
+            "            \"muscle_groups\": [\"chest\"],\n" +
+            "            \"instructions\": \"Brief instructions\"\n" +
             "          }\n" +
             "        ]\n" +
             "      },\n" +
@@ -340,7 +447,12 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for 1 week (week_1 only) and all 7 days (monday, tuesday, wednesday, thursday, friday, saturday, sunday) with full exercise details. Every day MUST include a 'category' field with an appropriate label based on the split guidance above. Monday-Friday should have actual workouts, Wednesday can be active recovery, and Saturday-Sunday should be rest days.\n\n" +
+            "IMPORTANT: Replace ALL exercise names with REAL exercises from the catalog. " +
+            "Every day MUST include a 'category' field based on the split guidance above. " +
+            "Each of the " + frequency + " training days MUST have at least " + minExercises + " exercises (session is " + sessionDuration + " min). " +
+            "The monday template above shows 6 exercise slots — ALL training days need the same number. " +
+            "Tuesday/thursday/friday templates show only 2 for brevity — expand each to at least " + minExercises + " exercises. " +
+            "Distribute training days based on workout_frequency=" + frequency + "; remaining " + restDays + " days are rest days.\n\n" +
 
             "Generate a complete 1-week nutrition plan with this exact structure (no placeholders):\n\n" +
             "DIET_PLAN_JSON:\n" +
@@ -407,23 +519,7 @@ public class OpenAIService {
             "    }\n" +
             "  }\n" +
             "}\n" +
-            "IMPORTANT: Expand this structure completely for all 7 days (monday through sunday) with actual meal details and daily totals for each day. Replace all /* comments */ with real meal data.",
-
-            user.getAge() != null ? user.getAge() : 25,
-            user.getGender() != null ? user.getGender().name() : "MALE",
-            user.getWeightKg() != null ? user.getWeightKg().doubleValue() : 70.0,
-            user.getHeightCm() != null ? user.getHeightCm() : 175,
-            workoutProfile.getFitnessLevel() != null ? workoutProfile.getFitnessLevel().name() : "BEGINNER",
-            goalsStr,
-            frequency,
-            workoutProfile.getSessionDuration() != null ? workoutProfile.getSessionDuration() : 45,
-            workoutProfile.getAvailableEquipment() != null ? String.join(", ", workoutProfile.getAvailableEquipment()) : "BODYWEIGHT",
-            dietProfile.getDietType() != null ? dietProfile.getDietType().name() : "BALANCED",
-            dietProfile.getDailyCalorieGoal() != null ? dietProfile.getDailyCalorieGoal() : 2000,
-            dietProfile.getMealsPerDay() != null ? dietProfile.getMealsPerDay() : 3,
-            "None",
-            dietProfile.getDietaryRestrictions() != null && dietProfile.getDietaryRestrictions().length > 0 ? String.join(", ", dietProfile.getDietaryRestrictions()) : "None"
-        );
+            "IMPORTANT: Expand this structure completely for all 7 days (monday through sunday) with actual meal details and daily totals for each day. Replace all /* comments */ with real meal data.";
     }
 
     private CombinedPlanResult parseCombinedResponse(String content) {
