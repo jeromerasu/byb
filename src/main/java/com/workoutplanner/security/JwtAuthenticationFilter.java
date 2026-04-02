@@ -37,8 +37,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
 
         // Check if Authorization header is present and starts with "Bearer "
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -46,16 +44,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Extract JWT token
-        jwt = authHeader.substring(7);
-        username = jwtService.extractUsername(jwt);
+        // Extract and validate JWT token; any failure is non-fatal — chain continues
+        try {
+            String jwt = authHeader.substring(7);
+            String username = jwtService.extractUsername(jwt);
 
-        // Authenticate if username is found and no authentication is set
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
+            // Authenticate if username is found and no authentication is set
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userService.loadUserByUsername(username);
 
-                // Validate token
                 if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -65,10 +62,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
-            } catch (Exception e) {
-                // Log authentication failure but continue with the filter chain
-                logger.debug("JWT Authentication failed: " + e.getMessage());
             }
+        } catch (Exception e) {
+            // Log authentication failure but continue with the filter chain.
+            // Unauthenticated requests are handled by the authorization layer.
+            logger.debug("JWT Authentication failed: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);

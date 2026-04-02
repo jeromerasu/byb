@@ -71,7 +71,7 @@ public class SecurityConfig {
 
         // SECURITY-FIRST: Authentication is ENABLED by default
         if (betaMode) {
-            logger.warn("⚠️  BETA MODE ACTIVE: All authentication DISABLED! Only use for development. Set BETA=false or remove BETA for production.");
+            logger.warn("⚠️  BETA MODE ACTIVE: All requests permitted. Only use for development. Set BETA=false or remove BETA for production.");
             http.authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
         } else {
             logger.info("🔒 SECURE MODE: Authentication enabled for protected endpoints (default & recommended).");
@@ -111,10 +111,14 @@ public class SecurityConfig {
 
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
-            )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            );
         }
+
+        // Always run the JWT filter so SecurityContext is populated when a valid token is present.
+        // In beta mode, permitAll() still allows unauthenticated requests through — but controllers
+        // that read SecurityContext (e.g. /auth/me) need the context populated when a token IS sent.
+        http.authenticationProvider(authenticationProvider())
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Security headers configuration
         http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny()));
