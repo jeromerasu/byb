@@ -284,4 +284,72 @@ class PlanParsingServiceTest {
             }
         }
     }
+
+    // ─── Workout day_X fallback ────────────────────────────────────────────────
+
+    /**
+     * Build a workout plan where days use day_1..day_7 keys instead of monday..sunday.
+     * Each day's focus is unique so we can detect if the wrong day's data leaked.
+     */
+    private Map<String, Object> buildDayNumWorkoutPlan(String[] focuses) {
+        Map<String, Object> week = new LinkedHashMap<>();
+        week.put("done", false);
+        for (int i = 0; i < 7; i++) {
+            Map<String, Object> day = new LinkedHashMap<>();
+            day.put("done", false);
+            day.put("focus", focuses[i]);
+            day.put("exercises", List.of());
+            week.put("day_" + (i + 1), day);
+        }
+        Map<String, Object> weeks = new LinkedHashMap<>();
+        weeks.put("week_1", week);
+        Map<String, Object> plan = new LinkedHashMap<>();
+        plan.put("weeks", weeks);
+        return plan;
+    }
+
+    @Test
+    void workoutDayFallback_dayNKeys_mapToPositionallyCorrectDay() {
+        String[] focuses = {"Monday Focus", "Tuesday Focus", "Wednesday Focus",
+                "Thursday Focus", "Friday Focus", "Saturday Focus", "Sunday Focus"};
+        Map<String, Object> workoutPlan = buildDayNumWorkoutPlan(focuses);
+
+        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(workoutPlan, null, 1);
+        Map<String, CurrentWeekResponseDto.WorkoutDayDto> days = result.getWorkoutWeek().getDays();
+
+        String[] dayNames = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+        for (int i = 0; i < dayNames.length; i++) {
+            assertThat(days.get(dayNames[i]).getFocus())
+                    .as(dayNames[i] + " should map to day_" + (i + 1))
+                    .isEqualTo(focuses[i]);
+        }
+    }
+
+    @Test
+    void workoutDayFallback_missingDay_doesNotSubstituteOtherDaysData() {
+        // Plan only has monday — other days are absent entirely
+        Map<String, Object> monday = new LinkedHashMap<>();
+        monday.put("done", false);
+        monday.put("focus", "Unique Chest Day");
+        monday.put("exercises", List.of());
+
+        Map<String, Object> week = new LinkedHashMap<>();
+        week.put("done", false);
+        week.put("monday", monday);
+
+        Map<String, Object> weeks = new LinkedHashMap<>();
+        weeks.put("week_1", week);
+        Map<String, Object> plan = new LinkedHashMap<>();
+        plan.put("weeks", weeks);
+
+        CurrentWeekResponseDto result = planParsingService.extractCurrentWeek(plan, null, 1);
+        Map<String, CurrentWeekResponseDto.WorkoutDayDto> days = result.getWorkoutWeek().getDays();
+
+        String[] otherDays = {"tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+        for (String day : otherDays) {
+            assertThat(days.get(day).getFocus())
+                    .as(day + " must not receive monday's data")
+                    .isNotEqualTo("Unique Chest Day");
+        }
+    }
 }
