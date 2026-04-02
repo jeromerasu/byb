@@ -30,13 +30,20 @@ import java.util.Map;
  * <p>Migration phases:
  * <ol>
  *   <li>Find all system exercises whose {@code video_url} still points to {@code exercisedb}.
- *       Download each GIF, upload to MinIO at {@code exercises/{slug}/animation.gif}, and update the DB row.</li>
- *   <li>Find system exercises with a {@code NULL} {@code video_url}.  Attempt to resolve a GIF URL via the
- *       ExerciseDB API, then follow the same download-upload-update path.</li>
+ *       Try to download the GIF directly. If the static URL is dead (the original CDN is down),
+ *       fall back to the ExerciseDB community API to find a working GIF URL by name.
+ *       On success: upload to MinIO and update the DB row.</li>
+ *   <li>Find system exercises with a {@code NULL} {@code video_url}.  Attempt to resolve a GIF URL
+ *       via the ExerciseDB community API, then follow the same download-upload-update path.</li>
  * </ol>
  *
- * <p>The service is idempotent: exercises whose {@code video_url} already points to the MinIO endpoint are
- * skipped.  Failed individual exercises are logged and counted; the batch always completes.
+ * <p>The service is idempotent: exercises whose {@code video_url} already points to the MinIO
+ * endpoint are skipped (not returned by the repository queries).
+ * Failed individual exercises are logged and counted; the batch always completes.
+ *
+ * <p>ExerciseDB community API (open-source, no auth required):
+ * {@code https://exercisedb-api.vercel.app/api/v1/exercises?search=<name>&limit=5&offset=0}
+ * Response envelope: {@code { "success": true, "data": [ { "gifUrl": "...", "name": "..." } ] }}
  */
 @Service
 public class ExerciseMediaMigrationService {
@@ -45,8 +52,12 @@ public class ExerciseMediaMigrationService {
 
     public static final String BUCKET_NAME = "exercise-media";
 
-    /** Base URL of the ExerciseDB API used to look up GIFs for exercises that have no video_url. */
-    private static final String EXERCISEDB_API_BASE = "https://exercisedb.dev/api/v2/exercises/name/";
+    /**
+     * Search endpoint of the ExerciseDB open-source community API (v1).
+     * The original exercisedb.dev CDN and v2 API are no longer reliable.
+     */
+    private static final String EXERCISEDB_SEARCH_API =
+            "https://exercisedb-api.vercel.app/api/v1/exercises?search=";
 
     // -----------------------------------------------------------------------
     // Dependencies
@@ -140,19 +151,37 @@ public class ExerciseMediaMigrationService {
         int skipped   = 0;
 
         // ---- Phase 1: exercises that still have ExerciseDB URLs ----
+        //
+        // The original exercisedb.dev static CDN is down, so direct downloads will
+        // fail for many exercises. When that happens we fall back to the community
+        // API (exercisedb-api.vercel.app) and search by name.
         List<ExerciseCatalog> withExerciseDbUrls = repository.findSystemExercisesWithExerciseDbUrls();
         log.info("media.migration.phase1.start count={}", withExerciseDbUrls.size());
 
         for (ExerciseCatalog exercise : withExerciseDbUrls) {
+            boolean resolved = false;
             try {
                 migrateExercise(exercise);
                 succeeded++;
-                delay();
+                resolved = true;
             } catch (Exception e) {
-                log.warn("media.migration.exercise.failed name='{}' error={}",
-                        exercise.getName(), e.getMessage());
-                failed++;
+                log.warn("media.migration.exercise.phase1.failed name='{}' url='{}' error={} — trying API fallback",
+                        exercise.getName(), exercise.getVideoUrl(), e.getMessage());
+                try {
+                    resolved = resolveViaApi(exercise);
+                    if (resolved) {
+                        succeeded++;
+                    } else {
+                        log.warn("media.migration.exercise.unresolvable name='{}'", exercise.getName());
+                        failed++;
+                    }
+                } catch (Exception ex) {
+                    log.warn("media.migration.exercise.apiFallback.failed name='{}' error={}",
+                            exercise.getName(), ex.getMessage());
+                    failed++;
+                }
             }
+            delay();
         }
 
         // ---- Phase 2: exercises with NULL video_url ----
@@ -161,19 +190,19 @@ public class ExerciseMediaMigrationService {
 
         for (ExerciseCatalog exercise : nullVideoExercises) {
             try {
-                boolean resolved = resolveNullVideoExercise(exercise);
+                boolean resolved = resolveViaApi(exercise);
                 if (resolved) {
                     succeeded++;
                 } else {
                     log.info("media.migration.exercise.unresolved name='{}'", exercise.getName());
                     skipped++;
                 }
-                delay();
             } catch (Exception e) {
                 log.warn("media.migration.exercise.nullVideo.failed name='{}' error={}",
                         exercise.getName(), e.getMessage());
                 skipped++; // can't resolve → treat as skipped, not failed
             }
+            delay();
         }
 
         log.info("media.migration.complete succeeded={} failed={} skipped={}",
@@ -238,31 +267,56 @@ public class ExerciseMediaMigrationService {
     }
 
     /**
-     * Attempts to find a GIF for an exercise that has no {@code video_url} by querying the
-     * ExerciseDB API.  If a match is found, delegates to {@link #migrateExercise(ExerciseCatalog)}.
+     * Attempts to find a working GIF URL for the given exercise by searching the ExerciseDB
+     * community API (v1) by name. If a match is found, delegates to
+     * {@link #migrateExercise(ExerciseCatalog)} to download, upload, and update the DB.
+     *
+     * <p>Used in two scenarios:
+     * <ul>
+     *   <li>Phase 1 fallback: static exercisedb.dev URL returned an error.</li>
+     *   <li>Phase 2: exercise has no {@code video_url} at all.</li>
+     * </ul>
      *
      * @return {@code true} if the exercise was successfully migrated, {@code false} if no match found.
      */
-    private boolean resolveNullVideoExercise(ExerciseCatalog exercise) throws IOException {
-        String encodedName = URLEncoder.encode(exercise.getName().toLowerCase(), StandardCharsets.UTF_8);
-        String apiUrl = EXERCISEDB_API_BASE + encodedName + "?limit=5&offset=0";
+    private boolean resolveViaApi(ExerciseCatalog exercise) throws IOException {
+        String encodedName = URLEncoder.encode(exercise.getName(), StandardCharsets.UTF_8);
+        String apiUrl = EXERCISEDB_SEARCH_API + encodedName + "&limit=5&offset=0";
 
         byte[] responseBytes = gifDownloader.download(apiUrl);
-        JsonNode arr = objectMapper.readTree(responseBytes);
+        JsonNode root = objectMapper.readTree(responseBytes);
 
-        if (!arr.isArray() || arr.isEmpty()) {
+        // Response envelope: { "success": true, "data": [ {...}, ... ], "metadata": {...} }
+        JsonNode data = root.path("data");
+        if (!data.isArray() || data.isEmpty()) {
             return false;
         }
 
-        String gifUrl = arr.get(0).path("gifUrl").asText(null);
+        String gifUrl = findBestMatch(data, exercise.getName());
         if (gifUrl == null || gifUrl.isEmpty()) {
             return false;
         }
 
-        // Temporarily set the found URL so migrateExercise can download it
+        // Set the resolved URL so migrateExercise can download it
         exercise.setVideoUrl(gifUrl);
         migrateExercise(exercise);
         return true;
+    }
+
+    /**
+     * Finds the best GIF URL from the API result set.
+     * Prefers an exact name match (case-insensitive); falls back to the first result.
+     */
+    private String findBestMatch(JsonNode exercises, String exerciseName) {
+        for (JsonNode node : exercises) {
+            if (exerciseName.equalsIgnoreCase(node.path("name").asText())) {
+                String url = node.path("gifUrl").asText(null);
+                if (url != null && !url.isEmpty()) return url;
+            }
+        }
+        // No exact match — use first result's GIF
+        String url = exercises.get(0).path("gifUrl").asText(null);
+        return (url != null && !url.isEmpty()) ? url : null;
     }
 
     private byte[] buildMetadataJson(ExerciseCatalog exercise) throws IOException {
