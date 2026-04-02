@@ -90,11 +90,9 @@ public class ExerciseCatalogController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String muscleGroup,
-            @RequestParam(required = false) String equipment,
-            HttpServletRequest request) {
+            @RequestParam(required = false) String equipment) {
 
-        String userId = getCurrentUserId(request);
-        return ResponseEntity.ok(service.listForUser(userId, name, type, muscleGroup, equipment));
+        return ResponseEntity.ok(service.listForUser(name, type, muscleGroup, equipment));
     }
 
     @GetMapping("/{id}")

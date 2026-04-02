@@ -22,54 +22,50 @@ public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog
     // --- Scope-aware list queries ----------------------------------------
 
     /**
-     * Returns all system entries plus entries owned by the given user.
+     * Returns all system entries.
      */
-    @Query(value = "SELECT * FROM exercise_catalog WHERE is_system = true OR CAST(created_by_user_id AS TEXT) = :userId",
+    @Query(value = "SELECT * FROM exercise_catalog WHERE is_system = true",
            nativeQuery = true)
-    List<ExerciseCatalog> findVisibleToUser(@Param("userId") String userId);
+    List<ExerciseCatalog> findVisibleToUser();
 
     /**
-     * Returns visible entries filtered by exercise type.
+     * Returns system entries filtered by exercise type.
      */
     @Query(value = "SELECT * FROM exercise_catalog " +
-           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "WHERE is_system = true " +
            "AND LOWER(exercise_type) = LOWER(:exerciseType)",
            nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByType(
-            @Param("userId") String userId,
             @Param("exerciseType") String exerciseType);
 
     /**
-     * Returns visible entries whose name contains the given substring (case-insensitive).
+     * Returns system entries whose name contains the given substring (case-insensitive).
      */
     @Query(value = "SELECT * FROM exercise_catalog " +
-           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "WHERE is_system = true " +
            "AND LOWER(name) LIKE LOWER(('%' || :name || '%'))",
            nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByNameContaining(
-            @Param("userId") String userId,
             @Param("name") String name);
 
     /**
-     * Returns visible entries that list a given muscle group (substring match on stored text).
+     * Returns system entries that list a given muscle group (substring match on stored text).
      */
     @Query(value = "SELECT * FROM exercise_catalog " +
-           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "WHERE is_system = true " +
            "AND LOWER(CAST(muscle_groups AS TEXT)) LIKE LOWER(('%' || :muscleGroup || '%'))",
            nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByMuscleGroup(
-            @Param("userId") String userId,
             @Param("muscleGroup") String muscleGroup);
 
     /**
-     * Returns visible entries that list a given equipment type (substring match on stored text).
+     * Returns system entries that list a given equipment type (substring match on stored text).
      */
     @Query(value = "SELECT * FROM exercise_catalog " +
-           "WHERE (is_system = true OR CAST(created_by_user_id AS TEXT) = :userId) " +
+           "WHERE is_system = true " +
            "AND LOWER(CAST(equipment_required AS TEXT)) LIKE LOWER(('%' || :equipment || '%'))",
            nativeQuery = true)
     List<ExerciseCatalog> findVisibleToUserByEquipment(
-            @Param("userId") String userId,
             @Param("equipment") String equipment);
 
     // --- Ownership / uniqueness helpers ---------------------------------

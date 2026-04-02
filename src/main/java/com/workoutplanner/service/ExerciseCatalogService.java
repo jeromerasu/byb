@@ -43,28 +43,27 @@ public class ExerciseCatalogService {
     // ---------------------------------------------------------------
 
     /**
-     * Returns all exercises visible to the requesting user:
-     * system entries plus their own custom entries.
+     * Returns all system exercises.
      * Supports optional filters (applied at most one at a time in priority order).
      */
     public List<ExerciseCatalogResponseDto> listForUser(
-            String userId, String name, String type, String muscleGroup, String equipment) {
+            String name, String type, String muscleGroup, String equipment) {
 
-        log.info("catalog.list userId={} name={} type={} muscleGroup={} equipment={}",
-                userId, name, type, muscleGroup, equipment);
+        log.info("catalog.list name={} type={} muscleGroup={} equipment={}",
+                name, type, muscleGroup, equipment);
 
         List<ExerciseCatalog> results;
 
         if (name != null && !name.isBlank()) {
-            results = repository.findVisibleToUserByNameContaining(userId, name.trim());
+            results = repository.findVisibleToUserByNameContaining(name.trim());
         } else if (type != null && !type.isBlank()) {
-            results = repository.findVisibleToUserByType(userId, type.trim());
+            results = repository.findVisibleToUserByType(type.trim());
         } else if (muscleGroup != null && !muscleGroup.isBlank()) {
-            results = repository.findVisibleToUserByMuscleGroup(userId, muscleGroup.trim());
+            results = repository.findVisibleToUserByMuscleGroup(muscleGroup.trim());
         } else if (equipment != null && !equipment.isBlank()) {
-            results = repository.findVisibleToUserByEquipment(userId, equipment.trim());
+            results = repository.findVisibleToUserByEquipment(equipment.trim());
         } else {
-            results = repository.findVisibleToUser(userId);
+            results = repository.findVisibleToUser();
         }
 
         log.info("catalog.list result count={}", results.size());

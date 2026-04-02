@@ -268,61 +268,60 @@ class ExerciseCatalogServiceTest {
     // ---------------------------------------------------------------
 
     @Test
-    void listForUser_NoFilter_ShouldReturnSystemAndOwnCustom() {
-        List<ExerciseCatalog> visible = List.of(
-                makeSystem(1L, "Squat"),
-                makeCustom(2L, "My Curl", USER_A));
-        when(repository.findVisibleToUser(USER_A)).thenReturn(visible);
+    void listForUser_NoFilter_ShouldReturnSystemExercises() {
+        List<ExerciseCatalog> visible = List.of(makeSystem(1L, "Squat"));
+        when(repository.findVisibleToUser()).thenReturn(visible);
 
-        List<ExerciseCatalogResponseDto> result = service.listForUser(USER_A, null, null, null, null);
+        List<ExerciseCatalogResponseDto> result = service.listForUser(null, null, null, null);
 
         log.info("test.listForUser count={}", result.size());
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).isSystem());
     }
 
     @Test
     void listForUser_TypeFilter_ShouldDelegateToTypeQuery() {
-        when(repository.findVisibleToUserByType(USER_A, "STRENGTH"))
+        when(repository.findVisibleToUserByType("STRENGTH"))
                 .thenReturn(List.of(makeSystem(1L, "Squat")));
 
-        List<ExerciseCatalogResponseDto> result = service.listForUser(USER_A, null, "STRENGTH", null, null);
+        List<ExerciseCatalogResponseDto> result = service.listForUser(null, "STRENGTH", null, null);
 
         log.info("test.listForUser.type count={}", result.size());
         assertEquals(1, result.size());
-        verify(repository).findVisibleToUserByType(USER_A, "STRENGTH");
+        verify(repository).findVisibleToUserByType("STRENGTH");
     }
 
     @Test
     void listForUser_NameFilter_ShouldDelegateToNameQuery() {
-        when(repository.findVisibleToUserByNameContaining(USER_A, "press"))
+        when(repository.findVisibleToUserByNameContaining("press"))
                 .thenReturn(List.of(makeSystem(2L, "Bench Press")));
 
-        List<ExerciseCatalogResponseDto> result = service.listForUser(USER_A, "press", null, null, null);
+        List<ExerciseCatalogResponseDto> result = service.listForUser("press", null, null, null);
 
         assertEquals(1, result.size());
-        verify(repository).findVisibleToUserByNameContaining(USER_A, "press");
+        verify(repository).findVisibleToUserByNameContaining("press");
     }
 
     @Test
     void listForUser_MuscleGroupFilter_ShouldDelegateToMuscleGroupQuery() {
-        when(repository.findVisibleToUserByMuscleGroup(USER_A, "CHEST"))
+        when(repository.findVisibleToUserByMuscleGroup("CHEST"))
                 .thenReturn(List.of(makeSystem(3L, "Push-up")));
 
-        List<ExerciseCatalogResponseDto> result = service.listForUser(USER_A, null, null, "CHEST", null);
+        List<ExerciseCatalogResponseDto> result = service.listForUser(null, null, "CHEST", null);
 
         assertEquals(1, result.size());
-        verify(repository).findVisibleToUserByMuscleGroup(USER_A, "CHEST");
+        verify(repository).findVisibleToUserByMuscleGroup("CHEST");
     }
 
     @Test
     void listForUser_EquipmentFilter_ShouldDelegateToEquipmentQuery() {
-        when(repository.findVisibleToUserByEquipment(USER_A, "BARBELL"))
+        when(repository.findVisibleToUserByEquipment("BARBELL"))
                 .thenReturn(List.of(makeSystem(4L, "Deadlift")));
 
-        List<ExerciseCatalogResponseDto> result = service.listForUser(USER_A, null, null, null, "BARBELL");
+        List<ExerciseCatalogResponseDto> result = service.listForUser(null, null, null, "BARBELL");
 
         assertEquals(1, result.size());
-        verify(repository).findVisibleToUserByEquipment(USER_A, "BARBELL");
+        verify(repository).findVisibleToUserByEquipment("BARBELL");
     }
 
     // ---------------------------------------------------------------
