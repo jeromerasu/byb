@@ -9,6 +9,7 @@ import com.workoutplanner.model.DietProfile;
 import com.workoutplanner.repository.WorkoutProfileRepository;
 import com.workoutplanner.repository.DietProfileRepository;
 import com.workoutplanner.repository.UserRepository;
+import com.workoutplanner.repository.UserWeekPlanRepository;
 import com.workoutplanner.service.BillingEntitlementService;
 import com.workoutplanner.service.CombinedPlanService;
 import com.workoutplanner.service.PlanParsingService;
@@ -47,6 +48,7 @@ public class PlanController {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final BillingEntitlementService billingEntitlementService;
+    private final UserWeekPlanRepository userWeekPlanRepository;
 
     @Value("${beta.mode:false}")
     private boolean betaMode;
@@ -62,7 +64,8 @@ public class PlanController {
                          DietProfileRepository dietProfileRepository,
                          UserRepository userRepository,
                          JwtService jwtService,
-                         BillingEntitlementService billingEntitlementService) {
+                         BillingEntitlementService billingEntitlementService,
+                         UserWeekPlanRepository userWeekPlanRepository) {
         this.combinedPlanService = combinedPlanService;
         this.planParsingService = planParsingService;
         this.storageService = storageService;
@@ -71,6 +74,7 @@ public class PlanController {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.billingEntitlementService = billingEntitlementService;
+        this.userWeekPlanRepository = userWeekPlanRepository;
     }
 
     @PostMapping("/generate")
@@ -78,11 +82,17 @@ public class PlanController {
         String userId = getCurrentUserId(request);
         logger.info("plan.generate.requested user_id={}", userId);
 
-        // Enforce billing entitlement check when enforcement is enabled
+        // Enforce billing entitlement check when enforcement is enabled.
+        // First plan is always free: skip the gate when the user has no prior plans.
         if (billingEnforcementEnabled && !billingEntitlementService.hasActivePremiumEntitlement(userId)) {
-            logger.info("plan.generate.blocked user_id={} reason=no_active_premium_entitlement", userId);
-            return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Upgrade to Premium to unlock AI plan generation"));
+            boolean isFirstPlan = userWeekPlanRepository.findByUserIdOrderByWeekStartDesc(userId).isEmpty();
+            if (isFirstPlan) {
+                logger.info("plan.generate.first_plan_free user_id={}", userId);
+            } else {
+                logger.info("plan.generate.blocked user_id={} reason=no_active_premium_entitlement", userId);
+                return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Upgrade to Premium to unlock AI plan generation"));
+            }
         }
 
         Mono<ResponseEntity<?>> resultMono = Mono.<ResponseEntity<?>>fromCallable(() -> {
