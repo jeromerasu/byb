@@ -110,7 +110,8 @@ class ExerciseMediaMigrationServiceTest {
         assertEquals(0, result.getSucceeded());
         assertEquals(0, result.getFailed());
         assertEquals(0, result.getSkipped());
-        verifyNoInteractions(storageService);
+        // No GIF uploads or DB saves — setBucketPublicRead is still called once on entry
+        verify(storageService, never()).putBytes(any(), any(), any(), any());
     }
 
     @Test
@@ -126,7 +127,7 @@ class ExerciseMediaMigrationServiceTest {
 
         log.info("test.migrateAll.idempotency skipped={}", result.getSkipped());
         verifyNoInteractions(gifDownloader);
-        verifyNoInteractions(storageService);
+        verify(storageService, never()).putBytes(any(), any(), any(), any());
     }
 
     @Test
