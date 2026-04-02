@@ -3,7 +3,9 @@ package com.workoutplanner.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class RevenueCatWebhookDto {
@@ -14,6 +16,7 @@ public class RevenueCatWebhookDto {
     @JsonProperty("api_version")
     private String apiVersion;
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Event {
         @JsonProperty("type")
         private String type;
@@ -184,20 +187,20 @@ public class RevenueCatWebhookDto {
         public String getOfferCode() { return offerCode; }
         public void setOfferCode(String offerCode) { this.offerCode = offerCode; }
 
-        // Helper methods
+        // Helper methods — convert epoch-millisecond timestamps to UTC LocalDateTime
         public LocalDateTime getEventTimestamp() {
             return eventTimestampMs != null ?
-                LocalDateTime.now().plusNanos((eventTimestampMs - System.currentTimeMillis()) * 1_000_000) : null;
+                Instant.ofEpochMilli(eventTimestampMs).atZone(ZoneOffset.UTC).toLocalDateTime() : null;
         }
 
         public LocalDateTime getPurchasedAt() {
             return purchasedAtMs != null ?
-                LocalDateTime.now().plusNanos((purchasedAtMs - System.currentTimeMillis()) * 1_000_000) : null;
+                Instant.ofEpochMilli(purchasedAtMs).atZone(ZoneOffset.UTC).toLocalDateTime() : null;
         }
 
         public LocalDateTime getExpirationAt() {
             return expirationAtMs != null ?
-                LocalDateTime.now().plusNanos((expirationAtMs - System.currentTimeMillis()) * 1_000_000) : null;
+                Instant.ofEpochMilli(expirationAtMs).atZone(ZoneOffset.UTC).toLocalDateTime() : null;
         }
     }
 
