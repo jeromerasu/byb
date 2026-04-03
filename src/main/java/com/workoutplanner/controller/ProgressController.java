@@ -134,13 +134,15 @@ public class ProgressController {
     // P1-011: Progressive overload summary
     @GetMapping("/overload-summary")
     public ResponseEntity<List<OverloadSummaryResponse>> overloadSummary(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             HttpServletRequest request) {
 
         String userId = getCurrentUserId(request);
-        log.info("progress.overload_summary userId={} from={} to={}", userId, from, to);
-        return ResponseEntity.ok(overloadService.getOverloadSummary(userId, from, to));
+        LocalDate resolvedFrom = from != null ? from : LocalDate.now().minusDays(30);
+        LocalDate resolvedTo = to != null ? to : LocalDate.now();
+        log.info("progress.overload_summary userId={} from={} to={}", userId, resolvedFrom, resolvedTo);
+        return ResponseEntity.ok(overloadService.getOverloadSummary(userId, resolvedFrom, resolvedTo));
     }
 
     // -------------------------------------------------------------------------

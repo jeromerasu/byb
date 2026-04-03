@@ -53,9 +53,10 @@ public class DietFeedbackController {
         return ResponseEntity.ok(dietFeedbackRepository.save(feedback));
     }
 
-    @GetMapping(value = "/feedback", params = "days")
-    public ResponseEntity<List<DietFeedback>> getRecentFeedback(@RequestParam int days,
-                                                                 HttpServletRequest httpRequest) {
+    @GetMapping("/feedback")
+    public ResponseEntity<List<DietFeedback>> getRecentFeedback(
+            @RequestParam(required = false, defaultValue = "7") int days,
+            HttpServletRequest httpRequest) {
         String userId = getCurrentUserId(httpRequest);
         LocalDate since = LocalDate.now().minusDays(days);
         return ResponseEntity.ok(dietFeedbackRepository.findByUserIdAndFeedbackDateAfter(userId, since));
