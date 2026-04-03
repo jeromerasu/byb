@@ -65,7 +65,9 @@ public class PlanParsingService {
                 .collect(Collectors.toMap(
                         e -> normalizeExerciseName(e.getName()),
                         e -> e,
-                        (e1, e2) -> e1));
+                        // Prefer the entry that actually has a video URL so the exact-match
+                        // path can enrich without needing the fallback loop.
+                        (e1, e2) -> e1.getVideoUrl() != null ? e1 : e2));
 
         // Extract workout week with dates
         CurrentWeekResponseDto.WorkoutWeekDto workoutWeek = extractWorkoutWeek(workoutPlan, weekKey, weekStartDate);
@@ -146,7 +148,33 @@ public class PlanParsingService {
                 }
             }
         }
-        return best;
+        if (best != null) return best;
+
+        // 3. Word-overlap scoring fallback – catches names with the same key words
+        //    in a different order or with extra qualifier words, e.g.:
+        //    plan "Incline Dumbbell Press" vs catalog "Dumbbell Bench Press"
+        //    (shares "dumbbell" + "pres" = 2/3 words ≈ 0.67 ≥ threshold 0.60).
+        Set<String> planWords = new HashSet<>(Arrays.asList(normalized.split("\\s+")));
+        planWords.remove("");
+        if (!planWords.isEmpty()) {
+            ExerciseCatalog bestOverlap = null;
+            double bestOverlapScore = 0.59; // strictly above threshold
+            for (ExerciseCatalog entry : allCatalogExercises) {
+                if (entry.getVideoUrl() == null) continue;
+                String catNorm = normalizeExerciseName(entry.getName());
+                Set<String> catWords = new HashSet<>(Arrays.asList(catNorm.split("\\s+")));
+                catWords.remove("");
+                if (catWords.isEmpty()) continue;
+                long overlap = planWords.stream().filter(catWords::contains).count();
+                double score = (double) overlap / Math.max(planWords.size(), catWords.size());
+                if (score > bestOverlapScore) {
+                    bestOverlap = entry;
+                    bestOverlapScore = score;
+                }
+            }
+            if (bestOverlap != null) return bestOverlap;
+        }
+        return null;
     }
 
     /**
