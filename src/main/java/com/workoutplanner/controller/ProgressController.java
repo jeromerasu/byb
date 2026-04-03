@@ -61,7 +61,7 @@ public class ProgressController {
         return ResponseEntity.ok(progressService.getExerciseHistory(userId, exercise, resolvedFrom, resolvedTo));
     }
 
-    @GetMapping("/workout-heatmap")
+    @GetMapping({"/workout-heatmap", "/heatmap"})
     public ResponseEntity<List<WorkoutHeatmapResponse>> workoutHeatmap(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

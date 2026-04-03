@@ -2,6 +2,7 @@ package com.workoutplanner.dto;
 
 import com.workoutplanner.model.ExerciseType;
 import com.workoutplanner.model.WorkoutRating;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -17,6 +18,7 @@ public class WorkoutLogRequest {
     @PositiveOrZero(message = "Weight must be positive or zero")
     private BigDecimal weight;
 
+    @JsonDeserialize(using = IntegerFromArraySizeDeserializer.class)
     private Integer sets;
 
     private Integer reps;
