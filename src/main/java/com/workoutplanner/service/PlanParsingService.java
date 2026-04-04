@@ -4,6 +4,8 @@ import com.workoutplanner.dto.CurrentWeekResponseDto;
 import com.workoutplanner.dto.DietFoodCatalogResponseDto;
 import com.workoutplanner.model.ExerciseCatalog;
 import com.workoutplanner.repository.ExerciseCatalogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -13,6 +15,8 @@ import java.time.format.DateTimeFormatter;
 
 @Service
 public class PlanParsingService {
+
+    private static final Logger log = LoggerFactory.getLogger(PlanParsingService.class);
 
     private final ExerciseCatalogRepository exerciseCatalogRepository;
 
@@ -120,8 +124,10 @@ public class PlanParsingService {
     /**
      * Find the best matching catalog entry for an AI-generated exercise name.
      * 1. Try exact normalized match.
-     * 2. Fall back to the first catalog entry whose normalized name is contained
-     *    in the exercise name, or vice-versa (handles "Barbell Back Squat" vs "Back Squat").
+     * 2. Substring/contains fallback: the catalog name must be a WHOLE-WORD substring
+     *    of the plan name, or vice-versa (e.g. "Back Squat" inside "Barbell Back Squat").
+     * 3. Word-overlap scoring (≥ 0.75) with a first-word anchor requirement: the first
+     *    word of the plan exercise must appear in the catalog entry name.
      */
     private static ExerciseCatalog findCatalogEntry(
             String exerciseName,
@@ -132,15 +138,23 @@ public class PlanParsingService {
 
         // 1. Exact normalized match
         ExerciseCatalog exact = catalogMap.get(normalized);
-        if (exact != null) return exact;
+        if (exact != null) {
+            log.debug("Exercise match [EXACT] '{}' → '{}'", exerciseName, exact.getName());
+            return exact;
+        }
 
-        // 2. Substring / contains fallback (only if video URL exists)
+        // 2. Whole-word substring / contains fallback (only if video URL exists).
+        //    Require that catNorm is a whole-word boundary match within normalized (or vice-versa)
+        //    to avoid "pres" inside "shoulder pres" matching any "Press" exercise.
         ExerciseCatalog best = null;
         int bestLen = 0;
         for (ExerciseCatalog entry : allCatalogExercises) {
             if (entry.getVideoUrl() == null) continue;
             String catNorm = normalizeExerciseName(entry.getName());
-            if (normalized.contains(catNorm) || catNorm.contains(normalized)) {
+            // Use word-boundary checks: match only if catNorm is a full-word sequence within normalized
+            boolean planContainsCat = isWholeWordSubstring(normalized, catNorm);
+            boolean catContainsPlan = isWholeWordSubstring(catNorm, normalized);
+            if (planContainsCat || catContainsPlan) {
                 // Prefer the longest matching catalog name (most specific)
                 if (catNorm.length() > bestLen) {
                     best = entry;
@@ -148,23 +162,29 @@ public class PlanParsingService {
                 }
             }
         }
-        if (best != null) return best;
+        if (best != null) {
+            log.debug("Exercise match [CONTAINS] '{}' → '{}'", exerciseName, best.getName());
+            return best;
+        }
 
-        // 3. Word-overlap scoring fallback – catches names with the same key words
-        //    in a different order or with extra qualifier words, e.g.:
-        //    plan "Incline Dumbbell Press" vs catalog "Dumbbell Bench Press"
-        //    (shares "dumbbell" + "pres" = 2/3 words ≈ 0.67 ≥ threshold 0.60).
-        Set<String> planWords = new HashSet<>(Arrays.asList(normalized.split("\\s+")));
+        // 3. Word-overlap scoring fallback (threshold ≥ 0.75, first-word anchor required).
+        //    The first word of the plan exercise must appear in the catalog entry's words,
+        //    preventing "Shoulder Press" from matching "Leg Press" via the shared "pres" word.
+        String[] planWordArr = normalized.split("\\s+");
+        Set<String> planWords = new HashSet<>(Arrays.asList(planWordArr));
         planWords.remove("");
-        if (!planWords.isEmpty()) {
+        String firstPlanWord = planWordArr.length > 0 ? planWordArr[0] : "";
+        if (!planWords.isEmpty() && !firstPlanWord.isEmpty()) {
             ExerciseCatalog bestOverlap = null;
-            double bestOverlapScore = 0.59; // strictly above threshold
+            double bestOverlapScore = 0.74; // strictly above threshold of 0.75
             for (ExerciseCatalog entry : allCatalogExercises) {
                 if (entry.getVideoUrl() == null) continue;
                 String catNorm = normalizeExerciseName(entry.getName());
                 Set<String> catWords = new HashSet<>(Arrays.asList(catNorm.split("\\s+")));
                 catWords.remove("");
                 if (catWords.isEmpty()) continue;
+                // First-word anchor: plan's first word must appear in catalog entry words
+                if (!catWords.contains(firstPlanWord)) continue;
                 long overlap = planWords.stream().filter(catWords::contains).count();
                 double score = (double) overlap / Math.max(planWords.size(), catWords.size());
                 if (score > bestOverlapScore) {
@@ -172,9 +192,28 @@ public class PlanParsingService {
                     bestOverlapScore = score;
                 }
             }
-            if (bestOverlap != null) return bestOverlap;
+            if (bestOverlap != null) {
+                log.debug("Exercise match [WORD-OVERLAP {}%] '{}' → '{}'",
+                        Math.round(bestOverlapScore * 100), exerciseName, bestOverlap.getName());
+                return bestOverlap;
+            }
         }
+
+        log.debug("Exercise match [NONE] '{}' (normalized: '{}')", exerciseName, normalized);
         return null;
+    }
+
+    /**
+     * Returns true if {@code sub} appears as a whole-word sequence within {@code text}.
+     * Both strings should already be normalized (lowercase, spaces only).
+     * Example: isWholeWordSubstring("barbell back squat", "back squat") → true
+     *          isWholeWordSubstring("shoulder pres", "pres") → false (single-char boundary needed)
+     */
+    private static boolean isWholeWordSubstring(String text, String sub) {
+        if (sub.isEmpty()) return false;
+        // Use word-boundary regex so "pres" doesn't match inside "shoulder pres" unless it's isolated
+        String pattern = "(^|\\s)" + java.util.regex.Pattern.quote(sub) + "($|\\s)";
+        return text.matches(".*" + pattern + ".*");
     }
 
     /**
