@@ -8,10 +8,12 @@ import com.workoutplanner.repository.WorkoutFeedbackRepository;
 import com.workoutplanner.service.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -85,13 +87,13 @@ public class WorkoutFeedbackController {
             } catch (Exception e) {
                 System.out.println("Failed to find users in database: " + e.getMessage());
             }
-            throw new RuntimeException("No users found in database for BETA testing");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No users found in database for BETA testing");
         }
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return ((User) authentication.getPrincipal()).getId();
         }
-        throw new RuntimeException("User not authenticated");
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
     }
 }

@@ -1,5 +1,6 @@
 package com.workoutplanner.controller;
 
+import com.workoutplanner.dto.DietFeedbackRequest;
 import com.workoutplanner.model.DietFeedback;
 import com.workoutplanner.model.User;
 import com.workoutplanner.repository.DietFeedbackRepository;
@@ -68,6 +69,62 @@ class DietFeedbackControllerTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(user);
         SecurityContextHolder.setContext(securityContext);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/v1/diet/feedback
+    // -------------------------------------------------------------------------
+
+    @Test
+    void submitFeedback_withAllFields_Returns200() {
+        DietFeedback saved = new DietFeedback();
+        saved.setUserId(USER_ID);
+
+        when(dietFeedbackRepository.save(any(DietFeedback.class))).thenReturn(saved);
+
+        DietFeedbackRequest request = new DietFeedbackRequest();
+        request.setRating(4);
+        request.setSessionComments(List.of("felt good", "meal was balanced"));
+        request.setFlaggedMeals(List.of("chicken salad"));
+        request.setFreeFormNote("too much sodium");
+
+        ResponseEntity<DietFeedback> response = controller.submitFeedback(request, httpRequest);
+
+        log.info("test.dietFeedback.post status={}", response.getStatusCode());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(dietFeedbackRepository).save(any(DietFeedback.class));
+    }
+
+    @Test
+    void submitFeedback_withMinimalBody_Returns200() {
+        DietFeedback saved = new DietFeedback();
+        saved.setUserId(USER_ID);
+
+        when(dietFeedbackRepository.save(any(DietFeedback.class))).thenReturn(saved);
+
+        DietFeedbackRequest request = new DietFeedbackRequest();
+        request.setRating(5);
+
+        ResponseEntity<DietFeedback> response = controller.submitFeedback(request, httpRequest);
+
+        log.info("test.dietFeedback.postMinimal status={}", response.getStatusCode());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(dietFeedbackRepository).save(any(DietFeedback.class));
+    }
+
+    @Test
+    void submitFeedback_withNullListFields_doesNotThrow() {
+        DietFeedback saved = new DietFeedback();
+        saved.setUserId(USER_ID);
+
+        when(dietFeedbackRepository.save(any(DietFeedback.class))).thenReturn(saved);
+
+        DietFeedbackRequest request = new DietFeedbackRequest();
+        // sessionComments and flaggedMeals are null — must not NPE
+
+        ResponseEntity<DietFeedback> response = controller.submitFeedback(request, httpRequest);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
     }
 
     // -------------------------------------------------------------------------
